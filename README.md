@@ -24,18 +24,18 @@ move opportunities through a shared pipeline: **New → Contacted → Qualified 
 
 ## Status
 
-**Phases 1 to 3 — complete.** Auth, the full data model, the leads table, the lead detail view
-with activity timeline and follow-ups, a drag-and-drop pipeline board, a business dashboard built
-on real aggregates, and the whole product in English or Arabic with a mirrored right-to-left
-layout and a light/dark theme.
+**Phases 1 to 3 — complete.** Auth, the full data model, the leads table with bulk actions, the
+lead detail view with activity timeline and follow-ups, a drag-and-drop pipeline board, a business
+dashboard built on real aggregates, a public landing page, and the whole product in English or
+Arabic with a mirrored right-to-left layout and a light/dark theme.
 
-| Phase | Scope                                                             | State   |
-| ----- | ----------------------------------------------------------------- | ------- |
-| 1     | Setup · auth · data model · leads table · lead detail · seed data | ✅ Done |
-| 2     | Drag-and-drop pipeline board · dashboard with charts              | ✅ Done |
-| 3     | EN/AR localisation with full RTL · light and dark themes          | ✅ Done |
-| 4     | Follow-up management · polish · landing page                      | Planned |
-| 5     | AI lead assistant (stretch)                                       | Planned |
+| Phase | Scope                                                                     | State   |
+| ----- | ------------------------------------------------------------------------- | ------- |
+| 1     | Setup · auth · data model · leads table · lead detail · seed data         | ✅ Done |
+| 2     | Drag-and-drop pipeline board · dashboard with charts                      | ✅ Done |
+| 3     | Landing page · EN/AR with full RTL · light and dark themes · bulk actions | ✅ Done |
+| 4     | Follow-up management · polish                                             | Planned |
+| 5     | AI lead assistant (stretch)                                               | Planned |
 
 ---
 
@@ -312,6 +312,41 @@ Three other decisions worth naming:
 
 ---
 
+## Bulk actions on the leads table
+
+Tick rows in the leads table and a floating bar offers **move to stage**, **assign to** and
+**archive** — plus **restore** while the Archived filter is on, which is the useful inverse there.
+
+**"Delete" is archive.** `DELETE /api/leads/:id` has always set `archivedAt` rather than removing
+the row, so bulk delete and bulk archive would be the same operation under two names. Only one is
+offered. A true permanent delete would have to destroy the activity trail with it, which is
+exactly what archiving exists to avoid.
+
+**Four statements, not four hundred.** The singular endpoints are a read, a write and an activity
+entry each; looping eighty of them would be several hundred round trips inside one transaction.
+Each bulk endpoint is instead a bounded handful regardless of selection size — one read to load
+and authorise, one `updateMany`, one batched activity write — so `recordActivities` exists
+alongside `recordActivity` and keeps the `lastActivityAt` invariant in one place.
+
+**Partial success is normal, and the reasons are different.** A selection is made against whatever
+the table is showing, so it can contain leads the caller may not touch, or ones already in the
+requested state. The result separates them:
+
+```jsonc
+{ "updated": 12, "unchanged": 2, "notPermitted": 1 }
+```
+
+Reporting a single `skipped` count was worse than useless — the UI had to guess why, and it told
+an owner they could "only change leads assigned to you", which is not true of an owner. Only
+`notPermitted` is worth a line under the toast.
+
+**Selection is page-scoped and permission-scoped.** It clears when the filters or the page change,
+because carrying ids across pages ends with you archiving thirty leads having looked at ten. Rows
+a rep cannot edit are not selectable at all, with the reason on the checkbox, rather than being
+selectable and then quietly dropped server-side.
+
+---
+
 ## The dashboard
 
 Every figure is aggregated in Postgres — nine queries in two batches — rather than by loading leads
@@ -417,6 +452,19 @@ nicety. It is one constant in `locale-provider.tsx` if a workspace disagrees.
 
 Stage names come from the database (`PipelineStage.name` / `nameAr`), not the dictionary, because
 a workspace can rename "Proposal" to "Quote sent" — they are tenant data, not UI copy.
+
+### Arabic is not in the main bundle
+
+English ships with the app because it is the fallback and most visitors never leave it. Arabic —
+its dictionary and the `date-fns` locale, about 40 kB together — is a dynamic import, and the
+IBM Plex Sans Arabic webfont is requested on the same condition. An English-speaking visitor
+downloads neither.
+
+The provider holds rendering until the requested language is in hand rather than painting a frame
+of English first: for someone whose stored language is Arabic, a brief spinner is a better answer
+than the wrong language flashing past. Returning Arabic readers do not wait on React for the font
+either — the bootstrap script in `index.html` already knows the answer and starts that download in
+the document head.
 
 ### Right to left
 
@@ -662,29 +710,30 @@ filter on them without a correlated subquery per row. They are maintained in exa
 
 All routes are under `/api` and all except the first three require authentication.
 
-| Method           | Route                                          | Purpose                                                     |
-| ---------------- | ---------------------------------------------- | ----------------------------------------------------------- |
-| `POST`           | `/auth/signup`                                 | Create an organisation and its owner                        |
-| `POST`           | `/auth/demo`                                   | Clone the demo template into a private sandbox and sign in  |
-| `POST`           | `/auth/login`                                  | Sign in                                                     |
-| `POST`           | `/auth/refresh`                                | Rotate the session                                          |
-| `POST`           | `/auth/logout`                                 | Revoke this session                                         |
-| `GET`/`PATCH`    | `/auth/me`                                     | Current user; `PATCH` accepts `name` and `locale`           |
-| `POST`           | `/auth/change-password`                        | Revokes all sessions                                        |
-| `GET`            | `/stages`                                      | The organisation's pipeline stages                          |
-| `GET`            | `/team` · `PATCH /team/:id`                    | Members (edit is owner/admin only)                          |
-| `GET`            | `/leads`                                       | List — search, filter, sort, paginate                       |
-| `GET`            | `/leads/stats`                                 | Aggregates over the _filtered_ set                          |
-| `POST`           | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id` | CRUD                                                        |
-| `POST`           | `/leads/:id/stage` · `/leads/:id/assign`       | Audited stage move and reassignment                         |
-| `POST`           | `/leads/:id/board-position`                    | Drag-and-drop: stage **and** rank within the column         |
-| `GET`            | `/board?limit=`                                | Every stage with its cards, plus per-stage totals and value |
-| `GET`            | `/dashboard?range=30d\|90d\|12m`               | Every dashboard figure, aggregated in Postgres              |
-| `GET`/`POST`     | `/leads/:id/activities`                        | Timeline                                                    |
-| `PATCH`/`DELETE` | `/activities/:id`                              | Edit or remove your own note                                |
-| `GET`/`POST`     | `/leads/:id/follow-ups`                        | Follow-ups for a lead                                       |
-| `GET`            | `/follow-ups`                                  | Organisation-wide task list                                 |
-| `POST`           | `/follow-ups/:id/complete` · `/cancel`         | Complete or cancel                                          |
+| Method           | Route                                          | Purpose                                                      |
+| ---------------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| `POST`           | `/auth/signup`                                 | Create an organisation and its owner                         |
+| `POST`           | `/auth/demo`                                   | Clone the demo template into a private sandbox and sign in   |
+| `POST`           | `/auth/login`                                  | Sign in                                                      |
+| `POST`           | `/auth/refresh`                                | Rotate the session                                           |
+| `POST`           | `/auth/logout`                                 | Revoke this session                                          |
+| `GET`/`PATCH`    | `/auth/me`                                     | Current user; `PATCH` accepts `name` and `locale`            |
+| `POST`           | `/auth/change-password`                        | Revokes all sessions                                         |
+| `GET`            | `/stages`                                      | The organisation's pipeline stages                           |
+| `GET`            | `/team` · `PATCH /team/:id`                    | Members (edit is owner/admin only)                           |
+| `GET`            | `/leads`                                       | List — search, filter, sort, paginate                        |
+| `GET`            | `/leads/stats`                                 | Aggregates over the _filtered_ set                           |
+| `POST`           | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id` | CRUD                                                         |
+| `POST`           | `/leads/bulk/{archive,restore,stage,assign}`   | Bulk actions; returns `{ updated, unchanged, notPermitted }` |
+| `POST`           | `/leads/:id/stage` · `/leads/:id/assign`       | Audited stage move and reassignment                          |
+| `POST`           | `/leads/:id/board-position`                    | Drag-and-drop: stage **and** rank within the column          |
+| `GET`            | `/board?limit=`                                | Every stage with its cards, plus per-stage totals and value  |
+| `GET`            | `/dashboard?range=30d\|90d\|12m`               | Every dashboard figure, aggregated in Postgres               |
+| `GET`/`POST`     | `/leads/:id/activities`                        | Timeline                                                     |
+| `PATCH`/`DELETE` | `/activities/:id`                              | Edit or remove your own note                                 |
+| `GET`/`POST`     | `/leads/:id/follow-ups`                        | Follow-ups for a lead                                        |
+| `GET`            | `/follow-ups`                                  | Organisation-wide task list                                  |
+| `POST`           | `/follow-ups/:id/complete` · `/cancel`         | Complete or cancel                                           |
 
 ---
 
