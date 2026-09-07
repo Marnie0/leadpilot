@@ -85,16 +85,20 @@ export function useLead(leadId: string, options?: Partial<UseQueryOptions<LeadDe
 }
 
 /**
- * Invalidates every list, stat block and detail view touching leads.
+ * Invalidates every list, board, chart and detail view touching leads.
  *
  * A single lead edit can change its stage counts, its position in a sorted
- * list and its timeline, so the blunt instrument is the correct one here —
- * surgical cache surgery would be far easier to get subtly wrong.
+ * list, which board column it sits in, the dashboard's conversion rate and its
+ * own timeline, so the blunt instrument is the correct one here — surgical
+ * cache surgery would be far easier to get subtly wrong, and the failure mode
+ * is a screen quietly showing yesterday's numbers.
  */
 function useInvalidateLeads() {
   const queryClient = useQueryClient();
   return (leadId?: string) => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.leads.all });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.board.all });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
     if (leadId) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.leads.detail(leadId) });
     }
@@ -189,6 +193,7 @@ export function useCreateActivity(leadId: string) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.leads.detail(leadId) });
       // A note bumps `lastActivityAt`, which the table can sort by.
       void queryClient.invalidateQueries({ queryKey: queryKeys.leads.lists() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.board.all });
     },
   });
 }
@@ -224,6 +229,9 @@ function useInvalidateFollowUps(leadId: string) {
     void queryClient.invalidateQueries({ queryKey: queryKeys.leads.detail(leadId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.leads.lists() });
     void queryClient.invalidateQueries({ queryKey: queryKeys.followUps.all });
+    // The board shows each card's next follow-up, and the dashboard counts them.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.board.all });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
   };
 }
 

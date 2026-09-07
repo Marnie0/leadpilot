@@ -22,6 +22,14 @@ export const queryKeys = {
       [...queryKeys.leads.detail(id), 'activities', view] as const,
     followUps: (id: string) => [...queryKeys.leads.detail(id), 'follow-ups'] as const,
   },
+  board: {
+    all: ['board'] as const,
+    view: (filters: unknown) => [...queryKeys.board.all, filters] as const,
+  },
+  dashboard: {
+    all: ['dashboard'] as const,
+    range: (range: string) => [...queryKeys.dashboard.all, range] as const,
+  },
   followUps: {
     all: ['follow-ups'] as const,
     list: (filters: unknown) => ['follow-ups', 'list', filters] as const,

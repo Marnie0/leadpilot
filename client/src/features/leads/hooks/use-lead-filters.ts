@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { applyFilterPatch, readList, readOne } from '@/lib/search-params';
 import {
   FOLLOW_UP_FILTERS,
   LEAD_PRIORITIES,
@@ -43,28 +44,6 @@ const DEFAULTS: LeadFilterState = {
   pageSize: 25,
 };
 
-/** Reads a comma-separated param, discarding any value not in `allowed`. */
-function readList<T extends string>(
-  params: URLSearchParams,
-  key: string,
-  allowed?: readonly T[],
-): T[] {
-  const raw = params.get(key);
-  if (!raw) return [];
-  const values = raw.split(',').map((value) => value.trim()).filter(Boolean);
-  return (allowed ? values.filter((value): value is T => allowed.includes(value as T)) : values) as T[];
-}
-
-function readOne<T extends string>(
-  params: URLSearchParams,
-  key: string,
-  allowed: readonly T[],
-  fallback: T,
-): T {
-  const raw = params.get(key);
-  return raw && allowed.includes(raw as T) ? (raw as T) : fallback;
-}
-
 /**
  * Filter state lives in the URL rather than component state.
  *
@@ -100,28 +79,10 @@ export function useLeadFilters() {
     (patch: Partial<LeadFilterState>) => {
       setSearchParams(
         (current) => {
-          const next = new URLSearchParams(current);
-
-          for (const [key, value] of Object.entries(patch)) {
-            const isDefault =
-              JSON.stringify(value) === JSON.stringify(DEFAULTS[key as keyof LeadFilterState]);
-            const isEmptyList = Array.isArray(value) && value.length === 0;
-
-            // Default values are removed rather than written, so a clean view
-            // has a clean URL.
-            if (isDefault || isEmptyList || value === undefined) {
-              next.delete(key);
-            } else if (Array.isArray(value)) {
-              next.set(key, value.join(','));
-            } else {
-              next.set(key, String(value));
-            }
-          }
-
+          const next = applyFilterPatch(current, patch, DEFAULTS);
           // Any change other than paging returns to page 1 — otherwise a
           // narrower filter can strand the user on a page that no longer exists.
           if (!('page' in patch)) next.delete('page');
-
           return next;
         },
         { replace: true },
