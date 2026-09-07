@@ -96,6 +96,49 @@ export const assignLeadSchema = z.object({
 });
 export type AssignLeadInput = z.infer<typeof assignLeadSchema>;
 
+/**
+ * Bulk actions over a set of leads.
+ *
+ * Capped rather than unbounded: the leads table pages at 100, so a selection
+ * cannot legitimately exceed that, and an uncapped `id IN (…)` is a
+ * denial-of-service waiting to happen.
+ */
+export const BULK_LEAD_LIMIT = 100;
+
+export const bulkLeadIdsSchema = z.object({
+  ids: z.array(idSchema).min(1).max(BULK_LEAD_LIMIT),
+});
+export type BulkLeadIdsInput = z.infer<typeof bulkLeadIdsSchema>;
+
+export const bulkMoveStageSchema = bulkLeadIdsSchema.extend({
+  stageKey: z.enum(STAGE_KEYS),
+  lostReason: optionalTrimmed(280),
+});
+export type BulkMoveStageInput = z.infer<typeof bulkMoveStageSchema>;
+
+export const bulkAssignSchema = bulkLeadIdsSchema.extend({
+  assignedToId: idSchema.nullable(),
+});
+export type BulkAssignInput = z.infer<typeof bulkAssignSchema>;
+
+/**
+ * What a bulk action actually did.
+ *
+ * A skip is not an error, but the two reasons for one are different answers and
+ * the UI has to be able to tell them apart. "You may not touch this lead" is
+ * something the user might want to do something about; "this lead was already
+ * assigned to that person" is not. Reporting a single `skipped` count forced
+ * the interface to guess, and it guessed wrong — telling an owner they could
+ * only change their own leads.
+ */
+export interface BulkLeadResultDto {
+  updated: number;
+  /** Already in the requested state, archived, or no longer there. */
+  unchanged: number;
+  /** Present and different, but not the caller's to change. */
+  notPermitted: number;
+}
+
 export const LEAD_SORT_FIELDS = [
   'createdAt',
   'updatedAt',

@@ -8,11 +8,15 @@ import {
   moveLeadOnBoardSchema,
   moveLeadStageSchema,
   updateLeadSchema,
+  bulkAssignSchema,
+  bulkLeadIdsSchema,
+  bulkMoveStageSchema,
 } from '@leadpilot/shared';
 import { asyncHandler, getAuth, requireAuth } from '../../middleware/auth.js';
 import { param, validate, validatedQuery } from '../../middleware/validate.js';
 import type { Actor } from './leads.service.js';
 import * as leadsService from './leads.service.js';
+import * as bulkService from './bulk.service.js';
 import * as boardService from '../board/board.service.js';
 
 export const leadsRouter = Router();
@@ -56,6 +60,49 @@ leadsRouter.post(
   asyncHandler(async (req, res) => {
     const lead = await leadsService.createLead(actorFrom(req), req.body);
     res.status(201).json({ lead });
+  }),
+);
+
+/*
+ * Bulk actions.
+ *
+ * Declared before the `/:id/…` routes so a literal path segment is never
+ * swallowed by the id parameter — Express matches in declaration order, and
+ * `/bulk/archive` would otherwise arrive as a lead whose id is "bulk".
+ *
+ * Each returns `{ updated, skipped }` rather than 204: a selection can contain
+ * leads the caller may not touch, and silently reporting success for those
+ * would be the wrong answer.
+ */
+leadsRouter.post(
+  '/bulk/archive',
+  validate(bulkLeadIdsSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await bulkService.bulkArchive(actorFrom(req), req.body));
+  }),
+);
+
+leadsRouter.post(
+  '/bulk/restore',
+  validate(bulkLeadIdsSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await bulkService.bulkRestore(actorFrom(req), req.body));
+  }),
+);
+
+leadsRouter.post(
+  '/bulk/stage',
+  validate(bulkMoveStageSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await bulkService.bulkMoveStage(actorFrom(req), req.body));
+  }),
+);
+
+leadsRouter.post(
+  '/bulk/assign',
+  validate(bulkAssignSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await bulkService.bulkAssign(actorFrom(req), req.body));
   }),
 );
 

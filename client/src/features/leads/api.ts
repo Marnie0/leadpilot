@@ -3,6 +3,10 @@ import type {
   ActivityDto,
   ActivityQueryInput,
   AssignLeadInput,
+  BulkAssignInput,
+  BulkLeadIdsInput,
+  BulkLeadResultDto,
+  BulkMoveStageInput,
   CreateActivityInput,
   CreateFollowUpInput,
   CreateLeadInput,
@@ -141,6 +145,51 @@ export function useArchiveLead() {
   const invalidate = useInvalidateLeads();
   return useMutation({
     mutationFn: (leadId: string) => api.delete<void>(`/leads/${leadId}`),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Bulk actions
+ *
+ * One request per action rather than one per lead: the server applies the
+ * whole selection in a couple of statements, and a hundred parallel requests
+ * would hit the rate limiter long before they finished. Each resolves to
+ * `{ updated, skipped }` so the caller can report what actually happened.
+ * ------------------------------------------------------------------ */
+
+export function useBulkArchive() {
+  const invalidate = useInvalidateLeads();
+  return useMutation({
+    mutationFn: (input: BulkLeadIdsInput) =>
+      api.post<BulkLeadResultDto>('/leads/bulk/archive', input),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useBulkRestore() {
+  const invalidate = useInvalidateLeads();
+  return useMutation({
+    mutationFn: (input: BulkLeadIdsInput) =>
+      api.post<BulkLeadResultDto>('/leads/bulk/restore', input),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useBulkMoveStage() {
+  const invalidate = useInvalidateLeads();
+  return useMutation({
+    mutationFn: (input: BulkMoveStageInput) =>
+      api.post<BulkLeadResultDto>('/leads/bulk/stage', input),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useBulkAssign() {
+  const invalidate = useInvalidateLeads();
+  return useMutation({
+    mutationFn: (input: BulkAssignInput) =>
+      api.post<BulkLeadResultDto>('/leads/bulk/assign', input),
     onSuccess: () => invalidate(),
   });
 }

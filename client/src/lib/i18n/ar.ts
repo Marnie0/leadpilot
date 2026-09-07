@@ -267,6 +267,42 @@ export const ar: Dictionary = {
   'landing.footerBuilt': 'مشروع لعرض الأعمال، مبنيّ بمعايير الإنتاج.',
 
   /* -------------------------------------------------------------- *
+   * Bulk selection
+   * -------------------------------------------------------------- */
+  'bulk.selectAll': 'تحديد كل العملاء في هذه الصفحة',
+  'bulk.selectRow': 'تحديد {name}',
+  'bulk.locked': 'مُسنَد إلى شخص آخر — لا يغيّره سوى المالك أو المسؤول',
+  'bulk.actions': 'إجراءات جماعية',
+  'bulk.selected_zero': 'لم يُحدَّد شيء',
+  'bulk.selected_one': 'تم تحديد عنصر واحد',
+  'bulk.selected_two': 'تم تحديد عنصرين',
+  'bulk.selected_few': 'تم تحديد {count} عناصر',
+  'bulk.selected_many': 'تم تحديد {count} عنصرًا',
+  'bulk.selected_other': 'تم تحديد {count} عنصر',
+  'bulk.clear': 'إلغاء التحديد',
+  'bulk.moveToStage': 'النقل إلى مرحلة',
+  'bulk.assignTo': 'الإسناد إلى',
+  'bulk.archive': 'أرشفة',
+  'bulk.restore': 'استعادة',
+  'bulk.updated_zero': 'لم يتم تحديث أي عميل',
+  'bulk.updated_one': 'تم تحديث عميل واحد',
+  'bulk.updated_two': 'تم تحديث عميلين',
+  'bulk.updated_few': 'تم تحديث {count} عملاء',
+  'bulk.updated_many': 'تم تحديث {count} عميلًا',
+  'bulk.updated_other': 'تم تحديث {count} عميل',
+  'bulk.notPermitted': 'تم تخطي {count} — لا يمكن تغيير سوى العملاء المُسنَدين إليك',
+  'bulk.noneAllowed': 'لا يمكنك تغيير أي من هؤلاء العملاء',
+  'bulk.nothingToDo': 'لا شيء في هذا التحديد يحتاج إلى تغيير',
+  'bulk.failed': 'تعذّر تطبيق ذلك على كل العملاء',
+  'bulk.archiveTitle_one': 'أرشفة عميل واحد؟',
+  'bulk.archiveTitle_two': 'أرشفة عميلين؟',
+  'bulk.archiveTitle_few': 'أرشفة {count} عملاء؟',
+  'bulk.archiveTitle_many': 'أرشفة {count} عميلًا؟',
+  'bulk.archiveTitle_other': 'أرشفة {count} عميل؟',
+  'bulk.archiveBody':
+    'سيخرجون من مسار المبيعات ومن جميع الإجماليات. ويُحفظ سجل نشاطهم ومتابعاتهم، ويمكن لمالك أو مسؤول استعادتهم من عامل تصفية «المؤرشفة».',
+
+  /* -------------------------------------------------------------- *
    * Leads list
    * -------------------------------------------------------------- */
   'leads.title': 'العملاء المحتملون',

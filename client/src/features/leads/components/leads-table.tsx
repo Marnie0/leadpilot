@@ -10,6 +10,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import type { LeadSelection } from '../hooks/use-lead-selection';
 import { useFormat, useT, type StaticKey, type Translator } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { StageBadge } from './stage-badge';
@@ -104,12 +107,14 @@ export function LeadsTable({
   sortBy,
   sortDir,
   onSort,
+  selection,
 }: {
   leads: LeadListItemDto[];
   isLoading: boolean;
   sortBy: LeadSortField;
   sortDir: 'asc' | 'desc';
   onSort: (field: LeadSortField) => void;
+  selection: LeadSelection;
 }) {
   const navigate = useNavigate();
   const t = useT();
@@ -136,6 +141,14 @@ export function LeadsTable({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
+            <TableHead className="w-10">
+              <Checkbox
+                checked={selection.allState}
+                onCheckedChange={selection.toggleAll}
+                disabled={!selection.hasSelectable}
+                aria-label={t('bulk.selectAll')}
+              />
+            </TableHead>
             {COLUMNS.map((column) => (
               <TableHead
                 key={column.id}
@@ -169,6 +182,9 @@ export function LeadsTable({
             leads.length === 0 &&
             Array.from({ length: 8 }, (_, index) => (
               <TableRow key={`skeleton-${index}`}>
+                <TableCell>
+                  <Skeleton className="size-4 rounded-[4px]" />
+                </TableCell>
                 {COLUMNS.map((column) => (
                   <TableCell
                     key={column.id}
@@ -185,7 +201,32 @@ export function LeadsTable({
               key={lead.id}
               className="group cursor-pointer"
               onClick={(event) => openLead(event, lead.id)}
+              data-state={selection.isSelected(lead.id) ? 'selected' : undefined}
             >
+              {/*
+                A rep may read every lead but only edit their own, so a row they
+                cannot act on is not selectable — with a reason attached, rather
+                than a checkbox that is merely dead.
+              */}
+              <TableCell>
+                {lead.canEdit ? (
+                  <Checkbox
+                    checked={selection.isSelected(lead.id)}
+                    onCheckedChange={() => selection.toggle(lead.id)}
+                    aria-label={t('bulk.selectRow', { name: lead.customerName })}
+                  />
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <Checkbox disabled aria-label={t('bulk.locked')} />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('bulk.locked')}</TooltipContent>
+                  </Tooltip>
+                )}
+              </TableCell>
+
               <TableCell className="max-w-[240px]">
                 <Link
                   to={`/leads/${lead.id}`}

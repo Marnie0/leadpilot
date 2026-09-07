@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom';
 import type { LeadListItemDto } from '@leadpilot/shared';
 import { Building2, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import { useFormat, useT } from '@/lib/i18n';
 import { StageBadge } from './stage-badge';
 import { PriorityBadge } from './priority-badge';
@@ -15,15 +17,46 @@ import { FollowUpCell } from './follow-up-cell';
  * A table with eight columns cannot survive a 375px viewport, so below `lg` the
  * same records render as cards — same data, laid out for a thumb.
  */
-export function LeadCard({ lead }: { lead: LeadListItemDto }) {
+export function LeadCard({
+  lead,
+  selected,
+  onToggleSelected,
+}: {
+  lead: LeadListItemDto;
+  selected?: boolean;
+  /** Omitted when the viewer cannot act on this lead, which hides the checkbox. */
+  onToggleSelected?: () => void;
+}) {
   const t = useT();
   const format = useFormat();
 
   return (
-    <Card className="gap-0 p-0 transition-colors hover:border-primary/40">
+    <Card
+      className={cn(
+        'relative gap-0 p-0 transition-colors hover:border-primary/40',
+        selected && 'border-primary/50 bg-accent/30',
+      )}
+    >
+      {/*
+        Outside the link rather than inside it: a checkbox nested in an anchor
+        is a control the browser will happily navigate away from mid-tap.
+      */}
+      {onToggleSelected && (
+        <span className="absolute end-3 top-3 z-10">
+          <Checkbox
+            checked={selected}
+            onCheckedChange={onToggleSelected}
+            aria-label={t('bulk.selectRow', { name: lead.customerName })}
+          />
+        </span>
+      )}
+
       <Link
         to={`/leads/${lead.id}`}
-        className="flex flex-col gap-3 rounded-xl p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className={cn(
+          'flex flex-col gap-3 rounded-xl p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+          onToggleSelected && 'pe-12',
+        )}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-0.5">
@@ -37,11 +70,14 @@ export function LeadCard({ lead }: { lead: LeadListItemDto }) {
               <p className="truncate text-xs text-muted-foreground">{t(`source.${lead.source}`)}</p>
             )}
           </div>
-          {/* Points into the record, so it follows the reading direction. */}
-          <ChevronRight
-            className="icon-directional mt-0.5 size-4 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
+          {/* Points into the record, so it follows the reading direction. It
+              gives up its corner when a selection checkbox needs the space. */}
+          {!onToggleSelected && (
+            <ChevronRight
+              className="icon-directional mt-0.5 size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+          )}
         </div>
 
         <p className="truncate text-sm text-muted-foreground">{lead.requestedService}</p>

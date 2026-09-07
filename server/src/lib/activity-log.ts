@@ -52,6 +52,41 @@ export async function recordActivity(tx: TxClient, entry: ActivityLogEntry) {
   return activity;
 }
 
+/**
+ * The batched form, for a bulk action writing one entry per lead.
+ *
+ * Same invariant as `recordActivity` — nothing else may touch `lastActivityAt`
+ * — but expressed as two statements instead of two per lead, so archiving
+ * eighty leads is a constant number of round trips rather than a hundred and
+ * sixty. It returns nothing: a bulk caller has no use for the rows, and
+ * `createMany` cannot return them anyway.
+ */
+export async function recordActivities(tx: TxClient, entries: ActivityLogEntry[]): Promise<void> {
+  if (entries.length === 0) return;
+  const occurredAt = new Date();
+
+  await tx.activity.createMany({
+    data: entries.map((entry) => ({
+      organizationId: entry.organizationId,
+      leadId: entry.leadId,
+      userId: entry.userId,
+      type: entry.type,
+      body: entry.body ?? null,
+      metadata: (entry.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
+      occurredAt: entry.occurredAt ?? occurredAt,
+    })),
+  });
+
+  // Every bulk action so far writes audit entries only, none of which count as
+  // contact — so `lastContactedAt` is deliberately left alone here. If a bulk
+  // action ever logs a real conversation, this needs to grow the same split
+  // `recordActivity` has.
+  await tx.lead.updateMany({
+    where: { id: { in: entries.map((entry) => entry.leadId) } },
+    data: { lastActivityAt: occurredAt },
+  });
+}
+
 const CONTACT_ACTIVITY_TYPES = new Set<ActivityType>(['CALL', 'EMAIL', 'MEETING', 'WHATSAPP']);
 
 /**

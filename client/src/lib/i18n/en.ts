@@ -212,6 +212,31 @@ export const en = {
   'landing.footerBuilt': 'A portfolio project, built to production standards.',
 
   /* -------------------------------------------------------------- *
+   * Bulk selection
+   * -------------------------------------------------------------- */
+  'bulk.selectAll': 'Select every lead on this page',
+  'bulk.selectRow': 'Select {name}',
+  'bulk.locked': 'Assigned to someone else — only an owner or admin can change it',
+  'bulk.actions': 'Bulk actions',
+  'bulk.selected_one': '{count} selected',
+  'bulk.selected_other': '{count} selected',
+  'bulk.clear': 'Clear',
+  'bulk.moveToStage': 'Move to stage',
+  'bulk.assignTo': 'Assign to',
+  'bulk.archive': 'Archive',
+  'bulk.restore': 'Restore',
+  'bulk.updated_one': '{count} lead updated',
+  'bulk.updated_other': '{count} leads updated',
+  'bulk.notPermitted': '{count} skipped — only leads assigned to you can be changed',
+  'bulk.noneAllowed': 'None of those leads are yours to change',
+  'bulk.nothingToDo': 'Nothing in that selection needed changing',
+  'bulk.failed': 'Could not apply that to every lead',
+  'bulk.archiveTitle_one': 'Archive {count} lead?',
+  'bulk.archiveTitle_other': 'Archive {count} leads?',
+  'bulk.archiveBody':
+    'They leave the pipeline and every total. Their activity history and follow-ups are kept, and an owner or admin can restore them from the Archived filter.',
+
+  /* -------------------------------------------------------------- *
    * Leads list
    * -------------------------------------------------------------- */
   'leads.title': 'Leads',

@@ -16,6 +16,8 @@ import { LeadStats } from '@/features/leads/components/lead-stats';
 import { LeadsTable } from '@/features/leads/components/leads-table';
 import { LeadCard, LeadCardSkeleton } from '@/features/leads/components/lead-card';
 import { LeadFormDialog } from '@/features/leads/components/lead-form-dialog';
+import { BulkActionBar } from '@/features/leads/components/bulk-action-bar';
+import { useLeadSelection } from '@/features/leads/hooks/use-lead-selection';
 
 export function LeadsPage() {
   const t = useT();
@@ -30,6 +32,11 @@ export function LeadsPage() {
 
   const leads = leadsQuery.data?.data ?? [];
   const meta = leadsQuery.data?.meta;
+
+  // Selection is scoped to what is on screen, so it resets whenever the query
+  // behind the table does — see `useLeadSelection` for why that is deliberate.
+  const selection = useLeadSelection(leads, filters);
+  const canArchive = user.role === 'OWNER' || user.role === 'ADMIN';
 
   /** Clicking the active sort column flips direction; a new column starts descending. */
   const handleSort = (field: LeadSortField) => {
@@ -109,7 +116,14 @@ export function LeadsPage() {
           <div className="space-y-3 lg:hidden">
             {leadsQuery.isLoading && leads.length === 0
               ? Array.from({ length: 5 }, (_, index) => <LeadCardSkeleton key={index} />)
-              : leads.map((lead) => <LeadCard key={lead.id} lead={lead} />)}
+              : leads.map((lead) => (
+                  <LeadCard
+                    key={lead.id}
+                    lead={lead}
+                    selected={selection.isSelected(lead.id)}
+                    {...(lead.canEdit && { onToggleSelected: () => selection.toggle(lead.id) })}
+                  />
+                ))}
             {meta && (
               <Card className="p-0">
                 <PaginationBar
@@ -129,6 +143,7 @@ export function LeadsPage() {
               sortBy={filters.sortBy}
               sortDir={filters.sortDir}
               onSort={handleSort}
+              selection={selection}
             />
             {meta && (
               <PaginationBar
@@ -140,6 +155,18 @@ export function LeadsPage() {
             )}
           </Card>
         </>
+      )}
+
+      {selection.count > 0 && (
+        <BulkActionBar
+          ids={selection.ids}
+          stages={stagesQuery.data ?? []}
+          members={teamQuery.data ?? []}
+          canArchive={canArchive}
+          viewingArchived={Boolean(filters.archived)}
+          onDone={selection.clear}
+          onClear={selection.clear}
+        />
       )}
 
       <LeadFormDialog
