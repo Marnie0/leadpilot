@@ -19,13 +19,16 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!--
-      Inter carries no Arabic, so the two families are listed together and the
-      browser falls through per glyph: Latin from Inter, Arabic from IBM Plex
-      Sans Arabic. They are drawn to the same grotesque proportions, which is
-      what stops a bilingual sentence looking like two different documents.
+      Only the Latin face is loaded up front. Inter carries no Arabic, so the
+      Arabic family is fetched on demand — by the script below when the stored
+      language is already Arabic, and by the locale provider when someone
+      switches. An English-speaking visitor never downloads a font whose glyphs
+      they will not see. Where both are present the browser falls through per
+      glyph: Latin from Inter, Arabic from IBM Plex Sans Arabic, two grotesques
+      of similar proportion so a bilingual line reads as one typeface.
     -->
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400..700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap"
       rel="stylesheet"
     />
 
@@ -60,6 +63,18 @@
           }
           document.documentElement.lang = locale;
           document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
+
+          if (locale === 'ar') {
+            // Start the Arabic face downloading here rather than waiting for
+            // React to mount and ask for it. This is the one moment we already
+            // know the answer, and a webfont is worth requesting early.
+            var font = document.createElement('link');
+            font.rel = 'stylesheet';
+            font.href =
+              'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap';
+            font.setAttribute('data-font', 'arabic');
+            document.head.appendChild(font);
+          }
         } catch (error) {
           /* Blocked storage — the defaults in the markup already apply. */
         }

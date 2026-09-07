@@ -1,7 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ar, createTranslator, en } from '@/lib/i18n';
+import { createTranslator, getLoadedBundle } from '@/lib/i18n';
 
 interface Props {
   children: ReactNode;
@@ -19,6 +19,11 @@ interface State {
  * exactly when this has to work — so it reads the language off the document
  * instead of from context. `index.html` sets `lang` before the first paint, so
  * the value is there even if nothing else ever mounted.
+ *
+ * It asks for whichever dictionary is already in memory rather than importing
+ * one, because importing Arabic here would drag it back into the main bundle
+ * and undo the split. If the crash happened before Arabic finished loading,
+ * this falls back to English — which is the only honest thing it can do.
  */
 export class ErrorBoundary extends Component<Props, State> {
   override state: State = { error: null };
@@ -35,8 +40,8 @@ export class ErrorBoundary extends Component<Props, State> {
   override render(): ReactNode {
     if (!this.state.error) return this.props.children;
 
-    const isArabic = document.documentElement.lang === 'ar';
-    const t = createTranslator(isArabic ? 'ar' : 'en', isArabic ? ar : en);
+    const locale = document.documentElement.lang === 'ar' ? 'ar' : 'en';
+    const t = createTranslator(locale, getLoadedBundle(locale).dictionary);
 
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-5 px-6 text-center">

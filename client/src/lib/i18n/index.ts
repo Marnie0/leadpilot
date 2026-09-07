@@ -6,7 +6,7 @@ export { LocaleProvider, useI18n, useT, type Direction } from './locale-provider
 export type { TranslationKey, StaticKey, Translator, PlaceholdersOf } from './translate';
 export type { Formatters } from '@/lib/format';
 export { en } from './en';
-export { ar } from './ar';
+export { getLoadedBundle } from './locales';
 export { createTranslator } from './translate';
 
 /**
@@ -17,6 +17,6 @@ export { createTranslator } from './translate';
  * rows would otherwise build a formatter per cell.
  */
 export function useFormat(): Formatters {
-  const { intlLocale, locale, t } = useI18n();
-  return useMemo(() => createFormatters(intlLocale, locale, t), [intlLocale, locale, t]);
+  const { intlLocale, bundle, t } = useI18n();
+  return useMemo(() => createFormatters(intlLocale, bundle.dateLocale, t), [intlLocale, bundle, t]);
 }

@@ -8,19 +8,14 @@ import {
   useState,
 } from 'react';
 import { Direction as RadixDirection } from 'radix-ui';
+import { Loader2 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AuthUser, Locale } from '@leadpilot/shared';
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
 import { useAuth } from '@/features/auth/auth-context';
-import { ar } from './ar';
-import { en } from './en';
-import {
-  createMessageRenderer,
-  createTranslator,
-  type Dictionary,
-  type Translator,
-} from './translate';
+import { ensureArabicFont, getLoadedBundle, loadLocaleBundle, type LocaleBundle } from './locales';
+import { createMessageRenderer, createTranslator, type Translator } from './translate';
 
 export const LOCALE_STORAGE_KEY = 'leadpilot.locale';
 
@@ -38,8 +33,6 @@ const INTL_LOCALES: Record<Locale, string> = {
   ar: 'ar-u-nu-latn',
 };
 
-const DICTIONARIES: Record<Locale, Dictionary> = { en, ar };
-
 export type Direction = 'ltr' | 'rtl';
 
 const DIRECTIONS: Record<Locale, Direction> = { en: 'ltr', ar: 'rtl' };
@@ -48,6 +41,8 @@ interface I18nContextValue {
   locale: Locale;
   /** The BCP 47 tag to hand to `Intl` and `date-fns`. */
   intlLocale: string;
+  /** The active locale's `date-fns` locale, for the formatters. */
+  bundle: LocaleBundle;
   dir: Direction;
   isRtl: boolean;
   setLocale: (locale: Locale) => void;
@@ -89,6 +84,17 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [locale, setLocaleState] = useState<Locale>(readInitialLocale);
 
+  /*
+   * The locale whose strings are actually in memory.
+   *
+   * English is bundled, so it is ready on the first render and this never
+   * lags behind. Arabic arrives in a dynamic chunk: until it lands, `ready`
+   * still says `en`, and the app renders a bare spinner rather than a frame of
+   * English text that then flips. Someone whose stored language is Arabic is
+   * shown a spinner, not the wrong language.
+   */
+  const [ready, setReady] = useState<Locale>('en');
+
   /** True once this visitor has made an explicit choice on this device. */
   const hasLocalChoice = useRef<boolean>(
     (() => {
@@ -129,6 +135,34 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     [user, saveProfileLocale],
   );
 
+  /*
+   * Fetch the strings for whatever language is now active.
+   *
+   * `loadLocaleBundle` returns synchronously when the chunk is already in
+   * memory, so switching back to a language you have used before does not
+   * flicker. The font is requested at the same moment for the same reason it
+   * is split out at all: an English-speaking visitor should never pay for it.
+   */
+  useEffect(() => {
+    if (locale === 'ar') ensureArabicFont();
+
+    const result = loadLocaleBundle(locale);
+    if (!(result instanceof Promise)) {
+      setReady(locale);
+      return;
+    }
+
+    let cancelled = false;
+    void result.then(() => {
+      if (!cancelled) setReady(locale);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [locale]);
+
+  // Direction follows the *requested* language immediately: it costs nothing to
+  // load and flipping it with the text would make the switch look sluggish.
   const dir = DIRECTIONS[locale];
 
   // The document attributes drive far more than styling: `dir` flips every
@@ -141,17 +175,29 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   }, [locale, dir]);
 
   const value = useMemo<I18nContextValue>(() => {
-    const t = createTranslator(INTL_LOCALES[locale], DICTIONARIES[locale]);
+    const bundle = getLoadedBundle(ready);
+    const t = createTranslator(INTL_LOCALES[ready], bundle.dictionary);
     return {
-      locale,
-      intlLocale: INTL_LOCALES[locale],
+      locale: ready,
+      intlLocale: INTL_LOCALES[ready],
+      bundle,
       dir,
       isRtl: dir === 'rtl',
       setLocale,
       t,
       translateMessage: createMessageRenderer(t),
     };
-  }, [locale, dir, setLocale]);
+  }, [ready, dir, setLocale]);
+
+  // Nothing renders until the requested language is in hand. The spinner is
+  // wordless on purpose — there is no dictionary yet to word it with.
+  if (ready !== locale) {
+    return (
+      <div className="flex min-h-svh items-center justify-center bg-background" aria-busy>
+        <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
+      </div>
+    );
+  }
 
   return (
     <I18nContext.Provider value={value}>

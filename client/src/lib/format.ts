@@ -9,9 +9,6 @@ import {
   parseISO,
 } from 'date-fns';
 import type { Locale as DateFnsLocale } from 'date-fns';
-import { ar as arDates } from 'date-fns/locale/ar';
-import { enGB as enDates } from 'date-fns/locale/en-GB';
-import type { Locale } from '@leadpilot/shared';
 import type { Translator } from './i18n/translate';
 
 /** Parses an API date string, returning `null` rather than an Invalid Date. */
@@ -41,8 +38,6 @@ export interface DueDescriptor {
   daysUntil: number | null;
 }
 
-const DATE_LOCALES: Record<Locale, DateFnsLocale> = { en: enDates, ar: arDates };
-
 export interface Formatters {
   currency: (amount: number, currency: string, options?: { precise?: boolean }) => string;
   number: (value: number) => string;
@@ -68,9 +63,15 @@ export interface Formatters {
  *
  * `dueDate` needs the translator as well as the locale, because its phrasing is
  * ours ("Overdue by 3 days") rather than something `Intl` can produce.
+ *
+ * The `date-fns` locale is passed in rather than imported: Arabic's arrives in
+ * a dynamic chunk, so this module must not reach for it directly.
  */
-export function createFormatters(intlLocale: string, locale: Locale, t: Translator): Formatters {
-  const dateLocale = DATE_LOCALES[locale];
+export function createFormatters(
+  intlLocale: string,
+  dateLocale: DateFnsLocale,
+  t: Translator,
+): Formatters {
   const dateOptions = { locale: dateLocale };
 
   const numberFormat = new Intl.NumberFormat(intlLocale);
