@@ -1,7 +1,7 @@
 {
   "name": "@leadpilot/client",
   "version": "0.1.0",
-  "license": "UNLICENSED",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
   "type": "module",
   "description": "LeadPilot web client \u2014 React 19 + Vite + Tailwind + shadcn/ui",

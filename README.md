@@ -277,15 +277,27 @@ would need to close, listed so nothing is hidden:
 
 ## License
 
-**All rights reserved.** Copyright © 2026 Ibrahim.
+Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+Copyright © 2026 Ibrahim.
 
-This repository is public so the code can be read and reviewed as a portfolio piece. No licence is
-granted: it may not be copied, modified, redistributed, or used commercially, in whole or in part,
-without written permission. The absence of a `LICENSE` file is deliberate, not an oversight —
-default copyright applies.
+**You may** read, run, study, modify and share LeadPilot for any noncommercial purpose — personal
+study, hobby projects, evaluating my work, teaching, or use by a charity, school or public
+institution.
 
-Reviewing the code, and referring to it when assessing my work, is of course welcome. If you want
-to use any of it, open an issue and ask.
+**You may not** use it commercially. That right is reserved. If you want a commercial licence, open
+an issue and ask.
+
+### Why not MIT
+
+MIT would let anyone take LeadPilot, rebrand it and sell it, irrevocably, and this is a product I
+may want to sell. Leaving the repository with no licence at all would protect that, but it also
+leaves everyone guessing: strictly, no licence means no permission to do anything, which is a
+strange thing to say about code published specifically to be read.
+
+PolyForm Noncommercial says exactly what is meant. It is a real licence drafted by lawyers rather
+than a homemade "all rights reserved" paragraph, it is short and plain-English, and it grants the
+reading, running and learning that a portfolio piece exists for while reserving the commercial
+rights that a product needs.
 
 ---
 

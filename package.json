@@ -2,7 +2,7 @@
   "name": "leadpilot",
   "private": true,
   "version": "0.1.0",
-  "license": "UNLICENSED",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "description": "LeadPilot \u2014 bilingual lead management for small and medium service businesses",
   "type": "module",
   "engines": {

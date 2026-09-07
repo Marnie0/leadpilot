@@ -1,7 +1,7 @@
 {
   "name": "@leadpilot/server",
   "version": "0.1.0",
-  "license": "UNLICENSED",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "private": true,
   "type": "module",
   "description": "LeadPilot REST API \u2014 Express 5 + Prisma",
