@@ -1,0 +1,15 @@
+# Build output and vendored code.
+dist/
+build/
+node_modules/
+.vercel/
+.neon/
+
+# Generated: rewritten wholesale by their tools, and reformatting them only
+# makes the next regeneration a noisy diff.
+package-lock.json
+server/prisma/migrations/
+client/src/components/ui/
+
+# Local environment files.
+.env*

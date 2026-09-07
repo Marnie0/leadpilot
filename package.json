@@ -21,6 +21,8 @@
     "build:vercel": "prisma generate --schema server/prisma/schema.prisma && npm run build --workspace @leadpilot/server && npm run build --workspace @leadpilot/client",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "db:generate": "npm run db:generate --workspace @leadpilot/server",
     "db:push": "npm run db:push --workspace @leadpilot/server",
     "db:migrate": "npm run db:migrate --workspace @leadpilot/server",
@@ -31,6 +33,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "prettier": "3.9.6",
     "typescript": "^5.9.2"
   },
   "dependencies": {

@@ -25,13 +25,13 @@ move opportunities through a shared pipeline: **New → Contacted → Qualified 
 with activity timeline and follow-ups, a drag-and-drop pipeline board, and a business dashboard
 built on real aggregates.
 
-| Phase | Scope | State |
-| --- | --- | --- |
-| 1 | Setup · auth · data model · leads table · lead detail · seed data | ✅ Done |
-| 2 | Drag-and-drop pipeline board · dashboard with charts | ✅ Done |
-| 3 | EN/AR localisation with full RTL | Planned |
-| 4 | Follow-up management · polish · landing page | Planned |
-| 5 | AI lead assistant (stretch) | Planned |
+| Phase | Scope                                                             | State   |
+| ----- | ----------------------------------------------------------------- | ------- |
+| 1     | Setup · auth · data model · leads table · lead detail · seed data | ✅ Done |
+| 2     | Drag-and-drop pipeline board · dashboard with charts              | ✅ Done |
+| 3     | EN/AR localisation with full RTL                                  | Planned |
+| 4     | Follow-up management · polish · landing page                      | Planned |
+| 5     | AI lead assistant (stretch)                                       | Planned |
 
 The data model anticipates phase 3 too: `PipelineStage` carries both `name` and `nameAr`, so
 Arabic stage labels need no migration.
@@ -42,18 +42,18 @@ Arabic stage labels need no migration.
 
 Every piece has a genuine free tier. **Total running cost: $0.**
 
-| Layer | Choice | Why |
-| --- | --- | --- |
-| Frontend | React 19 · TypeScript · Vite 7 | — |
-| Styling | Tailwind CSS v4 · shadcn/ui · lucide-react | Tokens in one file; no hard-coded colours |
-| Data fetching | TanStack Query v5 | Cache keys centralised in `client/src/lib/query-client.ts` |
-| Forms | React Hook Form · Zod 4 | The **same Zod schemas** validate on both client and server |
-| Routing | React Router v7 | — |
-| Backend | Node 22 · Express 5 · TypeScript | `createApp()` factory — host-agnostic |
-| ORM | Prisma 6 | — |
-| Database | **Neon** serverless Postgres | Free tier: 0.5 GB, no credit card |
-| Auth | **Self-hosted JWT** — scrypt + httpOnly cookies | No vendor, no MAU cap, nothing to bill |
-| Hosting | **Vercel Hobby** — SPA + Express as one serverless function | Free; same-origin cookies |
+| Layer         | Choice                                                      | Why                                                         |
+| ------------- | ----------------------------------------------------------- | ----------------------------------------------------------- |
+| Frontend      | React 19 · TypeScript · Vite 7                              | —                                                           |
+| Styling       | Tailwind CSS v4 · shadcn/ui · lucide-react                  | Tokens in one file; no hard-coded colours                   |
+| Data fetching | TanStack Query v5                                           | Cache keys centralised in `client/src/lib/query-client.ts`  |
+| Forms         | React Hook Form · Zod 4                                     | The **same Zod schemas** validate on both client and server |
+| Routing       | React Router v7                                             | —                                                           |
+| Backend       | Node 22 · Express 5 · TypeScript                            | `createApp()` factory — host-agnostic                       |
+| ORM           | Prisma 6                                                    | —                                                           |
+| Database      | **Neon** serverless Postgres                                | Free tier: 0.5 GB, no credit card                           |
+| Auth          | **Self-hosted JWT** — scrypt + httpOnly cookies             | No vendor, no MAU cap, nothing to bill                      |
+| Hosting       | **Vercel Hobby** — SPA + Express as one serverless function | Free; same-origin cookies                                   |
 
 ### Why these choices
 
@@ -77,7 +77,7 @@ reorder its board without a migration, and so Arabic labels live beside English 
   takes an `Actor` and scopes its query by that id. Another tenant's record returns **404, not 403** —
   the API never confirms that a record it will not show you exists.
 - **Sessions.** A 15-minute access JWT plus a 30-day refresh JWT, both in `httpOnly; SameSite=Lax;
-  Secure` cookies. The refresh cookie is scoped to `/api/auth`, so it is never sent with ordinary
+Secure` cookies. The refresh cookie is scoped to `/api/auth`, so it is never sent with ordinary
   API traffic.
 - **Refresh rotation with reuse detection.** Using a refresh token revokes it and issues a
   replacement. Presenting an already-revoked token means the cookie leaked, so **every** session for
@@ -89,7 +89,7 @@ reorder its board without a migration, and so Arabic labels live beside English 
   token's claims, so a role change or deactivation takes effect at once.
 - **Timing-safe login.** Unknown email, wrong password and disabled account return the same error in
   roughly the same time, so the endpoint cannot be used to enumerate accounts.
-- **Input validation.** Zod parses and *replaces* every request body, query and param, so unknown
+- **Input validation.** Zod parses and _replaces_ every request body, query and param, so unknown
   keys can never reach a Prisma write.
 - **Rate limiting.** Login is limited per IP+email, signup per IP, everything else globally.
 - Helmet security headers, a 256 kB body cap, and no stack traces in production responses.
@@ -115,12 +115,12 @@ npm install
 1. Sign up at <https://neon.tech> — free tier, no credit card.
 2. Create a project with these settings:
 
-   | Setting | Value |
-   | --- | --- |
-   | Cloud provider | AWS |
-   | Region | **Europe (Frankfurt) `eu-central-1`** |
-   | Postgres version | 17 (newest offered) |
-   | Database name | `neondb` (the default) |
+   | Setting                       | Value                                                                    |
+   | ----------------------------- | ------------------------------------------------------------------------ |
+   | Cloud provider                | AWS                                                                      |
+   | Region                        | **Europe (Frankfurt) `eu-central-1`**                                    |
+   | Postgres version              | 17 (newest offered)                                                      |
+   | Database name                 | `neondb` (the default)                                                   |
    | Add-ons (Neon Auth, Data API) | **None** — this app brings its own auth and talks to Postgres via Prisma |
 
    The region is not arbitrary: `vercel.json` pins the serverless functions to `fra1`, so the API
@@ -157,11 +157,11 @@ npm run dev            # API on :4000, web on :5173
 ```
 
 Open <http://localhost:5173> and click **Start a demo** — that clones the seeded template into a
-working workspace with all 62 leads, exactly as a visitor gets. The sandbox and your session both
+working workspace with all 96 leads, exactly as a visitor gets. The sandbox and your session both
 persist, so this is a perfectly good way to develop against realistic data.
 
 Nobody can sign into the template directly, in any environment, so there is no back door to keep
-track of. If you want a *stable* account for testing sign-in itself, the seed also creates a second
+track of. If you want a _stable_ account for testing sign-in itself, the seed also creates a second
 ordinary workspace:
 
 ```
@@ -169,17 +169,36 @@ owner@northwind.test / DemoPass2026
 ```
 
 It holds 6 leads and exists mainly to prove tenant isolation — sign in there and none of the
-template's 62 leads are reachable.
+template's 96 leads are reachable.
 
 ### Useful scripts
 
-| Command | Does |
-| --- | --- |
-| `npm run dev` | API + web with hot reload |
-| `npm run build` | Production build of both |
-| `npm run typecheck` | Typecheck every workspace |
-| `npm run db:studio` | Prisma Studio — browse the data |
-| `npm run db:reset` | Drop, re-migrate and re-seed |
+| Command                | Does                             |
+| ---------------------- | -------------------------------- |
+| `npm run dev`          | API + web with hot reload        |
+| `npm run build`        | Production build of both         |
+| `npm run typecheck`    | Typecheck every workspace        |
+| `npm run format`       | Format with Prettier             |
+| `npm run format:check` | Verify formatting, write nothing |
+| `npm run db:studio`    | Prisma Studio — browse the data  |
+| `npm run db:reset`     | Drop, re-migrate and re-seed     |
+
+---
+
+## Formatting
+
+`.prettierrc` pins the house style, and Prettier is a pinned dependency rather than whatever `npx`
+resolves that day — the point is that two machines produce the same bytes. `printWidth` is 100
+because that is where the code already sat: before the config existed, 99% of lines were under 100
+characters, so adopting it was a formality rather than a reformat.
+
+`.prettierignore` covers build output plus three things Prettier should not own: `package-lock.json`
+and `server/prisma/migrations/` are written by their own tools, and `client/src/components/ui/` is
+generated by the shadcn CLI, where reformatting only makes the next `shadcn add` a noisy diff.
+
+There is exactly one `// prettier-ignore` in the codebase, on `DEFAULT_STAGE_PRESETS`. Six stages on
+six lines read as the table they are; formatted normally it becomes 54 lines and you can no longer
+scan the colours and probabilities down a column. Reach for it that rarely.
 
 ---
 
@@ -198,15 +217,15 @@ filter in the leads toolbar is how you find them.
 
 **Who can do what.**
 
-| Action | OWNER | ADMIN | MEMBER |
-| --- | :-: | :-: | :-: |
-| Read any lead in the workspace | ✅ | ✅ | ✅ |
-| Add notes / log calls on any lead | ✅ | ✅ | ✅ |
-| Edit a lead | ✅ | ✅ | own or created |
-| Archive / restore a lead | ✅ | ✅ | ❌ |
-| Edit or delete a note | any | any | own only |
-| Edit a system audit entry | ❌ | ❌ | ❌ |
-| Manage team members | ✅ | ✅ | ❌ |
+| Action                            | OWNER | ADMIN |     MEMBER     |
+| --------------------------------- | :---: | :---: | :------------: |
+| Read any lead in the workspace    |  ✅   |  ✅   |       ✅       |
+| Add notes / log calls on any lead |  ✅   |  ✅   |       ✅       |
+| Edit a lead                       |  ✅   |  ✅   | own or created |
+| Archive / restore a lead          |  ✅   |  ✅   |       ❌       |
+| Edit or delete a note             |  any  |  any  |    own only    |
+| Edit a system audit entry         |  ❌   |  ❌   |       ❌       |
+| Manage team members               |  ✅   |  ✅   |       ❌       |
 
 System activity entries are immutable for everyone — the audit trail is the record of what
 happened, so nobody rewrites it.
@@ -271,7 +290,7 @@ Three other decisions worth naming:
   rights to shows a lock instead of a drag handle. Discovering a permission by dragging a card and
   watching it snap back is a worse way to learn it.
 - **Mouse and touch get separate sensors.** A few pixels of travel is the right threshold for a
-  mouse; applied to a finger it hijacks every attempt to *scroll* the column. Touch uses a short
+  mouse; applied to a finger it hijacks every attempt to _scroll_ the column. Touch uses a short
   press-and-hold instead — swipe to scroll, hold to pick up.
 - **Dragging is never the only way.** Each card has a "move to stage" menu, and the drag handle is
   a real focusable control that lifts with Space and moves with the arrow keys. Dropping into a
@@ -309,10 +328,10 @@ deploy fails closed, not open.
 
 ## Environments
 
-| | Neon branch | Used by |
-| --- | --- | --- |
-| Production | `production` | The live deployment |
-| Development | `dev` | Local `npm run dev`, `db:reset`, `db:seed` |
+|             | Neon branch  | Used by                                    |
+| ----------- | ------------ | ------------------------------------------ |
+| Production  | `production` | The live deployment                        |
+| Development | `dev`        | Local `npm run dev`, `db:reset`, `db:seed` |
 
 Local development points at a separate branch on purpose: `npm run db:reset` drops and reseeds,
 and that must never be one mistyped command away from wiping the live demo. `neon checkout dev`
@@ -373,15 +392,16 @@ Nothing is hidden behind a generic message. Every API error response carries:
 ```jsonc
 {
   "error": {
-    "code": "DATABASE_UNAVAILABLE",   // stable, machine-readable
+    "code": "DATABASE_UNAVAILABLE", // stable, machine-readable
     "message": "Cannot reach the database…",
     "requestId": "9630ce5c-6b9d-4e42…", // matches a line in the server log
-    "debug": {                          // development only, by default
+    "debug": {
+      // development only, by default
       "name": "PrismaClientInitializationError",
       "detail": "Can't reach database server at …",
-      "stack": ["…"]
-    }
-  }
+      "stack": ["…"],
+    },
+  },
 }
 ```
 
@@ -414,14 +434,14 @@ The repo is configured for a **single** Vercel project serving both the SPA and 
 2. Leave the build settings alone — `vercel.json` supplies them.
 3. Add these environment variables (Production **and** Preview):
 
-   | Variable | Value |
-   | --- | --- |
-   | `DATABASE_URL` | Neon **pooled** string |
-   | `DIRECT_URL` | Neon **direct** string |
-   | `JWT_ACCESS_SECRET` | 48 random bytes |
+   | Variable             | Value                     |
+   | -------------------- | ------------------------- |
+   | `DATABASE_URL`       | Neon **pooled** string    |
+   | `DIRECT_URL`         | Neon **direct** string    |
+   | `JWT_ACCESS_SECRET`  | 48 random bytes           |
    | `JWT_REFRESH_SECRET` | 48 different random bytes |
-   | `NODE_ENV` | `production` |
-   | `COOKIE_SECURE` | `true` |
+   | `NODE_ENV`           | `production`              |
+   | `COOKIE_SECURE`      | `true`                    |
 
    `vercel.json` already pins functions to `fra1` (Frankfurt) to match the Neon region, so there is
    nothing to change under Settings → Functions.
@@ -486,15 +506,15 @@ serverless function. Moving to Render, Fly or a VPS is a config change, not a re
 
 ### Data model
 
-| Model | Notes |
-| --- | --- |
-| `Organization` | The tenant. Owns everything below it. `isDemoTemplate` marks the demo master; `expiresAt` marks a throwaway sandbox. |
-| `User` | `OWNER` / `ADMIN` / `MEMBER`. Members edit leads they own or created; only owners and admins archive. |
-| `RefreshToken` | One row per session — what makes a JWT revocable. |
-| `PipelineStage` | Per-tenant stage rows with colour, order, `name`, `nameAr` and `winProbability` — the last drives the dashboard's revenue forecast. |
-| `Lead` | The core record, plus denormalised `nextFollowUpAt` / `lastActivityAt` for sorting and `boardPosition` for manual rank on the board. Soft-deleted via `archivedAt`. |
-| `Activity` | Append-only timeline. System entries store structured `metadata`, not English strings. |
-| `FollowUp` | Scheduled task with channel, due date and status. |
+| Model           | Notes                                                                                                                                                               |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Organization`  | The tenant. Owns everything below it. `isDemoTemplate` marks the demo master; `expiresAt` marks a throwaway sandbox.                                                |
+| `User`          | `OWNER` / `ADMIN` / `MEMBER`. Members edit leads they own or created; only owners and admins archive.                                                               |
+| `RefreshToken`  | One row per session — what makes a JWT revocable.                                                                                                                   |
+| `PipelineStage` | Per-tenant stage rows with colour, order, `name`, `nameAr` and `winProbability` — the last drives the dashboard's revenue forecast.                                 |
+| `Lead`          | The core record, plus denormalised `nextFollowUpAt` / `lastActivityAt` for sorting and `boardPosition` for manual rank on the board. Soft-deleted via `archivedAt`. |
+| `Activity`      | Append-only timeline. System entries store structured `metadata`, not English strings.                                                                              |
+| `FollowUp`      | Scheduled task with channel, due date and status.                                                                                                                   |
 
 `Lead.nextFollowUpAt` and `Lead.lastActivityAt` are denormalised so the leads table can sort and
 filter on them without a correlated subquery per row. They are maintained in exactly one place —
@@ -506,29 +526,29 @@ filter on them without a correlated subquery per row. They are maintained in exa
 
 All routes are under `/api` and all except the first three require authentication.
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `POST` | `/auth/signup` | Create an organisation and its owner |
-| `POST` | `/auth/demo` | Clone the demo template into a private sandbox and sign in |
-| `POST` | `/auth/login` | Sign in |
-| `POST` | `/auth/refresh` | Rotate the session |
-| `POST` | `/auth/logout` | Revoke this session |
-| `GET`/`PATCH` | `/auth/me` | Current user |
-| `POST` | `/auth/change-password` | Revokes all sessions |
-| `GET` | `/stages` | The organisation's pipeline stages |
-| `GET` | `/team` · `PATCH /team/:id` | Members (edit is owner/admin only) |
-| `GET` | `/leads` | List — search, filter, sort, paginate |
-| `GET` | `/leads/stats` | Aggregates over the *filtered* set |
-| `POST` | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id` | CRUD |
-| `POST` | `/leads/:id/stage` · `/leads/:id/assign` | Audited stage move and reassignment |
-| `POST` | `/leads/:id/board-position` | Drag-and-drop: stage **and** rank within the column |
-| `GET` | `/board?limit=` | Every stage with its cards, plus per-stage totals and value |
-| `GET` | `/dashboard?range=30d\|90d\|12m` | Every dashboard figure, aggregated in Postgres |
-| `GET`/`POST` | `/leads/:id/activities` | Timeline |
-| `PATCH`/`DELETE` | `/activities/:id` | Edit or remove your own note |
-| `GET`/`POST` | `/leads/:id/follow-ups` | Follow-ups for a lead |
-| `GET` | `/follow-ups` | Organisation-wide task list |
-| `POST` | `/follow-ups/:id/complete` · `/cancel` | Complete or cancel |
+| Method           | Route                                          | Purpose                                                     |
+| ---------------- | ---------------------------------------------- | ----------------------------------------------------------- |
+| `POST`           | `/auth/signup`                                 | Create an organisation and its owner                        |
+| `POST`           | `/auth/demo`                                   | Clone the demo template into a private sandbox and sign in  |
+| `POST`           | `/auth/login`                                  | Sign in                                                     |
+| `POST`           | `/auth/refresh`                                | Rotate the session                                          |
+| `POST`           | `/auth/logout`                                 | Revoke this session                                         |
+| `GET`/`PATCH`    | `/auth/me`                                     | Current user                                                |
+| `POST`           | `/auth/change-password`                        | Revokes all sessions                                        |
+| `GET`            | `/stages`                                      | The organisation's pipeline stages                          |
+| `GET`            | `/team` · `PATCH /team/:id`                    | Members (edit is owner/admin only)                          |
+| `GET`            | `/leads`                                       | List — search, filter, sort, paginate                       |
+| `GET`            | `/leads/stats`                                 | Aggregates over the _filtered_ set                          |
+| `POST`           | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id` | CRUD                                                        |
+| `POST`           | `/leads/:id/stage` · `/leads/:id/assign`       | Audited stage move and reassignment                         |
+| `POST`           | `/leads/:id/board-position`                    | Drag-and-drop: stage **and** rank within the column         |
+| `GET`            | `/board?limit=`                                | Every stage with its cards, plus per-stage totals and value |
+| `GET`            | `/dashboard?range=30d\|90d\|12m`               | Every dashboard figure, aggregated in Postgres              |
+| `GET`/`POST`     | `/leads/:id/activities`                        | Timeline                                                    |
+| `PATCH`/`DELETE` | `/activities/:id`                              | Edit or remove your own note                                |
+| `GET`/`POST`     | `/leads/:id/follow-ups`                        | Follow-ups for a lead                                       |
+| `GET`            | `/follow-ups`                                  | Organisation-wide task list                                 |
+| `POST`           | `/follow-ups/:id/complete` · `/cancel`         | Complete or cancel                                          |
 
 ---
 

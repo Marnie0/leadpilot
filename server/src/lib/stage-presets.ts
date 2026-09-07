@@ -24,6 +24,10 @@ export interface StagePreset {
   winProbability: number;
 }
 
+// One line per stage keeps this readable as the table it is. Formatted normally
+// it becomes 54 lines and you can no longer scan the colours and probabilities
+// down a column.
+// prettier-ignore
 export const DEFAULT_STAGE_PRESETS: readonly StagePreset[] = [
   { key: 'NEW', name: 'New', nameAr: 'جديد', color: '#64748b', order: 0, type: 'OPEN', winProbability: 10 },
   { key: 'CONTACTED', name: 'Contacted', nameAr: 'تم التواصل', color: '#0ea5e9', order: 1, type: 'OPEN', winProbability: 25 },
