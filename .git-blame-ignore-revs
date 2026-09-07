@@ -9,3 +9,6 @@
 
 # style: format the repo with Prettier
 e9b882b9af020e5f067d64841fe2141cc48666cf
+
+# style: sort Tailwind class names
+ae6a8d31ce5afeb7bb6daf15c17a97ff8b2ee625
