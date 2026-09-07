@@ -86,14 +86,25 @@ const daysAhead = (days: number): Date => {
  * ------------------------------------------------------------------ */
 
 const STAGE_DISTRIBUTION: Array<{ key: StageKey; count: number; ageRange: [number, number] }> = [
+  // Open leads are recent by definition: anything still sitting in New after
+  // three months is not a live enquiry, it is a data-quality problem.
   { key: 'NEW', count: 14, ageRange: [0, 9] },
   { key: 'CONTACTED', count: 13, ageRange: [3, 24] },
   { key: 'QUALIFIED', count: 11, ageRange: [8, 40] },
   { key: 'PROPOSAL', count: 8, ageRange: [14, 55] },
-  // Closed deals are deliberately older than anything still open, so the default
-  // "Last updated" ordering leads with live pipeline instead of dead deals.
-  { key: 'WON', count: 9, ageRange: [45, 150] },
-  { key: 'LOST', count: 7, ageRange: [40, 160] },
+  /*
+   * Closed deals stretch back a full year, and there are far more of them than
+   * of open leads.
+   *
+   * That ratio is what a real CRM looks like after a year of trading, and the
+   * dashboard is the screen that exposes it: with closed deals bunched into the
+   * last five months — the original shape — the 12-month trend chart drew seven
+   * empty months and then a hockey stick, which reads as "this database was
+   * seeded last week" rather than as a working business. Spreading them gives
+   * every month a real win rate, a real average deal size and a real cycle time.
+   */
+  { key: 'WON', count: 28, ageRange: [30, 340] },
+  { key: 'LOST', count: 22, ageRange: [35, 350] },
 ];
 
 const SOURCE_WEIGHTS: Array<[LeadSource, number]> = [
@@ -227,10 +238,17 @@ async function createLead(
 
   const isWon = stage.type === 'WON';
   const isLost = stage.type === 'LOST';
-  // At least 25 days stale: open leads are touched within ~18 days, so this
-  // keeps every closed deal below them in the default sort.
+
+  /*
+   * A closed deal closes a sales cycle after it was created, not at a random
+   * point in history. Deriving the close date from the creation date this way is
+   * what makes "average days to close" on the dashboard a real figure — picking
+   * both dates independently produced cycle times anywhere from a week to ten
+   * months on identical-looking deals.
+   */
+  const salesCycleDays = intBetween(18, 70);
   const closedAt =
-    isWon || isLost ? daysAgo(intBetween(25, Math.max(30, ageDays - 5))) : null;
+    isWon || isLost ? daysAgo(Math.max(1, ageDays - salesCycleDays)) : null;
   const intendedUpdatedAt = closedAt ?? daysAgo(Math.max(0, Math.floor(ageDays / 3)));
 
   const lead = await prisma.lead.create({
@@ -281,14 +299,18 @@ async function createLead(
   ).map((preset) => preset.key);
   if (stage.type !== 'OPEN') path.push(stage.key);
 
+  // History runs from creation to the close date, or to now for a live lead.
+  // Letting a deal won eight months ago keep logging calls up to today would
+  // put dead deals at the top of "Last activity" and make the timeline lie.
+  const historyEnd = closedAt ?? now;
   let cursor = createdAt.getTime();
-  const span = Math.max(1, (now.getTime() - createdAt.getTime()) / Math.max(path.length, 1));
+  const span = Math.max(1, (historyEnd.getTime() - createdAt.getTime()) / Math.max(path.length, 1));
 
   let lastContactedAt: Date | null = null;
 
   for (const [stepIndex, stepKey] of path.entries()) {
     cursor += span * (0.4 + random() * 0.6);
-    const occurredAt = new Date(Math.min(cursor, now.getTime() - 60_000));
+    const occurredAt = new Date(Math.min(cursor, historyEnd.getTime() - 60_000));
 
     if (stepIndex > 0) {
       activities.push({
@@ -312,7 +334,7 @@ async function createLead(
         ActivityType.MEETING,
       ]);
       const noteAt = new Date(occurredAt.getTime() + intBetween(1, 6) * 60 * 60 * 1000);
-      const clamped = new Date(Math.min(noteAt.getTime(), now.getTime() - 30_000));
+      const clamped = new Date(Math.min(noteAt.getTime(), historyEnd.getTime() - 30_000));
       activities.push({
         organizationId: org.id,
         leadId: lead.id,
@@ -399,7 +421,7 @@ async function createLead(
    * Restore the intended timestamp.
    *
    * `updatedAt` carries Prisma's `@updatedAt`, so the write above silently
-   * stamped it with the seed run time — leaving all 62 demo leads "updated just
+   * stamped it with the seed run time — leaving every demo lead "updated just
    * now", milliseconds apart, which made the Updated column meaningless and the
    * default "Last updated" sort really just reverse insertion order. Raw SQL is
    * the only way to set the column, because the Prisma client always overrides it.

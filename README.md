@@ -4,10 +4,10 @@
 
 Click **Start a demo** on the sign-in screen. No credentials needed.
 
-Each visitor gets their **own private workspace** — a full clone of the demo template with 62
-leads and their complete activity history. Change anything: rename leads, move them through the
-pipeline, archive them. Nobody else sees it, and the next visitor still starts from a pristine
-copy. Sandboxes are removed automatically after 24 hours.
+Each visitor gets their **own private workspace** — a full clone of the demo template with 96
+leads and a year of activity history. Change anything: drag deals across the pipeline board,
+rename leads, archive them, watch the dashboard figures move. Nobody else sees it, and the next
+visitor still starts from a pristine copy. Sandboxes are removed automatically after 24 hours.
 
 Nobody can sign into the template itself, so the master copy can never be edited.
 
@@ -21,19 +21,20 @@ move opportunities through a shared pipeline: **New → Contacted → Qualified 
 
 ## Status
 
-**Phase 1 — complete.** Auth, the full data model, the leads table with search/filter/sort, the
-lead detail view with activity timeline and follow-ups, and a seeded demo workspace.
+**Phases 1 and 2 — complete.** Auth, the full data model, the leads table, the lead detail view
+with activity timeline and follow-ups, a drag-and-drop pipeline board, and a business dashboard
+built on real aggregates.
 
 | Phase | Scope | State |
 | --- | --- | --- |
 | 1 | Setup · auth · data model · leads table · lead detail · seed data | ✅ Done |
-| 2 | Drag-and-drop pipeline board · dashboard with charts | Planned |
+| 2 | Drag-and-drop pipeline board · dashboard with charts | ✅ Done |
 | 3 | EN/AR localisation with full RTL | Planned |
 | 4 | Follow-up management · polish · landing page | Planned |
 | 5 | AI lead assistant (stretch) | Planned |
 
-The data model already anticipates phases 2 and 3: `Lead.boardPosition` exists for board ordering,
-and `PipelineStage` carries both `name` and `nameAr` so Arabic labels need no migration.
+The data model anticipates phase 3 too: `PipelineStage` carries both `name` and `nameAr`, so
+Arabic stage labels need no migration.
 
 ---
 
@@ -146,7 +147,7 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 
 ```bash
 npm run db:migrate     # applies migrations
-npm run db:seed        # ~62 leads with full activity history
+npm run db:seed        # ~96 leads with a year of activity history
 ```
 
 ### 5. Run
@@ -237,6 +238,62 @@ correctly for free.
 
 Sandboxes expire after 24 hours. A Vercel cron calls `/api/internal/reap-demo-sandboxes` daily,
 and starting a demo also reaps opportunistically so the table cannot grow unbounded between runs.
+
+---
+
+## The pipeline board
+
+Cards carry a manual rank (`Lead.boardPosition`) within their stage, and a drop sends the server a
+stage plus an **anchor** — "put this card immediately below that one" — rather than an index. An
+index would be wrong the moment a column is only partially loaded: position 5 of the 40 cards on
+screen is not position 5 of the 300 in the stage. An anchor means the same thing either way, and
+survives someone else reordering the column mid-drag.
+
+The server then renumbers the whole destination column in one set-based `UPDATE`. The alternative —
+squeezing the moved card into the numeric gap between its new neighbours — is O(1) but eventually
+runs out of integers between two adjacent positions and needs a rebalancing pass anyway. That
+`UPDATE` is deliberately raw SQL: going through Prisma would fire `@updatedAt` on every card that
+merely shifted up by one, and scramble the leads table's "Last updated" sort every time anyone
+touched the board.
+
+Three other decisions worth naming:
+
+- **Cards a rep cannot move do not pretend otherwise.** Every lead in a list response carries
+  `canEdit`, computed server-side from the same rule the API enforces, so a card someone lacks
+  rights to shows a lock instead of a drag handle. Discovering a permission by dragging a card and
+  watching it snap back is a worse way to learn it.
+- **Mouse and touch get separate sensors.** A few pixels of travel is the right threshold for a
+  mouse; applied to a finger it hijacks every attempt to *scroll* the column. Touch uses a short
+  press-and-hold instead — swipe to scroll, hold to pick up.
+- **Dragging is never the only way.** Each card has a "move to stage" menu, and the drag handle is
+  a real focusable control that lifts with Space and moves with the arrow keys. Dropping into a
+  Lost stage asks for a reason first, because nobody ever goes back to add it later.
+
+---
+
+## The dashboard
+
+Every figure is aggregated in Postgres — nine queries in two batches — rather than by loading leads
+into Node and reducing over them. An aggregate the API can only produce by fetching every row is
+one that quietly stops working at the size where anyone would care about it.
+
+Two scopes share the screen, and each panel says which one it is on:
+
+- **Windowed** — leads created, deals closed, conversion, the trend chart, source attribution.
+  These honour the range selector and carry a comparison against the equivalent window before it.
+- **Right now** — open pipeline, the forecast, stage occupancy, follow-up workload. A pipeline is
+  a current state; slicing it by "the last 30 days" answers a question nobody asked, because a deal
+  that has sat in Proposal for six weeks is still in Proposal today.
+
+**Expected revenue** is Σ (open lead value × its stage's win probability). Those probabilities are
+a column on `PipelineStage`, not a constant in a chart component — which is what makes the forecast
+a real model a workspace could tune against its own history, rather than a magic number baked into
+the UI.
+
+A few smaller judgements about not overstating what the data says: a change from a window with
+zero in it is reported as "no prior data" rather than as infinite growth; a conversion rate over
+zero closed deals is `—`, not `0%`; and the source tooltip gives the denominator, because "100%"
+off one closed deal is not the claim "100%" off twenty is.
 The endpoint is closed unless `CRON_SECRET` is set, compared in constant time — a misconfigured
 deploy fails closed, not open.
 
@@ -400,11 +457,11 @@ LeadPilot/
 │       ├── app.ts       createApp() — no host-specific code
 │       ├── lib/         password, tokens, cookies, serializers, activity log
 │       ├── middleware/  auth, validation, rate limits, error handler
-│       └── modules/     auth · leads · activities · follow-ups · team · stages
+│       └── modules/     auth · leads · board · dashboard · activities · follow-ups · team · stages
 ├── client/          React SPA
 │   └── src/
 │       ├── components/  ui (shadcn) · layout · common
-│       ├── features/    auth · leads   (co-located API hooks + components)
+│       ├── features/    auth · leads · board · dashboard   (co-located API hooks + components)
 │       ├── lib/         api client, query keys, formatting, labels
 │       └── pages/       route-level screens
 ├── api/index.js     Vercel serverless entry — wraps the same Express app
@@ -426,8 +483,8 @@ serverless function. Moving to Render, Fly or a VPS is a config change, not a re
 | `Organization` | The tenant. Owns everything below it. `isDemoTemplate` marks the demo master; `expiresAt` marks a throwaway sandbox. |
 | `User` | `OWNER` / `ADMIN` / `MEMBER`. Members edit leads they own or created; only owners and admins archive. |
 | `RefreshToken` | One row per session — what makes a JWT revocable. |
-| `PipelineStage` | Per-tenant stage rows with colour, order, `name`, `nameAr`. |
-| `Lead` | The core record, plus denormalised `nextFollowUpAt` / `lastActivityAt` for sorting. Soft-deleted via `archivedAt`. |
+| `PipelineStage` | Per-tenant stage rows with colour, order, `name`, `nameAr` and `winProbability` — the last drives the dashboard's revenue forecast. |
+| `Lead` | The core record, plus denormalised `nextFollowUpAt` / `lastActivityAt` for sorting and `boardPosition` for manual rank on the board. Soft-deleted via `archivedAt`. |
 | `Activity` | Append-only timeline. System entries store structured `metadata`, not English strings. |
 | `FollowUp` | Scheduled task with channel, due date and status. |
 
@@ -456,6 +513,10 @@ All routes are under `/api` and all except the first three require authenticatio
 | `GET` | `/leads/stats` | Aggregates over the *filtered* set |
 | `POST` | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id` | CRUD |
 | `POST` | `/leads/:id/stage` · `/leads/:id/assign` | Audited stage move and reassignment |
+| `POST` | `/leads/:id/board-position` | Drag-and-drop: stage **and** rank within the column |
+| `GET` | `/board` | Every stage with its first page of cards, plus per-stage totals |
+| `GET` | `/board/columns/:stageKey` | The next page of one column |
+| `GET` | `/dashboard?range=30d\|90d\|12m` | Every dashboard figure, aggregated in Postgres |
 | `GET`/`POST` | `/leads/:id/activities` | Timeline |
 | `PATCH`/`DELETE` | `/activities/:id` | Edit or remove your own note |
 | `GET`/`POST` | `/leads/:id/follow-ups` | Follow-ups for a lead |
@@ -467,12 +528,20 @@ All routes are under `/api` and all except the first three require authenticatio
 ## Demo data
 
 `npm run db:seed` builds a workspace for **Meridian Property Group**, a Gulf real-estate agency:
-6 team members, 62 leads weighted into a realistic funnel shape, each with the activity history
+6 team members and 96 leads weighted into a realistic funnel shape, each with the activity history
 that would have got it to its current stage, plus open and completed follow-ups — about one in six
 open leads is deliberately overdue, so the urgency states have something to show.
 
+The **timeline** matters as much as the funnel shape. Open leads are recent, because a lead still
+sitting in New after three months is a data-quality problem rather than an enquiry; closed deals
+stretch back a full year and outnumber them, which is what a CRM actually looks like after a year
+of trading. Each closed deal is dated a plausible sales cycle after its own creation, so "average
+days to close" is a real figure. Getting this wrong is visible: an earlier version bunched every
+win into the last five months, and the dashboard's 12-month chart drew seven empty months followed
+by a hockey stick — data that says "seeded last week" rather than "a working business".
+
 A second tenant, **Northwind Consulting**, is seeded specifically so cross-organisation isolation
-can be demonstrated: sign in as `owner@northwind.test` / `DemoPass2026` and the template's 62 leads
-are completely invisible — every list, every aggregate, and a 404 on any direct id.
+can be demonstrated: sign in as `owner@northwind.test` / `DemoPass2026` and the template's 96 leads
+are completely invisible — every list, every board column, every chart, and a 404 on any direct id.
 
 The seed uses a fixed PRNG, so re-running it produces identical data.
