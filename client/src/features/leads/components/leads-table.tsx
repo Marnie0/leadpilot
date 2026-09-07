@@ -121,19 +121,46 @@ export function LeadsTable({
   const format = useFormat();
 
   /**
-   * Makes the whole row clickable, which is what `cursor-pointer` was already
-   * promising while only the name cell actually navigated.
+   * What a click on a row means.
    *
-   * The real <Link> stays in the name cell so keyboard users can tab to it and
-   * middle-click / ⌘-click still open a new tab; this handler only covers the
-   * dead space around it, and bows out if the click landed on any other
-   * interactive element.
+   * Outside selection mode it opens the lead — which is what `cursor-pointer`
+   * was already promising while only the name cell actually navigated.
+   *
+   * **Once anything is selected, a click selects instead.** Requiring people to
+   * hit a 16px checkbox to add a second row, and punishing a near miss by
+   * navigating away and discarding the whole selection, is the single most
+   * annoying thing a table like this can do. Every app that has this — Gmail,
+   * Finder, Linear — switches the row's meaning while a selection is live, and
+   * Escape or Clear gets you back out.
+   *
+   * ⌘/Ctrl-click and middle-click still open a new tab in either mode, because
+   * those are the browser's gestures rather than the table's.
    */
-  const openLead = (event: React.MouseEvent<HTMLTableRowElement>, leadId: string) => {
+  const handleRowClick = (event: React.MouseEvent<HTMLTableRowElement>, lead: LeadListItemDto) => {
     if (event.defaultPrevented) return;
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey) return;
+    // Real controls — the checkbox, the name link — handle their own clicks.
     if ((event.target as HTMLElement).closest('a, button, input, [role="button"]')) return;
-    navigate(`/leads/${leadId}`);
+
+    if (selection.isActive) {
+      // A locked row cannot join the selection, and navigating away from it
+      // would throw away everything picked so far. Doing nothing is the least
+      // surprising answer; the checkbox tooltip says why.
+      if (!lead.canEdit) return;
+      selectRow(lead.id, event.shiftKey);
+      return;
+    }
+
+    if (event.shiftKey) return;
+    navigate(`/leads/${lead.id}`);
+  };
+
+  /** Shared by the row and the name link, so both behave identically. */
+  const selectRow = (id: string, extend: boolean) => {
+    selection.toggle(id, { extend });
+    // Shift-clicking across rows otherwise leaves a ragged text selection
+    // highlighted over half the table.
+    if (extend) window.getSelection()?.removeAllRanges();
   };
 
   return (
@@ -199,8 +226,16 @@ export function LeadsTable({
           {leads.map((lead) => (
             <TableRow
               key={lead.id}
-              className="group cursor-pointer"
-              onClick={(event) => openLead(event, lead.id)}
+              className={cn(
+                'group',
+                // A locked row promises nothing while a selection is live,
+                // because clicking it does nothing.
+                selection.isActive && !lead.canEdit ? 'cursor-default' : 'cursor-pointer',
+                // `bg-muted` is the table's own hover colour, so a selected row
+                // was indistinguishable from the one under the pointer.
+                'data-[state=selected]:bg-primary/8',
+              )}
+              onClick={(event) => handleRowClick(event, lead)}
               data-state={selection.isSelected(lead.id) ? 'selected' : undefined}
             >
               {/*
@@ -212,7 +247,8 @@ export function LeadsTable({
                 {lead.canEdit ? (
                   <Checkbox
                     checked={selection.isSelected(lead.id)}
-                    onCheckedChange={() => selection.toggle(lead.id)}
+                    onClick={(event) => selectRow(lead.id, event.shiftKey)}
+                    className="group-hover:border-muted-foreground/80"
                     aria-label={t('bulk.selectRow', { name: lead.customerName })}
                   />
                 ) : (
@@ -230,6 +266,13 @@ export function LeadsTable({
               <TableCell className="max-w-[240px]">
                 <Link
                   to={`/leads/${lead.id}`}
+                  onClick={(event) => {
+                    // In selection mode the name is part of the row, not a way
+                    // out of it — except via the browser's own new-tab gesture.
+                    if (!selection.isActive || event.metaKey || event.ctrlKey) return;
+                    event.preventDefault();
+                    if (lead.canEdit) selectRow(lead.id, event.shiftKey);
+                  }}
                   className="block rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
                   <span className="block truncate font-medium text-foreground group-hover:text-primary">

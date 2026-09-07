@@ -1,12 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LeadListItemDto } from '@leadpilot/shared';
 
 export interface LeadSelection {
   selected: ReadonlySet<string>;
   count: number;
   ids: string[];
+  /**
+   * True once anything is selected — the table is in "selection mode" and a
+   * click on a row picks it rather than opening it.
+   */
+  isActive: boolean;
   isSelected: (id: string) => boolean;
-  toggle: (id: string) => void;
+  /**
+   * Toggles one row, or with `extend` selects everything between the last row
+   * touched and this one.
+   */
+  toggle: (id: string, options?: { extend?: boolean }) => void;
   clear: () => void;
   /** Selects every selectable row on the page, or clears them if all are on. */
   toggleAll: () => void;
@@ -36,6 +45,9 @@ export interface LeadSelection {
 export function useLeadSelection(leads: LeadListItemDto[], resetKey: unknown): LeadSelection {
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
 
+  /** Where a shift-click measures from. */
+  const anchor = useRef<string | null>(null);
+
   useEffect(() => {
     setSelected((current) => (current.size === 0 ? current : new Set()));
   }, [resetKey]);
@@ -61,17 +73,46 @@ export function useLeadSelection(leads: LeadListItemDto[], resetKey: unknown): L
     });
   }, [selectableIds]);
 
-  const toggle = useCallback((id: string) => {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
+  const toggle = useCallback(
+    (id: string, { extend = false }: { extend?: boolean } = {}) => {
+      setSelected((current) => {
+        /*
+         * Shift-click fills in the range from the last row touched.
+         *
+         * It *adds* the range rather than toggling each row in it, which is
+         * what every table that does this behaves like: dragging a shift-click
+         * back and forth should widen and narrow one block, not invert
+         * whatever it passes over.
+         */
+        const from = anchor.current;
+        if (extend && from && from !== id) {
+          const start = selectableIds.indexOf(from);
+          const end = selectableIds.indexOf(id);
+          if (start !== -1 && end !== -1) {
+            const [lo, hi] = start < end ? [start, end] : [end, start];
+            const next = new Set(current);
+            for (const rangeId of selectableIds.slice(lo, hi + 1)) next.add(rangeId);
+            anchor.current = id;
+            return next;
+          }
+        }
+
+        const next = new Set(current);
+        if (!next.delete(id)) next.add(id);
+        anchor.current = id;
+        return next;
+      });
+    },
+    [selectableIds],
+  );
+
+  const clear = useCallback(() => {
+    anchor.current = null;
+    setSelected(new Set());
   }, []);
 
-  const clear = useCallback(() => setSelected(new Set()), []);
-
   const toggleAll = useCallback(() => {
+    anchor.current = null;
     setSelected((current) =>
       current.size >= selectableIds.length ? new Set() : new Set(selectableIds),
     );
@@ -80,9 +121,28 @@ export function useLeadSelection(leads: LeadListItemDto[], resetKey: unknown): L
   const allState: boolean | 'indeterminate' =
     selected.size === 0 ? false : selected.size >= selectableIds.length ? true : 'indeterminate';
 
+  /*
+   * Escape leaves selection mode.
+   *
+   * Guarded on anything else that owns the key first: a dialog, a dropdown or a
+   * select is closed by Escape too, and dismissing the archive confirmation
+   * should not also throw away the selection it was about to act on.
+   */
+  useEffect(() => {
+    if (selected.size === 0) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]')) return;
+      clear();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selected.size, clear]);
+
   return {
     selected,
     count: selected.size,
+    isActive: selected.size > 0,
     ids: useMemo(() => [...selected], [selected]),
     isSelected: useCallback((id: string) => selected.has(id), [selected]),
     toggle,

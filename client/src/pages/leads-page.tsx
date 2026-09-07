@@ -9,6 +9,7 @@ import { ErrorState } from '@/components/common/error-state';
 import { PaginationBar } from '@/components/common/pagination-bar';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useT } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import { useLeadFilters } from '@/features/leads/hooks/use-lead-filters';
 import { useLeadStats, useLeads, useStages, useTeamMembers } from '@/features/leads/api';
 import { LeadFilterBar } from '@/features/leads/components/lead-filter-bar';
@@ -50,7 +51,14 @@ export function LeadsPage() {
   const showEmptyState = !leadsQuery.isLoading && leads.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <div
+      className={cn(
+        'mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
+        // The action bar floats over the page, so without this the last row
+        // sits permanently underneath it and cannot be scrolled into view.
+        selection.isActive && 'pb-28',
+      )}
+    >
       <PageHeader
         title={t('leads.title')}
         description={t('leads.description', { organization: user.organization.name })}
@@ -121,6 +129,7 @@ export function LeadsPage() {
                     key={lead.id}
                     lead={lead}
                     selected={selection.isSelected(lead.id)}
+                    selectionActive={selection.isActive}
                     {...(lead.canEdit && { onToggleSelected: () => selection.toggle(lead.id) })}
                   />
                 ))}

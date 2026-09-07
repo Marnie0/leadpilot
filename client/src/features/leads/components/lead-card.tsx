@@ -20,10 +20,13 @@ import { FollowUpCell } from './follow-up-cell';
 export function LeadCard({
   lead,
   selected,
+  selectionActive = false,
   onToggleSelected,
 }: {
   lead: LeadListItemDto;
   selected?: boolean;
+  /** True once anything on the page is selected — a tap then picks, not opens. */
+  selectionActive?: boolean;
   /** Omitted when the viewer cannot act on this lead, which hides the checkbox. */
   onToggleSelected?: () => void;
 }) {
@@ -42,7 +45,9 @@ export function LeadCard({
         is a control the browser will happily navigate away from mid-tap.
       */}
       {onToggleSelected && (
-        <span className="absolute end-3 top-3 z-10">
+        // A larger tap target than the 16px box itself: on touch, the corner of
+        // a card is a hard thing to hit exactly.
+        <span className="absolute end-0 top-0 z-10 flex size-12 items-center justify-center">
           <Checkbox
             checked={selected}
             onCheckedChange={onToggleSelected}
@@ -53,6 +58,17 @@ export function LeadCard({
 
       <Link
         to={`/leads/${lead.id}`}
+        onClick={(event) => {
+          /*
+           * While a selection is live the whole card is a selection target.
+           * On a phone the checkbox is a 16px corner of a 100px card, and
+           * missing it used to navigate away and discard everything picked so
+           * far — which is exactly the tap people were trying to make.
+           */
+          if (!selectionActive || event.metaKey || event.ctrlKey) return;
+          event.preventDefault();
+          onToggleSelected?.();
+        }}
         className={cn(
           'flex flex-col gap-3 rounded-xl p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
           onToggleSelected && 'pe-12',
