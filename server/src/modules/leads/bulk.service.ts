@@ -130,7 +130,16 @@ export async function bulkMoveStage(
     });
 
     await tx.lead.updateMany({
-      where: { id: { in: movable.map((lead) => lead.id) } },
+      // Scoped again on the way out. The ids came from an org-filtered read, so
+      // this is belt and braces — but it means every write in this file is
+      // tenant-scoped where you can see it, rather than because you traced
+      // where its ids came from. `archivedAt` closes the window where someone
+      // archives a lead between the read above and this write.
+      where: {
+        id: { in: movable.map((lead) => lead.id) },
+        organizationId: actor.organizationId,
+        archivedAt: null,
+      },
       data: {
         stageId: stage.id,
         boardPosition: (lowest._min.boardPosition ?? 0) - 1,
@@ -176,7 +185,11 @@ export async function bulkAssign(actor: Actor, input: BulkAssignInput): Promise<
 
   await prisma.$transaction(async (tx) => {
     await tx.lead.updateMany({
-      where: { id: { in: changeable.map((lead) => lead.id) } },
+      where: {
+        id: { in: changeable.map((lead) => lead.id) },
+        organizationId: actor.organizationId,
+        archivedAt: null,
+      },
       data: { assignedToId: input.assignedToId },
     });
 

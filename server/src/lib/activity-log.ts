@@ -64,6 +64,13 @@ export async function recordActivity(tx: TxClient, entry: ActivityLogEntry) {
 export async function recordActivities(tx: TxClient, entries: ActivityLogEntry[]): Promise<void> {
   if (entries.length === 0) return;
   const occurredAt = new Date();
+  // A bulk action is always within one organisation, and the timestamp update
+  // below is scoped to it. The callers already read their targets through an
+  // `organizationId` filter, so this is belt and braces — but an unscoped
+  // `updateMany` over caller-supplied ids is exactly the shape of a
+  // cross-tenant write, and it should not be possible to introduce one here by
+  // adding a caller that forgets.
+  const organizationId = entries[0]?.organizationId;
 
   await tx.activity.createMany({
     data: entries.map((entry) => ({
@@ -82,7 +89,7 @@ export async function recordActivities(tx: TxClient, entries: ActivityLogEntry[]
   // action ever logs a real conversation, this needs to grow the same split
   // `recordActivity` has.
   await tx.lead.updateMany({
-    where: { id: { in: entries.map((entry) => entry.leadId) } },
+    where: { id: { in: entries.map((entry) => entry.leadId) }, organizationId },
     data: { lastActivityAt: occurredAt },
   });
 }

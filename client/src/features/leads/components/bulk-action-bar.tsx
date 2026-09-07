@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { BulkLeadResultDto, PipelineStageDto } from '@leadpilot/shared';
+import type { BulkLeadResultDto, PipelineStageDto, StageKey } from '@leadpilot/shared';
 import { Archive, ArchiveRestore, ChevronDown, Loader2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { LostReasonDialog } from '@/features/board/components/lost-reason-dialog';
 import { stageName } from '@/lib/labels';
 import { useFormat, useI18n } from '@/lib/i18n';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
@@ -63,6 +64,8 @@ export function BulkActionBar({
   const format = useFormat();
   const describeError = useApiErrorMessage();
   const [confirmArchive, setConfirmArchive] = useState(false);
+  /** A move into a Lost stage, held until the reason prompt is answered. */
+  const [pendingLoss, setPendingLoss] = useState<StageKey | null>(null);
 
   const archive = useBulkArchive();
   const restore = useBulkRestore();
@@ -146,7 +149,17 @@ export function BulkActionBar({
               {stages.map((stage) => (
                 <DropdownMenuItem
                   key={stage.id}
-                  onSelect={() => moveStage.mutate({ ids, stageKey: stage.key }, handlers)}
+                  onSelect={() => {
+                    // Closing deals as lost asks why, exactly as the board and
+                    // the detail view do. Doing it silently here would have
+                    // made the fastest way to lose a hundred deals also the
+                    // only one that records nothing about them.
+                    if (stage.type === 'LOST') {
+                      setPendingLoss(stage.key);
+                      return;
+                    }
+                    moveStage.mutate({ ids, stageKey: stage.key }, handlers);
+                  }}
                 >
                   <span
                     className="size-2 shrink-0 rounded-full"
@@ -233,6 +246,22 @@ export function BulkActionBar({
           </Button>
         </div>
       </div>
+
+      <LostReasonDialog
+        open={pendingLoss !== null}
+        title={t('bulk.markLostTitle', { count })}
+        isPending={moveStage.isPending}
+        onCancel={() => setPendingLoss(null)}
+        onConfirm={(lostReason) => {
+          if (pendingLoss) {
+            moveStage.mutate(
+              { ids, stageKey: pendingLoss, ...(lostReason ? { lostReason } : {}) },
+              handlers,
+            );
+          }
+          setPendingLoss(null);
+        }}
+      />
 
       {/* Archiving in bulk is the one action here that removes things from view,
           so it is the one that asks first. */}

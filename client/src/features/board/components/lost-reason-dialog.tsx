@@ -14,7 +14,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { useT } from '@/lib/i18n';
 
 /**
- * Confirmation shown when a card is dropped into a Lost stage.
+ * Confirmation shown when a lead is moved into a Lost stage.
+ *
+ * Takes a rendered `title` rather than a lead name, because the same question
+ * is asked of one card dropped on the board and of a whole selection moved from
+ * the leads table. The reason it captures is the point of the dialog, and that
+ * does not change with the count.
  *
  * Asked *before* the move rather than after, which is why the card snaps back
  * while this is open: until the question is answered nothing has happened, and
@@ -26,13 +31,13 @@ import { useT } from '@/lib/i18n';
  */
 export function LostReasonDialog({
   open,
-  leadName,
+  title,
   isPending,
   onCancel,
   onConfirm,
 }: {
   open: boolean;
-  leadName: string | undefined;
+  title: string;
   isPending: boolean;
   onCancel: () => void;
   onConfirm: (reason: string | undefined) => void;
@@ -50,9 +55,7 @@ export function LostReasonDialog({
     <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {t('board.markLostTitle', { name: leadName ?? t('board.thisLead') })}
-          </DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{t('lead.markLostBody')}</DialogDescription>
         </DialogHeader>
 

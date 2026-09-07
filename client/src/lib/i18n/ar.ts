@@ -83,19 +83,15 @@ export const ar: Dictionary = {
    * Common
    * -------------------------------------------------------------- */
   'common.cancel': 'إلغاء',
-  'common.save': 'حفظ',
   'common.saving': 'جارٍ الحفظ…',
-  'common.close': 'إغلاق',
   'common.tryAgain': 'إعادة المحاولة',
   'common.loading': 'جارٍ التحميل…',
   'common.clearAll': 'مسح الكل',
   'common.clearFilters': 'مسح عوامل التصفية',
   'common.clearSelection': 'مسح التحديد',
   'common.noMatches': 'لا توجد نتائج',
-  'common.search': 'بحث',
   'common.searchIn': 'ابحث في {label}…',
   'common.clearSearch': 'مسح البحث',
-  'common.none': 'لا شيء',
   'common.unassigned': 'غير مُسنَد',
   'common.deactivatedSuffix': ' (معطّل)',
   'common.you': '(أنت)',
@@ -109,8 +105,6 @@ export const ar: Dictionary = {
   'common.daysShort': '{count} ي',
   'common.percent': '{value}٪',
   'common.somethingWentWrong': 'حدث خطأ ما. تحقق من اتصالك ثم أعد المحاولة.',
-  'common.pleaseTryAgain': 'يرجى إعادة المحاولة.',
-  'common.checkConnection': 'يرجى التحقق من اتصالك.',
   'common.couldNotLoad': 'تعذّر تحميل هذا',
   'common.soon': 'قريبًا',
   'common.comingLater': 'قادم في إصدار لاحق',
@@ -301,6 +295,11 @@ export const ar: Dictionary = {
   'bulk.archiveTitle_other': 'أرشفة {count} عميل؟',
   'bulk.archiveBody':
     'سيخرجون من مسار المبيعات ومن جميع الإجماليات. ويُحفظ سجل نشاطهم ومتابعاتهم، ويمكن لمالك أو مسؤول استعادتهم من عامل تصفية «المؤرشفة».',
+  'bulk.markLostTitle_one': 'تعليم عميل واحد كخسارة؟',
+  'bulk.markLostTitle_two': 'تعليم عميلين كخسارة؟',
+  'bulk.markLostTitle_few': 'تعليم {count} عملاء كخسارة؟',
+  'bulk.markLostTitle_many': 'تعليم {count} عميلًا كخسارة؟',
+  'bulk.markLostTitle_other': 'تعليم {count} عميل كخسارة؟',
 
   /* -------------------------------------------------------------- *
    * Leads list
@@ -678,10 +677,6 @@ export const ar: Dictionary = {
   'channel.WHATSAPP': 'واتساب',
   'channel.SMS': 'رسالة نصية',
   'channel.OTHER': 'أخرى',
-
-  'followUpStatus.PENDING': 'قيد الانتظار',
-  'followUpStatus.COMPLETED': 'مكتملة',
-  'followUpStatus.CANCELLED': 'ملغاة',
 
   'activityType.NOTE': 'ملاحظة',
   'activityType.CALL': 'مكالمة',

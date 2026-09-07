@@ -106,7 +106,15 @@ export type AssignLeadInput = z.infer<typeof assignLeadSchema>;
 export const BULK_LEAD_LIMIT = 100;
 
 export const bulkLeadIdsSchema = z.object({
-  ids: z.array(idSchema).min(1).max(BULK_LEAD_LIMIT),
+  // Deduplicated on the way in. The UI selects into a Set so it cannot produce
+  // a repeat, but the endpoint is public: a caller sending the same id twice
+  // otherwise inflated `unchanged`, because the row is updated once while the
+  // requested count included it twice.
+  ids: z
+    .array(idSchema)
+    .min(1)
+    .max(BULK_LEAD_LIMIT)
+    .transform((ids) => [...new Set(ids)]),
 });
 export type BulkLeadIdsInput = z.infer<typeof bulkLeadIdsSchema>;
 

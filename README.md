@@ -328,6 +328,11 @@ Each bulk endpoint is instead a bounded handful regardless of selection size —
 and authorise, one `updateMany`, one batched activity write — so `recordActivities` exists
 alongside `recordActivity` and keeps the `lastActivityAt` invariant in one place.
 
+**Closing a selection as Lost asks why.** The board and the detail view both prompt for a reason
+before a deal is marked lost, on the grounds that nobody goes back to add it later. Bulk does the
+same, once, for the whole selection — otherwise the fastest way to lose a hundred deals would also
+be the only one that recorded nothing about them.
+
 **Partial success is normal, and the reasons are different.** A selection is made against whatever
 the table is showing, so it can contain leads the caller may not touch, or ones already in the
 requested state. The result separates them:

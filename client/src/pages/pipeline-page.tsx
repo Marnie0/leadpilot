@@ -353,11 +353,12 @@ export function PipelinePage() {
 
       <LostReasonDialog
         open={pendingLoss !== null}
-        leadName={
-          board?.columns
-            .flatMap((column) => column.leads)
-            .find((lead) => lead.id === pendingLoss?.leadId)?.customerName
-        }
+        title={t('board.markLostTitle', {
+          name:
+            board?.columns
+              .flatMap((column) => column.leads)
+              .find((lead) => lead.id === pendingLoss?.leadId)?.customerName ?? t('board.thisLead'),
+        })}
         isPending={moveLead.isPending}
         onCancel={() => setPendingLoss(null)}
         onConfirm={(reason) => {

@@ -30,19 +30,15 @@ export const en = {
    * Common
    * -------------------------------------------------------------- */
   'common.cancel': 'Cancel',
-  'common.save': 'Save',
   'common.saving': 'Saving…',
-  'common.close': 'Close',
   'common.tryAgain': 'Try again',
   'common.loading': 'Loading…',
   'common.clearAll': 'Clear all',
   'common.clearFilters': 'Clear filters',
   'common.clearSelection': 'Clear selection',
   'common.noMatches': 'No matches',
-  'common.search': 'Search',
   'common.searchIn': 'Search {label}…',
   'common.clearSearch': 'Clear search',
-  'common.none': 'None',
   'common.unassigned': 'Unassigned',
   'common.deactivatedSuffix': ' (deactivated)',
   'common.you': '(you)',
@@ -52,8 +48,6 @@ export const en = {
   'common.daysShort': '{count}d',
   'common.percent': '{value}%',
   'common.somethingWentWrong': 'Something went wrong. Check your connection and try again.',
-  'common.pleaseTryAgain': 'Please try again.',
-  'common.checkConnection': 'Please check your connection.',
   'common.couldNotLoad': 'Could not load this',
   'common.soon': 'Soon',
   'common.comingLater': 'Coming in a later release',
@@ -235,6 +229,8 @@ export const en = {
   'bulk.archiveTitle_other': 'Archive {count} leads?',
   'bulk.archiveBody':
     'They leave the pipeline and every total. Their activity history and follow-ups are kept, and an owner or admin can restore them from the Archived filter.',
+  'bulk.markLostTitle_one': 'Mark {count} lead as lost?',
+  'bulk.markLostTitle_other': 'Mark {count} leads as lost?',
 
   /* -------------------------------------------------------------- *
    * Leads list
@@ -609,10 +605,6 @@ export const en = {
   'channel.WHATSAPP': 'WhatsApp',
   'channel.SMS': 'SMS',
   'channel.OTHER': 'Other',
-
-  'followUpStatus.PENDING': 'Pending',
-  'followUpStatus.COMPLETED': 'Completed',
-  'followUpStatus.CANCELLED': 'Cancelled',
 
   'activityType.NOTE': 'Note',
   'activityType.CALL': 'Call',
