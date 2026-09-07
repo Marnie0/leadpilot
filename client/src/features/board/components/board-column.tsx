@@ -4,7 +4,8 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { BoardColumnDto, PipelineStageDto, StageKey } from '@leadpilot/shared';
 import { ArrowUpRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { stageName } from '@/lib/labels';
+import { useFormat, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { BOARD_PAGE_SIZE } from '../api';
 import { BoardCard, BoardCardSkeleton } from './board-card';
@@ -37,6 +38,8 @@ export function BoardColumn({
   onLoadMore: () => void;
   onMoveToStage: (leadId: string, stageKey: StageKey) => void;
 }) {
+  const { t, locale } = useI18n();
+  const format = useFormat();
   const { setNodeRef, isOver } = useDroppable({
     id: column.stage.key,
     data: { type: 'column', stageKey: column.stage.key },
@@ -44,11 +47,12 @@ export function BoardColumn({
 
   const leadIds = column.leads.map((lead) => lead.id);
   const hasMore = column.leads.length < column.total;
+  const name = stageName(column.stage, locale);
 
   return (
     <section
       className="flex w-[280px] shrink-0 snap-start flex-col sm:w-[300px]"
-      aria-label={`${column.stage.name} — ${column.total} leads`}
+      aria-label={t('board.columnLabel', { stage: name, count: format.number(column.total) })}
     >
       <header className="mb-2 flex items-center gap-2 px-1">
         <span
@@ -56,12 +60,12 @@ export function BoardColumn({
           style={{ backgroundColor: column.stage.color }}
           aria-hidden
         />
-        <h2 className="truncate text-sm font-semibold text-foreground">{column.stage.name}</h2>
+        <h2 className="truncate text-sm font-semibold text-foreground">{name}</h2>
         <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
-          {formatNumber(column.total)}
+          {format.number(column.total)}
         </span>
-        <span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
-          {formatCurrency(column.value, currency)}
+        <span className="ms-auto shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
+          {format.currency(column.value, currency)}
         </span>
       </header>
 
@@ -77,7 +81,7 @@ export function BoardColumn({
             Array.from({ length: 3 }, (_, index) => <BoardCardSkeleton key={index} />)
           ) : column.leads.length === 0 ? (
             <p className="flex flex-1 items-center justify-center px-3 py-6 text-center text-xs text-muted-foreground">
-              {isOver ? 'Drop to move here' : 'Nothing in this stage'}
+              {isOver ? t('board.dropHere') : t('board.stageEmpty')}
             </p>
           ) : (
             column.leads.map((lead) => (
@@ -102,9 +106,14 @@ export function BoardColumn({
               disabled={isLoadingMore}
             >
               {isLoadingMore && <Loader2 className="size-3.5 animate-spin" />}
-              Show {Math.min(column.total - column.leads.length, BOARD_PAGE_SIZE)} more
+              {t('board.showMore', {
+                count: format.number(Math.min(column.total - column.leads.length, BOARD_PAGE_SIZE)),
+              })}
               <span className="text-muted-foreground/70">
-                ({column.leads.length} of {column.total})
+                {t('board.loadedOf', {
+                  shown: format.number(column.leads.length),
+                  total: format.number(column.total),
+                })}
               </span>
             </Button>
           ) : (
@@ -113,8 +122,9 @@ export function BoardColumn({
             // so the column hands over rather than pretending to be one.
             <Button variant="ghost" size="sm" className="w-full text-xs" asChild>
               <Link to={`/leads?stage=${column.stage.key}`}>
-                View all {column.total} in the table
-                <ArrowUpRight className="size-3.5" />
+                {t('board.viewAllInTable', { count: format.number(column.total) })}
+                {/* Points away to another screen, so it follows the reading direction. */}
+                <ArrowUpRight className="icon-directional size-3.5" />
               </Link>
             </Button>
           ))}

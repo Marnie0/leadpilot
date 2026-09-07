@@ -10,8 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency, formatRelative } from '@/lib/format';
-import { SOURCE_LABELS } from '@/lib/labels';
+import { useFormat, useT, type StaticKey, type Translator } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { StageBadge } from './stage-badge';
 import { PriorityBadge } from './priority-badge';
@@ -20,7 +19,7 @@ import { FollowUpCell } from './follow-up-cell';
 
 interface ColumnDefinition {
   id: string;
-  label: string;
+  labelKey: StaticKey;
   sortField?: LeadSortField;
   className?: string;
   /** Hides lower-priority columns until there is room for them. */
@@ -28,14 +27,19 @@ interface ColumnDefinition {
 }
 
 const COLUMNS: ColumnDefinition[] = [
-  { id: 'customer', label: 'Customer', sortField: 'customerName' },
-  { id: 'service', label: 'Service', sortField: 'company', hideBelow: 'xl' },
-  { id: 'stage', label: 'Stage', sortField: 'stage' },
-  { id: 'value', label: 'Value', sortField: 'estimatedValue', className: 'text-right' },
-  { id: 'priority', label: 'Priority', sortField: 'priority', hideBelow: '2xl' },
-  { id: 'assignee', label: 'Rep' },
-  { id: 'followUp', label: 'Next follow-up', sortField: 'nextFollowUpAt' },
-  { id: 'updated', label: 'Updated', sortField: 'updatedAt', hideBelow: '2xl' },
+  { id: 'customer', labelKey: 'leads.column.customer', sortField: 'customerName' },
+  { id: 'service', labelKey: 'leads.column.service', sortField: 'company', hideBelow: 'xl' },
+  { id: 'stage', labelKey: 'leads.column.stage', sortField: 'stage' },
+  {
+    id: 'value',
+    labelKey: 'leads.column.value',
+    sortField: 'estimatedValue',
+    className: 'text-end',
+  },
+  { id: 'priority', labelKey: 'leads.column.priority', sortField: 'priority', hideBelow: '2xl' },
+  { id: 'assignee', labelKey: 'leads.column.assignee' },
+  { id: 'followUp', labelKey: 'leads.column.followUp', sortField: 'nextFollowUpAt' },
+  { id: 'updated', labelKey: 'leads.column.updated', sortField: 'updatedAt', hideBelow: '2xl' },
 ];
 
 const HIDE_CLASSES = {
@@ -48,13 +52,16 @@ function SortableHeader({
   sortBy,
   sortDir,
   onSort,
+  t,
 }: {
   column: ColumnDefinition;
   sortBy: LeadSortField;
   sortDir: 'asc' | 'desc';
   onSort: (field: LeadSortField) => void;
+  t: Translator;
 }) {
-  if (!column.sortField) return <>{column.label}</>;
+  const label = t(column.labelKey);
+  if (!column.sortField) return <>{label}</>;
 
   const isActive = sortBy === column.sortField;
   const Icon = !isActive ? ChevronsUpDown : sortDir === 'asc' ? ArrowUp : ArrowDown;
@@ -68,11 +75,12 @@ function SortableHeader({
         'hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
         isActive && 'text-foreground',
       )}
-      aria-label={`Sort by ${column.label}`}
+      aria-label={t('leads.sortBy', { label })}
       // Announces the current sort to screen readers on the header cell.
       aria-pressed={isActive}
     >
-      {column.label}
+      {label}
+      {/* Vertical arrows: "ascending" is up in both directions, so no mirroring. */}
       <Icon
         className={cn(
           'size-3 transition-opacity',
@@ -104,6 +112,8 @@ export function LeadsTable({
   onSort: (field: LeadSortField) => void;
 }) {
   const navigate = useNavigate();
+  const t = useT();
+  const format = useFormat();
 
   /**
    * Makes the whole row clickable, which is what `cursor-pointer` was already
@@ -142,7 +152,13 @@ export function LeadsTable({
                     : undefined
                 }
               >
-                <SortableHeader column={column} sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
+                <SortableHeader
+                  column={column}
+                  sortBy={sortBy}
+                  sortDir={sortDir}
+                  onSort={onSort}
+                  t={t}
+                />
               </TableHead>
             ))}
           </TableRow>
@@ -179,7 +195,7 @@ export function LeadsTable({
                     {lead.customerName}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {lead.company ?? SOURCE_LABELS[lead.source]}
+                    {lead.company ?? t(`source.${lead.source}`)}
                   </span>
                 </Link>
               </TableCell>
@@ -189,7 +205,7 @@ export function LeadsTable({
                   {lead.requestedService}
                 </span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {SOURCE_LABELS[lead.source]}
+                  {t(`source.${lead.source}`)}
                 </span>
               </TableCell>
 
@@ -197,8 +213,8 @@ export function LeadsTable({
                 <StageBadge stage={lead.stage} size="sm" />
               </TableCell>
 
-              <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
-                {formatCurrency(lead.estimatedValue, lead.currency)}
+              <TableCell className="text-end font-medium whitespace-nowrap tabular-nums">
+                {format.currency(lead.estimatedValue, lead.currency)}
               </TableCell>
 
               <TableCell className={HIDE_CLASSES['2xl']}>
@@ -219,7 +235,7 @@ export function LeadsTable({
                   HIDE_CLASSES['2xl'],
                 )}
               >
-                {formatRelative(lead.updatedAt)}
+                {format.relative(lead.updatedAt)}
               </TableCell>
             </TableRow>
           ))}

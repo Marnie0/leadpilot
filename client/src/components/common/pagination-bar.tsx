@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatNumber } from '@/lib/format';
+import { useFormat, useT } from '@/lib/i18n';
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -16,13 +16,17 @@ export function PaginationBar({
   meta,
   onPageChange,
   onPageSizeChange,
-  itemLabel = 'results',
+  itemLabel,
 }: {
   meta: PageMeta;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
-  itemLabel?: string;
+  /** Plural noun for the record type, already translated. */
+  itemLabel: string;
 }) {
+  const t = useT();
+  const format = useFormat();
+
   const firstItem = meta.total === 0 ? 0 : (meta.page - 1) * meta.pageSize + 1;
   const lastItem = Math.min(meta.page * meta.pageSize, meta.total);
 
@@ -30,18 +34,23 @@ export function PaginationBar({
     <div className="flex flex-col-reverse items-center gap-3 border-t px-4 py-3 sm:flex-row sm:justify-between">
       <p className="text-sm text-muted-foreground" aria-live="polite">
         {meta.total === 0
-          ? `No ${itemLabel}`
-          : `Showing ${formatNumber(firstItem)}–${formatNumber(lastItem)} of ${formatNumber(meta.total)} ${itemLabel}`}
+          ? t('pagination.empty', { items: itemLabel })
+          : t('pagination.range', {
+              from: format.number(firstItem),
+              to: format.number(lastItem),
+              total: format.number(meta.total),
+              items: itemLabel,
+            })}
       </p>
 
       <div className="flex items-center gap-4">
         <div className="hidden items-center gap-2 sm:flex">
-          <span className="text-sm text-muted-foreground">Rows</span>
+          <span className="text-sm text-muted-foreground">{t('pagination.rows')}</span>
           <Select
             value={String(meta.pageSize)}
             onValueChange={(value) => onPageSizeChange(Number(value))}
           >
-            <SelectTrigger size="sm" className="w-[72px]" aria-label="Rows per page">
+            <SelectTrigger size="sm" className="w-[72px]" aria-label={t('pagination.rowsPerPage')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -61,12 +70,16 @@ export function PaginationBar({
             className="size-8"
             onClick={() => onPageChange(meta.page - 1)}
             disabled={!meta.hasPreviousPage}
-            aria-label="Previous page"
+            aria-label={t('pagination.previous')}
           >
-            <ChevronLeft className="size-4" />
+            {/* "Previous" is the start edge in both directions, so the glyph mirrors. */}
+            <ChevronLeft className="icon-directional size-4" />
           </Button>
           <span className="min-w-[84px] text-center text-sm text-muted-foreground tabular-nums">
-            Page {meta.page} of {Math.max(meta.totalPages, 1)}
+            {t('pagination.page', {
+              page: format.number(meta.page),
+              total: format.number(Math.max(meta.totalPages, 1)),
+            })}
           </span>
           <Button
             variant="outline"
@@ -74,9 +87,9 @@ export function PaginationBar({
             className="size-8"
             onClick={() => onPageChange(meta.page + 1)}
             disabled={!meta.hasNextPage}
-            aria-label="Next page"
+            aria-label={t('pagination.next')}
           >
-            <ChevronRight className="size-4" />
+            <ChevronRight className="icon-directional size-4" />
           </Button>
         </div>
       </div>

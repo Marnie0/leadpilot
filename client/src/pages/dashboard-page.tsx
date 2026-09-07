@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import { ErrorState } from '@/components/common/error-state';
 import { readOne } from '@/lib/search-params';
-import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
+import { useFormat, useT } from '@/lib/i18n';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useDashboard } from '@/features/dashboard/api';
 import { KpiCard, KpiCardSkeleton } from '@/features/dashboard/components/kpi-card';
@@ -21,19 +21,6 @@ import { TrendChart } from '@/features/dashboard/components/trend-chart';
 import { StagePerformance } from '@/features/dashboard/components/stage-performance';
 import { SourceBreakdown } from '@/features/dashboard/components/source-breakdown';
 import { FollowUpSummary } from '@/features/dashboard/components/follow-up-summary';
-
-const RANGE_LABELS: Record<DashboardRange, string> = {
-  '30d': 'Last 30 days',
-  '90d': 'Last 90 days',
-  '12m': 'Last 12 months',
-};
-
-/** Short form, for the "vs. previous …" line under a comparison. */
-const RANGE_NOUNS: Record<DashboardRange, string> = {
-  '30d': '30 days',
-  '90d': '90 days',
-  '12m': 'year',
-};
 
 /**
  * The business dashboard.
@@ -51,6 +38,8 @@ const RANGE_NOUNS: Record<DashboardRange, string> = {
  * the matching filter applied.
  */
 export function DashboardPage() {
+  const t = useT();
+  const format = useFormat();
   const user = useCurrentUser();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -74,15 +63,26 @@ export function DashboardPage() {
   const currency = data?.currency ?? user.organization.defaultCurrency;
   const isLoading = dashboardQuery.isLoading && !data;
 
+  /*
+   * Three phrasings of the same window live in the dictionary, because a label
+   * is not a sentence: `range.*` ("Last 90 days") heads the picker,
+   * `rangeInline.*` reads inside a description, and `previous.*` is the bare
+   * noun a comparison hangs off. English can get away with lower-casing one to
+   * make another — `.toLowerCase()` was doing exactly that — but Arabic has no
+   * case to lower, so each form is written out.
+   */
+  const rangeInline = t(`dashboard.rangeInline.${range}`);
+  const previousNoun = t(`dashboard.previous.${range}`);
+
   const rangeSelect = (
     <Select value={range} onValueChange={(value) => setRange(value as DashboardRange)}>
-      <SelectTrigger className="w-[164px]" aria-label="Reporting period">
+      <SelectTrigger className="w-[164px]" aria-label={t('dashboard.period')}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent align="end">
         {DASHBOARD_RANGES.map((option) => (
           <SelectItem key={option} value={option}>
-            {RANGE_LABELS[option]}
+            {t(`dashboard.range.${option}`)}
           </SelectItem>
         ))}
       </SelectContent>
@@ -92,12 +92,12 @@ export function DashboardPage() {
   if (dashboardQuery.isError) {
     return (
       <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <PageHeader title="Dashboard" description={user.organization.name} />
+        <PageHeader title={t('dashboard.title')} description={user.organization.name} />
         <Card>
           <ErrorState
             error={dashboardQuery.error}
             onRetry={() => void dashboardQuery.refetch()}
-            title="Could not load the dashboard"
+            title={t('dashboard.couldNotLoad')}
           />
         </Card>
       </div>
@@ -105,15 +105,17 @@ export function DashboardPage() {
   }
 
   const summary = data?.summary;
-  const previousNoun = RANGE_NOUNS[range];
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <PageHeader
-        title="Dashboard"
+        title={t('dashboard.title')}
         description={
           data
-            ? `${user.organization.name} · reporting from ${formatDate(data.from)}`
+            ? t('dashboard.reportingFrom', {
+                organization: user.organization.name,
+                date: format.date(data.from),
+              })
             : user.organization.name
         }
         actions={rangeSelect}
@@ -126,50 +128,69 @@ export function DashboardPage() {
         ) : (
           <>
             <KpiCard
-              label="New leads"
-              value={formatNumber(summary.newLeads.current)}
+              label={t('dashboard.newLeads')}
+              value={format.number(summary.newLeads.current)}
               icon={Users}
               delta={summary.newLeads}
-              hint={`vs. ${formatNumber(summary.newLeads.previous)} the previous ${previousNoun}`}
-              explainer={`Leads created in the ${RANGE_LABELS[range].toLowerCase()}, compared with the ${previousNoun} before it.`}
+              hint={t('dashboard.newLeadsHint', {
+                count: format.number(summary.newLeads.previous),
+                period: previousNoun,
+              })}
+              explainer={t('dashboard.newLeadsExplainer', {
+                range: rangeInline,
+                period: previousNoun,
+              })}
             />
             <KpiCard
-              label="Conversion rate"
+              label={t('dashboard.conversionRate')}
               value={
                 summary.conversionRate.current === null
-                  ? '—'
-                  : `${summary.conversionRate.current.toFixed(0)}%`
+                  ? t('common.dash')
+                  : format.percent(summary.conversionRate.current)
               }
               icon={Target}
               hint={
                 summary.conversionRate.closed === 0
-                  ? 'No deals closed in this period'
+                  ? t('dashboard.conversionNone')
                   : summary.conversionRate.previous === null
-                    ? `${formatNumber(summary.conversionRate.closed)} deals closed · no prior data`
-                    : `${formatNumber(summary.conversionRate.closed)} deals closed · ${summary.conversionRate.previous.toFixed(0)}% the previous ${previousNoun}`
+                    ? t('dashboard.conversionNoPrior', {
+                        count: format.number(summary.conversionRate.closed),
+                      })
+                    : t('dashboard.conversionHint', {
+                        count: format.number(summary.conversionRate.closed),
+                        rate: summary.conversionRate.previous.toFixed(0),
+                        period: previousNoun,
+                      })
               }
-              explainer="Deals won as a share of deals closed — won plus lost — inside the selected period. Open leads are excluded, because a deal that has not been decided is not a loss."
+              explainer={t('dashboard.conversionExplainer')}
             />
             <KpiCard
-              label="Expected revenue"
-              value={formatCurrency(summary.weightedPipelineValue, currency)}
+              label={t('dashboard.expectedRevenue')}
+              value={format.currency(summary.weightedPipelineValue, currency)}
               icon={TrendingUp}
               tone="success"
-              hint={`of ${formatCurrency(summary.pipelineValue, currency)} open pipeline`}
-              explainer="Every open lead's value multiplied by its stage's win probability, then summed. A proposal counts for more than an untouched enquiry, so this lands well below the headline pipeline figure — deliberately."
+              hint={t('dashboard.expectedRevenueHint', {
+                value: format.currency(summary.pipelineValue, currency),
+              })}
+              explainer={t('dashboard.expectedRevenueExplainer')}
             />
             <KpiCard
-              label="Won revenue"
-              value={formatCurrency(summary.wonValue.current, currency)}
+              label={t('dashboard.wonRevenue')}
+              value={format.currency(summary.wonValue.current, currency)}
               icon={CircleDollarSign}
               delta={summary.wonValue}
               tone="success"
               hint={
                 summary.avgDealSize === null
-                  ? `${formatNumber(summary.wonLeads.current)} deals`
-                  : `${formatNumber(summary.wonLeads.current)} deals · ${formatCurrency(summary.avgDealSize, currency)} average`
+                  ? t('dashboard.wonRevenueHint', {
+                      count: format.number(summary.wonLeads.current),
+                    })
+                  : t('dashboard.wonRevenueHintAvg', {
+                      count: format.number(summary.wonLeads.current),
+                      average: format.currency(summary.avgDealSize, currency),
+                    })
               }
-              explainer={`Value of deals marked Won in the ${RANGE_LABELS[range].toLowerCase()}.`}
+              explainer={t('dashboard.wonRevenueExplainer', { range: rangeInline })}
             />
           </>
         )}
@@ -179,8 +200,11 @@ export function DashboardPage() {
       <div className="grid gap-4 xl:grid-cols-3">
         <ChartCard
           className="xl:col-span-2"
-          title="Lead flow and closed deals"
-          description={`New leads per ${data?.trendBucket ?? 'week'} against deals won, over the ${RANGE_LABELS[range].toLowerCase()}.`}
+          title={t('dashboard.trendTitle')}
+          description={t('dashboard.trendDescription', {
+            bucket: t(`dashboard.bucket.${data?.trendBucket ?? 'week'}`),
+            range: rangeInline,
+          })}
         >
           {isLoading || !data ? (
             <ChartSkeleton height={280} />
@@ -190,8 +214,8 @@ export function DashboardPage() {
         </ChartCard>
 
         <ChartCard
-          title="Follow-ups"
-          description="Open tasks right now — not affected by the reporting period."
+          title={t('dashboard.followUpsTitle')}
+          description={t('dashboard.followUpsDescription')}
         >
           {isLoading || !data ? (
             <ChartSkeleton height={280} />
@@ -204,13 +228,17 @@ export function DashboardPage() {
       {/* --- Pipeline composition ---------------------------------------- */}
       <div className="grid gap-4 xl:grid-cols-2">
         <ChartCard
-          title="Pipeline by stage"
+          title={t('dashboard.stagesTitle')}
           description={
             summary
-              ? `${formatNumber(summary.openLeads)} open leads right now · average time to close ${
-                  summary.avgDaysToClose === null ? '—' : `${summary.avgDaysToClose} days`
-                }`
-              : 'Where the open pipeline is sitting right now.'
+              ? t('dashboard.stagesDescription', {
+                  count: format.number(summary.openLeads),
+                  days:
+                    summary.avgDaysToClose === null
+                      ? t('common.dash')
+                      : t('common.days', { count: summary.avgDaysToClose }),
+                })
+              : t('dashboard.stagesFallback')
           }
         >
           {isLoading || !data ? (
@@ -221,8 +249,8 @@ export function DashboardPage() {
         </ChartCard>
 
         <ChartCard
-          title="Lead sources"
-          description={`Where the ${RANGE_LABELS[range].toLowerCase()}' leads came from, and how well each source converts.`}
+          title={t('dashboard.sourcesTitle')}
+          description={t('dashboard.sourcesDescription', { range: rangeInline })}
         >
           {isLoading || !data ? (
             <ChartSkeleton height={220} />
@@ -233,10 +261,9 @@ export function DashboardPage() {
       </div>
 
       {data && (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <CalendarClock className="size-3.5" aria-hidden />
-          Figures are in {currency}, the workspace currency. Pipeline and follow-up panels show the
-          current state; everything else covers the selected period.
+        <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <CalendarClock className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          {t('dashboard.footnote', { currency })}
         </p>
       )}
     </div>

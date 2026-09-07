@@ -1,10 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { ChevronsUpDown, LogOut, Monitor, Moon, Sun } from 'lucide-react';
+import { ChevronsUpDown, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/features/auth/auth-context';
-import { useTheme } from '@/providers/theme-provider';
 import { initials } from '@/lib/format';
-import { ROLE_LABELS } from '@/lib/labels';
+import { useT } from '@/lib/i18n';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,22 +11,21 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { LanguageMenuItems, ThemeMenuItems } from './appearance-controls';
 
 export function UserMenu({ compact = false }: { compact?: boolean }) {
   const { user, logout } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const t = useT();
   const navigate = useNavigate();
 
   if (!user) return null;
 
   const handleLogout = async () => {
     await logout();
-    toast.success('Signed out');
+    toast.success(t('menu.signedOut'));
     navigate('/login', { replace: true });
   };
 
@@ -37,6 +35,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
         <Button
           variant="ghost"
           className="h-auto w-full justify-start gap-3 px-2 py-2 hover:bg-sidebar-accent/60"
+          aria-label={compact ? t('menu.accountMenu') : undefined}
         >
           <Avatar className="size-8">
             <AvatarFallback
@@ -48,12 +47,12 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
           </Avatar>
           {!compact && (
             <>
-              <span className="flex min-w-0 flex-1 flex-col items-start text-left">
+              <span className="flex min-w-0 flex-1 flex-col items-start text-start">
                 <span className="w-full truncate text-sm font-medium text-foreground">
                   {user.name}
                 </span>
                 <span className="w-full truncate text-xs text-muted-foreground">
-                  {ROLE_LABELS[user.role]}
+                  {t(`role.${user.role}`)}
                 </span>
               </span>
               <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -69,27 +68,13 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
 
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-          Appearance
-        </DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={theme}
-          onValueChange={(value) => setTheme(value as typeof theme)}
-        >
-          <DropdownMenuRadioItem value="light">
-            <Sun className="size-4" aria-hidden /> Light
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">
-            <Moon className="size-4" aria-hidden /> Dark
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system">
-            <Monitor className="size-4" aria-hidden /> System
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
+        <LanguageMenuItems />
+        <DropdownMenuSeparator />
+        <ThemeMenuItems />
 
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={handleLogout} variant="destructive">
-          <LogOut className="size-4" aria-hidden /> Sign out
+          <LogOut className="icon-directional size-4" aria-hidden /> {t('menu.signOut')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -20,7 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ApiError } from '@/lib/api-client';
+import { useI18n } from '@/lib/i18n';
+import { useApiErrorMessage } from '@/lib/i18n/errors';
+import { stageName } from '@/lib/labels';
 import { useMoveLeadStage } from '../api';
 
 /**
@@ -37,6 +39,8 @@ export function LeadStageSelect({
   lead: LeadDetailDto;
   stages: PipelineStageDto[];
 }) {
+  const { t, locale } = useI18n();
+  const describeError = useApiErrorMessage();
   const moveStage = useMoveLeadStage(lead.id);
   const [pendingLostStage, setPendingLostStage] = useState<StageKey | null>(null);
   const [lostReason, setLostReason] = useState('');
@@ -46,14 +50,12 @@ export function LeadStageSelect({
       { stageKey, ...(reason ? { lostReason: reason } : {}) },
       {
         onSuccess: (updated) => {
-          toast.success(`Moved to ${updated.stage.name}`);
+          toast.success(t('lead.movedTo', { stage: stageName(updated.stage, locale) }));
           setPendingLostStage(null);
           setLostReason('');
         },
         onError: (error) => {
-          toast.error('Could not move the lead', {
-            description: error instanceof ApiError ? error.message : 'Please try again.',
-          });
+          toast.error(t('lead.couldNotMove'), { description: describeError(error) });
         },
       },
     );
@@ -76,10 +78,10 @@ export function LeadStageSelect({
   return (
     <>
       <Select value={lead.stage.key} onValueChange={handleChange} disabled={moveStage.isPending}>
-        <SelectTrigger className="w-[168px]" aria-label="Pipeline stage">
+        <SelectTrigger className="w-[168px]" aria-label={t('lead.pipelineStage')}>
           {moveStage.isPending ? (
             <span className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="size-3.5 animate-spin" /> Moving…
+              <Loader2 className="size-3.5 animate-spin" /> {t('lead.moving')}
             </span>
           ) : (
             <SelectValue />
@@ -94,7 +96,7 @@ export function LeadStageSelect({
                   style={{ backgroundColor: stage.color }}
                   aria-hidden
                 />
-                {stage.name}
+                {stageName(stage, locale)}
               </span>
             </SelectItem>
           ))}
@@ -109,27 +111,25 @@ export function LeadStageSelect({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Mark this lead as lost?</DialogTitle>
-            <DialogDescription>
-              A short reason helps the team spot patterns later. You can leave it blank.
-            </DialogDescription>
+            <DialogTitle>{t('lead.markLostTitle')}</DialogTitle>
+            <DialogDescription>{t('lead.markLostBody')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
-            <Label htmlFor="lost-reason">Reason</Label>
+            <Label htmlFor="lost-reason">{t('lead.lostReasonLabel')}</Label>
             <Textarea
               id="lost-reason"
               value={lostReason}
               onChange={(event) => setLostReason(event.target.value)}
               rows={3}
-              placeholder="Chose a competitor with a shorter payment plan…"
+              placeholder={t('lead.lostReasonPlaceholder')}
               maxLength={280}
             />
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setPendingLostStage(null)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -139,7 +139,7 @@ export function LeadStageSelect({
               }}
             >
               {moveStage.isPending && <Loader2 className="size-4 animate-spin" />}
-              Mark as lost
+              {t('lead.markAsLost')}
             </Button>
           </DialogFooter>
         </DialogContent>

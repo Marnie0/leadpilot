@@ -1,6 +1,7 @@
 import type { LeadPriority } from '@leadpilot/shared';
 import { cn } from '@/lib/utils';
-import { PRIORITY_LABELS, PRIORITY_STYLES } from '@/lib/labels';
+import { PRIORITY_STYLES } from '@/lib/labels';
+import { useT } from '@/lib/i18n';
 
 export function PriorityBadge({
   priority,
@@ -9,6 +10,8 @@ export function PriorityBadge({
   priority: LeadPriority;
   className?: string;
 }) {
+  const t = useT();
+
   return (
     <span
       className={cn(
@@ -17,7 +20,7 @@ export function PriorityBadge({
         className,
       )}
     >
-      {PRIORITY_LABELS[priority]}
+      {t(`priority.${priority}`)}
     </span>
   );
 }

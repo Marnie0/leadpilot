@@ -1,5 +1,5 @@
 import { CalendarClock, CircleAlert } from 'lucide-react';
-import { describeDueDate } from '@/lib/format';
+import { useFormat } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 const TONE_STYLES: Record<string, string> = {
@@ -12,7 +12,8 @@ const TONE_STYLES: Record<string, string> = {
 
 /** Renders a follow-up date as an urgency-coloured phrase rather than a raw date. */
 export function FollowUpCell({ dueAt, className }: { dueAt: string | null; className?: string }) {
-  const { label, tone } = describeDueDate(dueAt);
+  const format = useFormat();
+  const { label, tone } = format.dueDate(dueAt);
   const Icon = tone === 'overdue' ? CircleAlert : CalendarClock;
 
   return (

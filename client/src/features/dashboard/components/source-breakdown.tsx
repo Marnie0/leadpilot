@@ -3,8 +3,7 @@ import { Cell, Pie, PieChart, Tooltip } from 'recharts';
 import type { DashboardSourceDto } from '@leadpilot/shared';
 import { PieChart as PieChartIcon } from 'lucide-react';
 import { EmptyState } from '@/components/common/empty-state';
-import { formatCurrency, formatNumber } from '@/lib/format';
-import { SOURCE_LABELS } from '@/lib/labels';
+import { useFormat, useT } from '@/lib/i18n';
 import { ChartFrame, ChartTooltip } from './chart-frame';
 
 /**
@@ -36,12 +35,15 @@ export function SourceBreakdown({
   sources: DashboardSourceDto[];
   currency: string;
 }) {
+  const t = useT();
+  const format = useFormat();
+
   if (sources.length === 0) {
     return (
       <EmptyState
         icon={PieChartIcon}
-        title="No leads in this window"
-        description="Source attribution appears once leads have been created in the selected period."
+        title={t('dashboard.sourcesEmptyTitle')}
+        description={t('dashboard.sourcesEmptyBody')}
         className="py-16"
       />
     );
@@ -53,7 +55,7 @@ export function SourceBreakdown({
   const slices = [
     ...head.map((source, index) => ({
       key: source.source as string,
-      label: SOURCE_LABELS[source.source],
+      label: t(`source.${source.source}`),
       total: source.total,
       value: source.value,
       conversionRate: source.conversionRate,
@@ -65,7 +67,7 @@ export function SourceBreakdown({
       ? [
           {
             key: '__other__',
-            label: `${tail.length} other sources`,
+            label: t('dashboard.otherSources', { count: format.number(tail.length) }),
             total: tail.reduce((sum, source) => sum + source.total, 0),
             value: tail.reduce((sum, source) => sum + source.value, 0),
             conversionRate: null,
@@ -81,6 +83,7 @@ export function SourceBreakdown({
 
   return (
     <div className="grid gap-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
+      {/* A ring needs no direction handling: it has no start edge to mirror. */}
       <ChartFrame height={180}>
         <PieChart>
           <Pie
@@ -105,11 +108,17 @@ export function SourceBreakdown({
                   title={slice.label}
                   rows={[
                     {
-                      label: 'Leads',
-                      value: `${formatNumber(slice.total)} (${Math.round((slice.total / totalLeads) * 100)}%)`,
+                      label: t('dashboard.tableLeads'),
+                      value: t('dashboard.leadsWithShare', {
+                        count: format.number(slice.total),
+                        share: Math.round((slice.total / totalLeads) * 100),
+                      }),
                       color: slice.color,
                     },
-                    { label: 'Value', value: formatCurrency(slice.value, currency) },
+                    {
+                      label: t('dashboard.tableValue'),
+                      value: format.currency(slice.value, currency),
+                    },
                     ...(slice.conversionRate === null
                       ? []
                       : [
@@ -117,8 +126,11 @@ export function SourceBreakdown({
                             // The denominator matters: "100%" off a single
                             // closed deal is not the same claim as "100%" off
                             // twenty, and the ring cannot show the difference.
-                            label: 'Conversion',
-                            value: `${slice.conversionRate.toFixed(0)}% of ${slice.closed} closed`,
+                            label: t('dashboard.conversion'),
+                            value: t('dashboard.conversionOfClosed', {
+                              rate: slice.conversionRate.toFixed(0),
+                              closed: format.number(slice.closed),
+                            }),
                           },
                         ]),
                   ]}
@@ -147,9 +159,11 @@ export function SourceBreakdown({
                 {slice.label}
               </Link>
             )}
-            <span className="shrink-0 tabular-nums">{formatNumber(slice.total)}</span>
-            <span className="w-12 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
-              {slice.conversionRate === null ? '—' : `${slice.conversionRate.toFixed(0)}%`}
+            <span className="shrink-0 tabular-nums">{format.number(slice.total)}</span>
+            <span className="w-12 shrink-0 text-end text-xs text-muted-foreground tabular-nums">
+              {slice.conversionRate === null
+                ? t('common.dash')
+                : format.percent(slice.conversionRate)}
             </span>
           </li>
         ))}

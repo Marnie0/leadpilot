@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useT } from '@/lib/i18n';
 
 /**
  * Confirmation shown when a card is dropped into a Lost stage.
@@ -36,6 +37,7 @@ export function LostReasonDialog({
   onCancel: () => void;
   onConfirm: (reason: string | undefined) => void;
 }) {
+  const t = useT();
   const [reason, setReason] = useState('');
 
   // Each prompt starts blank; a reason typed for one lead must not be carried
@@ -48,27 +50,27 @@ export function LostReasonDialog({
     <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Mark {leadName ?? 'this lead'} as lost?</DialogTitle>
-          <DialogDescription>
-            A short reason helps the team spot patterns later. You can leave it blank.
-          </DialogDescription>
+          <DialogTitle>
+            {t('board.markLostTitle', { name: leadName ?? t('board.thisLead') })}
+          </DialogTitle>
+          <DialogDescription>{t('lead.markLostBody')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
-          <Label htmlFor="board-lost-reason">Reason</Label>
+          <Label htmlFor="board-lost-reason">{t('lead.lostReasonLabel')}</Label>
           <Textarea
             id="board-lost-reason"
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             rows={3}
-            placeholder="Chose a competitor with a shorter payment plan…"
+            placeholder={t('lead.lostReasonPlaceholder')}
             maxLength={280}
           />
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={isPending}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             variant="destructive"
@@ -76,7 +78,7 @@ export function LostReasonDialog({
             onClick={() => onConfirm(reason.trim() || undefined)}
           >
             {isPending && <Loader2 className="size-4 animate-spin" />}
-            Mark as lost
+            {t('lead.markAsLost')}
           </Button>
         </DialogFooter>
       </DialogContent>

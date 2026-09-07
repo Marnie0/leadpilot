@@ -2,8 +2,8 @@ import { Area, Bar, CartesianGrid, ComposedChart, Tooltip, XAxis, YAxis } from '
 import type { DashboardTrendPointDto } from '@leadpilot/shared';
 import { EmptyState } from '@/components/common/empty-state';
 import { LineChart } from 'lucide-react';
-import { formatCurrency, formatNumber } from '@/lib/format';
-import { AXIS_PROPS, ChartFrame, ChartTooltip, SERIES } from './chart-frame';
+import { useFormat, useT } from '@/lib/i18n';
+import { AXIS_PROPS, ChartFrame, ChartTooltip, SERIES, useChartDirection } from './chart-frame';
 
 /**
  * New leads against deals won, over the reporting window.
@@ -22,22 +22,33 @@ export function TrendChart({
   currency: string;
   bucket: 'week' | 'month';
 }) {
+  const t = useT();
+  const format = useFormat();
+  const direction = useChartDirection();
+
   const hasData = points.some((point) => point.created > 0 || point.won > 0);
 
   if (!hasData) {
     return (
       <EmptyState
         icon={LineChart}
-        title="Nothing in this window"
-        description="No leads were created and no deals closed in the period selected."
+        title={t('dashboard.trendEmptyTitle')}
+        description={t('dashboard.trendEmptyBody')}
         className="flex-1 py-16"
       />
     );
   }
 
+  // The axis label is derived here rather than sent by the API: the bucket is a
+  // moment in time, and only the browser knows which language to name it in.
+  const data = points.map((point) => ({
+    ...point,
+    label: format.trendLabel(point.bucket, bucket),
+  }));
+
   return (
     <ChartFrame height="fill">
-      <ComposedChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+      <ComposedChart data={data} margin={{ top: 8, bottom: 0, ...direction.axisMargin(-12) }}>
         <defs>
           <linearGradient id="trend-created" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={SERIES.created} stopOpacity={0.28} />
@@ -46,27 +57,44 @@ export function TrendChart({
         </defs>
 
         <CartesianGrid stroke="currentColor" strokeDasharray="3 3" vertical={false} opacity={0.5} />
-        <XAxis dataKey="label" {...AXIS_PROPS} interval="preserveStartEnd" minTickGap={16} />
-        <YAxis {...AXIS_PROPS} allowDecimals={false} width={36} />
+        <XAxis
+          dataKey="label"
+          {...AXIS_PROPS}
+          {...direction.categoryAxis}
+          interval="preserveStartEnd"
+          minTickGap={16}
+        />
+        <YAxis
+          {...AXIS_PROPS}
+          orientation={direction.valueAxisSide}
+          allowDecimals={false}
+          width={36}
+        />
 
         <Tooltip
           cursor={{ stroke: 'currentColor', strokeOpacity: 0.35 }}
           content={({ active, payload }) => {
             if (!active || !payload?.length) return null;
-            const point = payload[0]?.payload as DashboardTrendPointDto;
+            const point = payload[0]?.payload as (typeof data)[number];
             return (
               <ChartTooltip
-                title={bucket === 'month' ? point.label : `Week of ${point.label}`}
+                title={
+                  bucket === 'month' ? point.label : t('dashboard.weekOf', { label: point.label })
+                }
                 rows={[
                   {
-                    label: 'New leads',
-                    value: formatNumber(point.created),
+                    label: t('dashboard.newLeads'),
+                    value: format.number(point.created),
                     color: SERIES.created,
                   },
-                  { label: 'Deals won', value: formatNumber(point.won), color: SERIES.won },
                   {
-                    label: 'Won value',
-                    value: formatCurrency(point.wonValue, currency),
+                    label: t('dashboard.dealsWon'),
+                    value: format.number(point.won),
+                    color: SERIES.won,
+                  },
+                  {
+                    label: t('dashboard.wonValue'),
+                    value: format.currency(point.wonValue, currency),
                     color: SERIES.won,
                   },
                 ]}
@@ -78,14 +106,14 @@ export function TrendChart({
         <Area
           type="monotone"
           dataKey="created"
-          name="New leads"
+          name={t('dashboard.newLeads')}
           stroke={SERIES.created}
           strokeWidth={2}
           fill="url(#trend-created)"
         />
         <Bar
           dataKey="won"
-          name="Deals won"
+          name={t('dashboard.dealsWon')}
           fill={SERIES.won}
           radius={[3, 3, 0, 0]}
           maxBarSize={22}

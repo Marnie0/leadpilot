@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/common/logo';
+import { useT } from '@/lib/i18n';
 
 /**
  * @param embedded renders inside the app shell, so a signed-in user who lands on
@@ -9,6 +10,8 @@ import { Logo } from '@/components/common/logo';
  * variant is for unauthenticated visitors, who have no shell around them.
  */
 export function NotFoundPage({ embedded = false }: { embedded?: boolean }) {
+  const t = useT();
+
   if (embedded) {
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col items-center justify-center gap-5 px-4 py-20 text-center">
@@ -16,14 +19,11 @@ export function NotFoundPage({ embedded = false }: { embedded?: boolean }) {
           <Compass className="size-6" aria-hidden />
         </span>
         <div className="space-y-2">
-          <h1 className="text-xl font-semibold tracking-tight">Page not found</h1>
-          <p className="max-w-sm text-sm text-muted-foreground">
-            That page does not exist yet. The pipeline board, dashboard and follow-up inbox arrive
-            in a later release.
-          </p>
+          <h1 className="text-xl font-semibold tracking-tight">{t('error.notFoundTitle')}</h1>
+          <p className="max-w-sm text-sm text-muted-foreground">{t('error.notFoundEmbedded')}</p>
         </div>
         <Button asChild>
-          <Link to="/leads">Back to your leads</Link>
+          <Link to="/leads">{t('error.backToLeads')}</Link>
         </Button>
       </div>
     );
@@ -36,13 +36,11 @@ export function NotFoundPage({ embedded = false }: { embedded?: boolean }) {
         <Compass className="size-6" aria-hidden />
       </span>
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Page not found</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          That link does not lead anywhere. It may have been moved, or the record was deleted.
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('error.notFoundTitle')}</h1>
+        <p className="max-w-sm text-sm text-muted-foreground">{t('error.notFoundStandalone')}</p>
       </div>
       <Button asChild>
-        <Link to="/leads">Go to your leads</Link>
+        <Link to="/leads">{t('error.goToLeads')}</Link>
       </Button>
     </div>
   );

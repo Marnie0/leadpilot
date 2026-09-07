@@ -12,6 +12,17 @@ interface ThemeContextValue {
 
 const STORAGE_KEY = 'leadpilot.theme';
 
+/**
+ * Browser-chrome tint per theme — the address bar on Android, the title bar on
+ * a desktop PWA. These track `--background` in `index.css`; the markup carries
+ * the same two values behind `prefers-color-scheme` so the very first paint is
+ * right, and this keeps them honest once someone picks a theme explicitly.
+ */
+const THEME_COLORS: Record<ResolvedTheme, string> = {
+  light: '#fcfdff',
+  dark: '#151827',
+};
+
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function readStoredTheme(): Theme {
@@ -47,6 +58,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = document.documentElement;
     root.classList.toggle('dark', resolvedTheme === 'dark');
     root.style.colorScheme = resolvedTheme;
+
+    // The two media-scoped tags in index.html answer the OS preference. Once a
+    // theme is chosen explicitly they would contradict it, so a third tag with
+    // no media query is kept in front of them.
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]:not([media])');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      document.head.appendChild(meta);
+    }
+    meta.content = THEME_COLORS[resolvedTheme];
   }, [resolvedTheme]);
 
   const setTheme = useCallback((next: Theme) => {

@@ -5,8 +5,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ApiError } from '@/lib/api-client';
-import { ACTIVITY_LABELS } from '@/lib/labels';
+import { useT } from '@/lib/i18n';
+import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { cn } from '@/lib/utils';
 import { useCreateActivity } from '../api';
 
@@ -19,6 +19,8 @@ const MAX_LENGTH = 4000;
  * what happened in one field instead of navigating to a separate form.
  */
 export function NoteComposer({ leadId }: { leadId: string }) {
+  const t = useT();
+  const describeError = useApiErrorMessage();
   const [body, setBody] = useState('');
   const [type, setType] = useState<UserActivityType>('NOTE');
   const createActivity = useCreateActivity(leadId);
@@ -35,11 +37,9 @@ export function NoteComposer({ leadId }: { leadId: string }) {
       await createActivity.mutateAsync({ type, body: trimmed });
       setBody('');
       setType('NOTE');
-      toast.success('Added to the timeline');
+      toast.success(t('composer.added'));
     } catch (error) {
-      toast.error('Could not save that', {
-        description: error instanceof ApiError ? error.message : 'Please try again.',
-      });
+      toast.error(t('composer.couldNotSave'), { description: describeError(error) });
     }
   };
 
@@ -47,7 +47,7 @@ export function NoteComposer({ leadId }: { leadId: string }) {
     <form onSubmit={submit} className="space-y-3">
       <div className="space-y-2">
         <Label htmlFor="activity-body" className="sr-only">
-          Add a note
+          {t('composer.label')}
         </Label>
         <Textarea
           id="activity-body"
@@ -59,20 +59,24 @@ export function NoteComposer({ leadId }: { leadId: string }) {
               void submit(event);
             }
           }}
-          placeholder="What happened? Log a call, an email, or leave a note for the team…"
+          placeholder={t('composer.placeholder')}
           rows={3}
           className="resize-y"
           aria-invalid={isTooLong}
         />
         {isTooLong && (
           <p className="text-sm text-destructive">
-            That is {trimmed.length - MAX_LENGTH} characters too long.
+            {t('composer.tooLong', { count: trimmed.length - MAX_LENGTH })}
           </p>
         )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Entry type">
+        <div
+          className="flex flex-wrap gap-1.5"
+          role="radiogroup"
+          aria-label={t('composer.entryType')}
+        >
           {USER_ACTIVITY_TYPES.map((option) => (
             <button
               key={option}
@@ -88,18 +92,18 @@ export function NoteComposer({ leadId }: { leadId: string }) {
                   : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
               )}
             >
-              {ACTIVITY_LABELS[option]}
+              {t(`activityType.${option}`)}
             </button>
           ))}
         </div>
 
-        <Button type="submit" size="sm" className="ml-auto" disabled={!canSubmit}>
+        <Button type="submit" size="sm" className="ms-auto" disabled={!canSubmit}>
           {createActivity.isPending ? (
             <Loader2 className="size-4 animate-spin" />
           ) : (
             <Send className="size-4" />
           )}
-          Add entry
+          {t('composer.submit')}
         </Button>
       </div>
     </form>

@@ -33,7 +33,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useFormError } from '@/features/auth/use-form-error';
-import { PRIORITY_LABELS, SOURCE_LABELS } from '@/lib/labels';
+import { stageName } from '@/lib/labels';
+import { useI18n } from '@/lib/i18n';
+import { useLocalizedResolver } from '@/lib/i18n/zod-resolver';
 import { useCreateLead, useUpdateLead, type TeamMemberDetail } from '../api';
 
 /** Sentinel for the assignee Select — Radix cannot hold an empty string value. */
@@ -80,6 +82,7 @@ export function LeadFormDialog({
   lead,
   onCreated,
 }: LeadFormDialogProps) {
+  const { t, locale } = useI18n();
   const isEditing = Boolean(lead);
   const createLead = useCreateLead();
   const updateLead = useUpdateLead(lead?.id ?? '');
@@ -87,7 +90,7 @@ export function LeadFormDialog({
   // Three generics: the form holds the schema's *input* shape, and
   // `handleSubmit` receives the parsed output — defaults applied, values coerced.
   const form = useForm<CreateLeadFormValues, unknown, CreateLeadInput>({
-    resolver: zodResolver(createLeadSchema),
+    resolver: useLocalizedResolver(zodResolver(createLeadSchema)),
     defaultValues: {
       customerName: '',
       company: '',
@@ -150,10 +153,10 @@ export function LeadFormDialog({
     try {
       if (lead) {
         await updateLead.mutateAsync(values);
-        toast.success('Lead updated');
+        toast.success(t('leadForm.updated'));
       } else {
         const created = await createLead.mutateAsync(values);
-        toast.success('Lead created', { description: created.customerName });
+        toast.success(t('leadForm.created'), { description: created.customerName });
         onCreated?.(created);
       }
       onOpenChange(false);
@@ -169,11 +172,11 @@ export function LeadFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92svh] gap-0 p-0 sm:max-w-2xl">
         <DialogHeader className="border-b px-6 py-4">
-          <DialogTitle>{isEditing ? 'Edit lead' : 'New lead'}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? t('leadForm.editTitle') : t('leadForm.createTitle')}
+          </DialogTitle>
           <DialogDescription>
-            {isEditing
-              ? 'Update the details for this lead.'
-              : 'Capture an enquiry so it never falls through the cracks.'}
+            {isEditing ? t('leadForm.editDescription') : t('leadForm.createDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -196,10 +199,10 @@ export function LeadFormDialog({
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="customerName">Customer name *</Label>
+                  <Label htmlFor="customerName">{t('leadForm.customerName')}</Label>
                   <Input
                     id="customerName"
-                    placeholder="Ahmed Al Mansoori"
+                    placeholder={t('leadForm.customerNamePlaceholder')}
                     aria-invalid={Boolean(errors.customerName)}
                     {...form.register('customerName')}
                   />
@@ -209,10 +212,10 @@ export function LeadFormDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="company">Company</Label>
+                  <Label htmlFor="company">{t('leadForm.company')}</Label>
                   <Input
                     id="company"
-                    placeholder="Gulf Horizon Holdings"
+                    placeholder={t('leadForm.companyPlaceholder')}
                     {...form.register('company')}
                   />
                   {errors.company && (
@@ -221,11 +224,12 @@ export function LeadFormDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t('leadForm.email')}</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="ahmed@example.com"
+                    placeholder={t('leadForm.emailPlaceholder')}
+                    dir="ltr"
                     aria-invalid={Boolean(errors.email)}
                     {...form.register('email')}
                   />
@@ -235,11 +239,13 @@ export function LeadFormDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="phone">{t('leadForm.phone')}</Label>
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+971 50 123 4567"
+                    placeholder={t('leadForm.phonePlaceholder')}
+                    // A leading "+" would jump to the wrong end of an RTL field.
+                    dir="ltr"
                     aria-invalid={Boolean(errors.phone)}
                     {...form.register('phone')}
                   />
@@ -250,10 +256,10 @@ export function LeadFormDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="requestedService">Requested service *</Label>
+                <Label htmlFor="requestedService">{t('leadForm.requestedService')}</Label>
                 <Input
                   id="requestedService"
-                  placeholder="Off-plan apartment investment"
+                  placeholder={t('leadForm.requestedServicePlaceholder')}
                   aria-invalid={Boolean(errors.requestedService)}
                   {...form.register('requestedService')}
                 />
@@ -263,7 +269,7 @@ export function LeadFormDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="estimatedValue">Estimated value</Label>
+                <Label htmlFor="estimatedValue">{t('leadForm.estimatedValue')}</Label>
                 <div className="relative">
                   <Input
                     id="estimatedValue"
@@ -271,7 +277,7 @@ export function LeadFormDialog({
                     min={0}
                     step={1000}
                     inputMode="decimal"
-                    className="pr-14"
+                    className="pe-14"
                     aria-describedby="currency-hint"
                     aria-invalid={Boolean(errors.estimatedValue)}
                     {...form.register('estimatedValue')}
@@ -280,7 +286,7 @@ export function LeadFormDialog({
                       pipeline totals sum these figures directly. */}
                   <span
                     id="currency-hint"
-                    className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm font-medium text-muted-foreground"
+                    className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-sm font-medium text-muted-foreground"
                   >
                     {defaultCurrency}
                   </span>
@@ -292,7 +298,7 @@ export function LeadFormDialog({
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="source">Lead source</Label>
+                  <Label htmlFor="source">{t('lead.source')}</Label>
                   <Controller
                     control={form.control}
                     name="source"
@@ -304,7 +310,7 @@ export function LeadFormDialog({
                         <SelectContent>
                           {LEAD_SOURCES.map((source) => (
                             <SelectItem key={source} value={source}>
-                              {SOURCE_LABELS[source]}
+                              {t(`source.${source}`)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -314,7 +320,7 @@ export function LeadFormDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="priority">Priority</Label>
+                  <Label htmlFor="priority">{t('lead.priority')}</Label>
                   <Controller
                     control={form.control}
                     name="priority"
@@ -326,7 +332,7 @@ export function LeadFormDialog({
                         <SelectContent>
                           {LEAD_PRIORITIES.map((priority) => (
                             <SelectItem key={priority} value={priority}>
-                              {PRIORITY_LABELS[priority]}
+                              {t(`priority.${priority}`)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -336,7 +342,7 @@ export function LeadFormDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="stageKey">Pipeline stage</Label>
+                  <Label htmlFor="stageKey">{t('lead.pipelineStage')}</Label>
                   <Controller
                     control={form.control}
                     name="stageKey"
@@ -354,7 +360,7 @@ export function LeadFormDialog({
                                   style={{ backgroundColor: stage.color }}
                                   aria-hidden
                                 />
-                                {stage.name}
+                                {stageName(stage, locale)}
                               </span>
                             </SelectItem>
                           ))}
@@ -365,7 +371,7 @@ export function LeadFormDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="assignedToId">Assigned rep</Label>
+                  <Label htmlFor="assignedToId">{t('lead.assignedRep')}</Label>
                   <Controller
                     control={form.control}
                     name="assignedToId"
@@ -380,7 +386,7 @@ export function LeadFormDialog({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={NO_ASSIGNEE}>Unassigned</SelectItem>
+                          <SelectItem value={NO_ASSIGNEE}>{t('common.unassigned')}</SelectItem>
                           {activeMembers.map((member) => (
                             <SelectItem key={member.id} value={member.id}>
                               {member.name}
@@ -394,7 +400,7 @@ export function LeadFormDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="nextFollowUpAt">Next follow-up</Label>
+                <Label htmlFor="nextFollowUpAt">{t('lead.nextFollowUp')}</Label>
                 <Controller
                   control={form.control}
                   name="nextFollowUpAt"
@@ -410,11 +416,11 @@ export function LeadFormDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Notes</Label>
+                <Label htmlFor="description">{t('leadForm.notes')}</Label>
                 <Textarea
                   id="description"
                   rows={3}
-                  placeholder="Anything the team should know before the first call…"
+                  placeholder={t('leadForm.notesPlaceholder')}
                   {...form.register('description')}
                 />
                 {errors.description && (
@@ -431,11 +437,11 @@ export function LeadFormDialog({
               onClick={() => onOpenChange(false)}
               disabled={form.formState.isSubmitting}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting && <Loader2 className="size-4 animate-spin" />}
-              {isEditing ? 'Save changes' : 'Create lead'}
+              {isEditing ? t('leadForm.save') : t('leadForm.create')}
             </Button>
           </DialogFooter>
         </form>

@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './auth-context';
 import { FullPageSpinner } from '@/components/common/full-page-spinner';
+import { useT } from '@/lib/i18n';
 
 /**
  * Gate for every authenticated route.
@@ -11,8 +12,9 @@ import { FullPageSpinner } from '@/components/common/full-page-spinner';
 export function ProtectedRoute() {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
+  const t = useT();
 
-  if (isLoading) return <FullPageSpinner label="Checking your session…" />;
+  if (isLoading) return <FullPageSpinner label={t('auth.checkingSession')} />;
 
   if (!isAuthenticated) {
     // Remember where they were headed so login can send them back.

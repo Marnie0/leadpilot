@@ -15,7 +15,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatCurrency } from '@/lib/format';
+import { stageName } from '@/lib/labels';
+import { useFormat, useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { AssigneeAvatar } from '@/features/leads/components/assignee-avatar';
 import { FollowUpCell } from '@/features/leads/components/follow-up-cell';
@@ -29,6 +30,8 @@ import { PriorityBadge } from '@/features/leads/components/priority-badge';
  * the placeholder it left behind.
  */
 function BoardCardBody({ lead, currency }: { lead: LeadListItemDto; currency: string }) {
+  const format = useFormat();
+
   return (
     <>
       <div className="min-w-0 space-y-0.5">
@@ -47,8 +50,8 @@ function BoardCardBody({ lead, currency }: { lead: LeadListItemDto; currency: st
 
       <div className="flex items-center gap-2">
         <PriorityBadge priority={lead.priority} />
-        <span className="ml-auto text-sm font-semibold text-foreground tabular-nums">
-          {formatCurrency(lead.estimatedValue, currency)}
+        <span className="ms-auto text-sm font-semibold text-foreground tabular-nums">
+          {format.currency(lead.estimatedValue, currency)}
         </span>
       </div>
 
@@ -80,6 +83,7 @@ export function BoardCard({
   stages: PipelineStageDto[];
   onMoveToStage: (stageKey: StageKey) => void;
 }) {
+  const { t, locale } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: lead.id,
     // A rep cannot move a colleague's lead, so the card does not pretend to be
@@ -130,28 +134,29 @@ export function BoardCard({
             wasDragged.current = false;
           }
         }}
-        className="flex flex-col gap-2.5 rounded-xl p-3 pr-14 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="flex flex-col gap-2.5 rounded-xl p-3 pe-14 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         <BoardCardBody lead={lead} currency={currency} />
       </Link>
 
       {/*
-        Controls live in the card's right gutter, outside the link's hit area.
+        Controls live in the card's trailing gutter, outside the link's hit area.
         On a mouse they fade in on hover — six columns of cards each showing two
         permanent icons is a lot of furniture. On touch there is no hover to
         reveal them with, so `pointer-coarse` pins them visible.
       */}
-      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5">
+      <div className="absolute end-1.5 top-1.5 flex items-center gap-0.5">
         {lead.canEdit ? (
           <>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label={`Move ${lead.customerName} to another stage`}
+                  aria-label={t('board.moveCard', { name: lead.customerName })}
                   className="flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:opacity-100 pointer-coarse:opacity-100"
                 >
-                  <MoveRight className="size-3.5" />
+                  {/* "Onward to another stage" — a direction, so it mirrors. */}
+                  <MoveRight className="icon-directional size-3.5" />
                 </button>
               </DropdownMenuTrigger>
               {/*
@@ -160,7 +165,7 @@ export function BoardCard({
                 both of which a drag handles badly.
               */}
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuLabel className="text-xs">Move to stage</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-xs">{t('board.moveToStage')}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {stages.map((stage) => (
                   <DropdownMenuItem
@@ -173,7 +178,7 @@ export function BoardCard({
                       style={{ backgroundColor: stage.color }}
                       aria-hidden
                     />
-                    {stage.name}
+                    {stageName(stage, locale)}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -184,7 +189,7 @@ export function BoardCard({
               type="button"
               {...attributes}
               {...listeners}
-              aria-label={`Reorder ${lead.customerName}`}
+              aria-label={t('board.reorderCard', { name: lead.customerName })}
               className="flex size-6 cursor-grab items-center justify-center rounded-md text-muted-foreground/60 opacity-0 transition group-hover:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:cursor-grabbing pointer-coarse:opacity-100"
             >
               <GripVertical className="size-3.5" />
@@ -195,12 +200,10 @@ export function BoardCard({
             <TooltipTrigger asChild>
               <span className="flex size-6 items-center justify-center text-muted-foreground/60">
                 <Lock className="size-3.5" aria-hidden />
-                <span className="sr-only">You cannot move this lead</span>
+                <span className="sr-only">{t('board.locked')}</span>
               </span>
             </TooltipTrigger>
-            <TooltipContent>
-              Assigned to someone else — only an owner or admin can move it
-            </TooltipContent>
+            <TooltipContent>{t('board.lockedHint')}</TooltipContent>
           </Tooltip>
         )}
       </div>

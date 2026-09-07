@@ -82,17 +82,6 @@ function advanceBucket(date: Date, bucket: 'week' | 'month'): Date {
   return new Date(date.getTime() + 7 * DAY_MS);
 }
 
-const WEEK_LABEL = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  timeZone: 'UTC',
-});
-const MONTH_LABEL = new Intl.DateTimeFormat('en-GB', {
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
-
 function delta(current: number, previous: number): DashboardDeltaDto {
   return {
     current,
@@ -172,6 +161,7 @@ export async function getDashboard(
           id: true,
           key: true,
           name: true,
+          nameAr: true,
           color: true,
           order: true,
           type: true,
@@ -280,6 +270,7 @@ export async function getDashboard(
     return {
       key: stage.key,
       name: stage.name,
+      nameAr: stage.nameAr,
       color: stage.color,
       order: stage.order,
       type: stage.type,
@@ -365,7 +356,6 @@ export async function getDashboard(
     const wonRow = wonByBucket.get(key);
     trend.push({
       bucket: cursor.toISOString(),
-      label: (trendBucket === 'month' ? MONTH_LABEL : WEEK_LABEL).format(cursor),
       created: createdByBucket.get(key) ?? 0,
       won: wonRow?.count ?? 0,
       wonValue: wonRow?.value ?? 0,

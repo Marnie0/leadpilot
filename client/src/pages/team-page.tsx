@@ -8,8 +8,8 @@ import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useTeamMembers } from '@/features/leads/api';
-import { formatRelative, initials } from '@/lib/format';
-import { ROLE_LABELS } from '@/lib/labels';
+import { initials } from '@/lib/format';
+import { useFormat, useT } from '@/lib/i18n';
 
 const ROLE_VARIANTS = {
   OWNER: 'default',
@@ -18,13 +18,18 @@ const ROLE_VARIANTS = {
 } as const;
 
 export function TeamPage() {
+  const t = useT();
+  const format = useFormat();
   const user = useCurrentUser();
   const teamQuery = useTeamMembers();
   const members = teamQuery.data ?? [];
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <PageHeader title="Team" description={`Everyone with access to ${user.organization.name}.`} />
+      <PageHeader
+        title={t('team.title')}
+        description={t('team.description', { organization: user.organization.name })}
+      />
 
       <Card className="gap-0 p-0">
         {teamQuery.isError ? (
@@ -42,7 +47,7 @@ export function TeamPage() {
             ))}
           </CardContent>
         ) : members.length === 0 ? (
-          <EmptyState icon={Users2} title="No team members yet" />
+          <EmptyState icon={Users2} title={t('team.empty')} />
         ) : (
           <ul className="divide-y">
             {members.map((member) => (
@@ -60,21 +65,23 @@ export function TeamPage() {
                   <p className="flex items-center gap-2 truncate font-medium text-foreground">
                     {member.name}
                     {member.id === user.id && (
-                      <span className="text-xs font-normal text-muted-foreground">(you)</span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {t('common.you')}
+                      </span>
                     )}
                   </p>
                   <p className="truncate text-sm text-muted-foreground">{member.email}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {!member.isActive && <Badge variant="destructive">Deactivated</Badge>}
-                  <Badge variant={ROLE_VARIANTS[member.role]}>{ROLE_LABELS[member.role]}</Badge>
+                  {!member.isActive && <Badge variant="destructive">{t('team.deactivated')}</Badge>}
+                  <Badge variant={ROLE_VARIANTS[member.role]}>{t(`role.${member.role}`)}</Badge>
                 </div>
 
-                <p className="w-full text-xs text-muted-foreground sm:w-auto sm:min-w-[140px] sm:text-right">
+                <p className="w-full text-xs text-muted-foreground sm:w-auto sm:min-w-[140px] sm:text-end">
                   {member.lastLoginAt
-                    ? `Active ${formatRelative(member.lastLoginAt)}`
-                    : 'Never signed in'}
+                    ? t('team.activeAgo', { when: format.relative(member.lastLoginAt) })
+                    : t('team.neverSignedIn')}
                 </p>
               </li>
             ))}
@@ -82,10 +89,7 @@ export function TeamPage() {
         )}
       </Card>
 
-      <p className="text-sm text-muted-foreground">
-        Inviting new teammates and changing roles arrives with the admin settings in a later
-        release.
-      </p>
+      <p className="text-sm text-muted-foreground">{t('team.footnote')}</p>
     </div>
   );
 }

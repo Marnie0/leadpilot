@@ -3,8 +3,7 @@ import type { LeadListItemDto } from '@leadpilot/shared';
 import { Building2, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency } from '@/lib/format';
-import { SOURCE_LABELS } from '@/lib/labels';
+import { useFormat, useT } from '@/lib/i18n';
 import { StageBadge } from './stage-badge';
 import { PriorityBadge } from './priority-badge';
 import { AssigneeAvatar } from './assignee-avatar';
@@ -17,6 +16,9 @@ import { FollowUpCell } from './follow-up-cell';
  * same records render as cards — same data, laid out for a thumb.
  */
 export function LeadCard({ lead }: { lead: LeadListItemDto }) {
+  const t = useT();
+  const format = useFormat();
+
   return (
     <Card className="gap-0 p-0 transition-colors hover:border-primary/40">
       <Link
@@ -32,10 +34,14 @@ export function LeadCard({ lead }: { lead: LeadListItemDto }) {
                 {lead.company}
               </p>
             ) : (
-              <p className="truncate text-xs text-muted-foreground">{SOURCE_LABELS[lead.source]}</p>
+              <p className="truncate text-xs text-muted-foreground">{t(`source.${lead.source}`)}</p>
             )}
           </div>
-          <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+          {/* Points into the record, so it follows the reading direction. */}
+          <ChevronRight
+            className="icon-directional mt-0.5 size-4 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
         </div>
 
         <p className="truncate text-sm text-muted-foreground">{lead.requestedService}</p>
@@ -43,8 +49,8 @@ export function LeadCard({ lead }: { lead: LeadListItemDto }) {
         <div className="flex flex-wrap items-center gap-2">
           <StageBadge stage={lead.stage} size="sm" />
           <PriorityBadge priority={lead.priority} />
-          <span className="ml-auto text-sm font-semibold text-foreground tabular-nums">
-            {formatCurrency(lead.estimatedValue, lead.currency)}
+          <span className="ms-auto text-sm font-semibold text-foreground tabular-nums">
+            {format.currency(lead.estimatedValue, lead.currency)}
           </span>
         </div>
 

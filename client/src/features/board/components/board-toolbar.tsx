@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { MultiSelectFilter, type FilterOption } from '@/components/common/multi-select-filter';
-import { FOLLOW_UP_FILTER_LABELS, PRIORITY_LABELS, SOURCE_LABELS } from '@/lib/labels';
+import { useT } from '@/lib/i18n';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import type { TeamMemberDetail } from '@/features/leads/api';
 import type { BoardFilterState } from '../hooks/use-board-filters';
@@ -45,6 +45,8 @@ export function BoardToolbar({
   hasActiveFilters: boolean;
   members: TeamMemberDetail[];
 }) {
+  const t = useT();
+
   // The input stays uncontrolled by the URL while the user types; the debounced
   // value is what drives the query and the address bar.
   const [searchDraft, setSearchDraft] = useState(filters.q);
@@ -62,7 +64,7 @@ export function BoardToolbar({
   }, [filters.q]);
 
   const assigneeOptions: FilterOption[] = [
-    { value: UNASSIGNED, label: 'Unassigned' },
+    { value: UNASSIGNED, label: t('common.unassigned') },
     ...members
       .filter((member) => member.isActive)
       .map((member) => ({
@@ -82,23 +84,23 @@ export function BoardToolbar({
     <div className="flex flex-wrap items-center gap-2">
       <div className="relative w-full sm:w-64">
         <Search
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden
         />
         <Input
           value={searchDraft}
           onChange={(event) => setSearchDraft(event.target.value)}
-          placeholder="Search the pipeline…"
-          className="h-9 pr-9 pl-9"
-          aria-label="Search leads"
+          placeholder={t('filters.searchPipeline')}
+          className="h-9 ps-9 pe-9"
+          aria-label={t('filters.searchLeads')}
           type="search"
         />
         {searchDraft && (
           <button
             type="button"
             onClick={() => setSearchDraft('')}
-            className="absolute top-1/2 right-2 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-            aria-label="Clear search"
+            className="absolute end-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            aria-label={t('common.clearSearch')}
           >
             <X className="size-3.5" />
           </button>
@@ -106,26 +108,26 @@ export function BoardToolbar({
       </div>
 
       <MultiSelectFilter
-        label="Assignee"
+        label={t('filters.assignee')}
         options={assigneeOptions}
         selected={filters.assignedToId}
         onChange={(next) => onChange({ assignedToId: next })}
         searchable={assigneeOptions.length > 8}
       />
       <MultiSelectFilter
-        label="Source"
+        label={t('filters.source')}
         options={LEAD_SOURCES.map((source) => ({
           value: source,
-          label: SOURCE_LABELS[source],
+          label: t(`source.${source}`),
         }))}
         selected={filters.source}
         onChange={(next) => onChange({ source: next as LeadSource[] })}
       />
       <MultiSelectFilter
-        label="Priority"
+        label={t('filters.priority')}
         options={LEAD_PRIORITIES.map((priority) => ({
           value: priority,
-          label: PRIORITY_LABELS[priority],
+          label: t(`priority.${priority}`),
         }))}
         selected={filters.priority}
         onChange={(next) => onChange({ priority: next as LeadPriority[] })}
@@ -135,13 +137,13 @@ export function BoardToolbar({
         value={filters.followUp}
         onValueChange={(value) => onChange({ followUp: value as FollowUpFilter })}
       >
-        <SelectTrigger size="sm" className="h-9 w-[152px]" aria-label="Filter by follow-up">
+        <SelectTrigger size="sm" className="h-9 w-[152px]" aria-label={t('filters.followUp')}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {FOLLOW_UP_FILTERS.map((option) => (
             <SelectItem key={option} value={option}>
-              {FOLLOW_UP_FILTER_LABELS[option] ?? option}
+              {t(`followUpFilter.${option}`)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -149,7 +151,7 @@ export function BoardToolbar({
 
       {hasActiveFilters && (
         <Button variant="ghost" size="sm" className="h-9 gap-1.5" onClick={onReset}>
-          <X className="size-3.5" /> Clear all
+          <X className="size-3.5" /> {t('common.clearAll')}
         </Button>
       )}
     </div>

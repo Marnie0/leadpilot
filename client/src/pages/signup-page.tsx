@@ -11,14 +11,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useT } from '@/lib/i18n';
+import { useLocalizedResolver } from '@/lib/i18n/zod-resolver';
 
 export function SignupPage() {
+  const t = useT();
   const { signup } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<SignupFormValues>({
-    resolver: zodResolver(signupFormSchema),
+    resolver: useLocalizedResolver(zodResolver(signupFormSchema)),
     defaultValues: {
       name: '',
       email: '',
@@ -46,13 +49,13 @@ export function SignupPage() {
 
   return (
     <AuthLayout
-      title="Create your workspace"
-      subtitle="Set up your team's pipeline in under a minute. No card required."
+      title={t('auth.signupTitle')}
+      subtitle={t('auth.signupSubtitle')}
       footer={
         <>
-          Already have an account?{' '}
+          {t('auth.haveAccount')}{' '}
           <Link to="/login" className="font-medium text-primary hover:underline">
-            Sign in
+            {t('auth.signIn')}
           </Link>
         </>
       }
@@ -66,11 +69,11 @@ export function SignupPage() {
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="name">Your name</Label>
+          <Label htmlFor="name">{t('auth.yourName')}</Label>
           <Input
             id="name"
             autoComplete="name"
-            placeholder="Layla Haddad"
+            placeholder={t('auth.namePlaceholder')}
             aria-invalid={Boolean(errors.name)}
             {...form.register('name')}
           />
@@ -78,29 +81,30 @@ export function SignupPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="organizationName">Company name</Label>
+          <Label htmlFor="organizationName">{t('auth.companyName')}</Label>
           <Input
             id="organizationName"
             autoComplete="organization"
-            placeholder="Meridian Property Group"
+            placeholder={t('auth.companyPlaceholder')}
             aria-invalid={Boolean(errors.organizationName)}
             {...form.register('organizationName')}
           />
           {errors.organizationName && (
             <p className="text-sm text-destructive">{errors.organizationName.message}</p>
           )}
-          <p className="text-xs text-muted-foreground">
-            This becomes your workspace. You can invite your team once you&apos;re in.
-          </p>
+          <p className="text-xs text-muted-foreground">{t('auth.companyHint')}</p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="email">Work email</Label>
+          <Label htmlFor="email">{t('auth.workEmail')}</Label>
           <Input
             id="email"
             type="email"
             autoComplete="email"
-            placeholder="you@company.com"
+            placeholder={t('auth.emailPlaceholder')}
+            // Latin-scripted regardless of the interface language: an address
+            // typed into an RTL field would otherwise reorder as you type.
+            dir="ltr"
             aria-invalid={Boolean(errors.email)}
             {...form.register('email')}
           />
@@ -108,22 +112,22 @@ export function SignupPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">{t('auth.password')}</Label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
-              placeholder="Create a password"
-              className="pr-10"
+              placeholder={t('auth.createPassword')}
+              className="pe-10"
               aria-invalid={Boolean(errors.password)}
               {...form.register('password')}
             />
             <button
               type="button"
               onClick={() => setShowPassword((value) => !value)}
-              className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute inset-y-0 end-0 flex w-10 items-center justify-center rounded-e-md text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
             >
               {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
@@ -132,18 +136,18 @@ export function SignupPage() {
             <p className="text-sm text-destructive">{errors.password.message}</p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              At least {PASSWORD_MIN_LENGTH} characters, with a letter and a number.
+              {t('auth.passwordHint', { count: PASSWORD_MIN_LENGTH })}
             </p>
           )}
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm password</Label>
+          <Label htmlFor="confirmPassword">{t('auth.confirmPassword')}</Label>
           <Input
             id="confirmPassword"
             type={showPassword ? 'text' : 'password'}
             autoComplete="new-password"
-            placeholder="Re-enter your password"
+            placeholder={t('auth.confirmPlaceholder')}
             aria-invalid={Boolean(errors.confirmPassword)}
             {...form.register('confirmPassword')}
           />
@@ -154,7 +158,7 @@ export function SignupPage() {
 
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting && <Loader2 className="size-4 animate-spin" />}
-          Create workspace
+          {t('auth.createWorkspace')}
         </Button>
       </form>
     </AuthLayout>

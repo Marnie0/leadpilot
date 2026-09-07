@@ -1,4 +1,5 @@
-import type { ActivityDto, ActivityType } from '@leadpilot/shared';
+import type { ActivityDto, ActivityType, StageKey } from '@leadpilot/shared';
+import { STAGE_KEYS } from '@leadpilot/shared';
 import {
   ArrowRightLeft,
   CalendarCheck2,
@@ -19,8 +20,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
-import { formatDateTime, formatRelative, initials } from '@/lib/format';
-import { FIELD_LABELS, STAGE_LABELS } from '@/lib/labels';
+import { initials } from '@/lib/format';
+import { leadFieldLabel } from '@/lib/labels';
+import { useFormat, useI18n, type Formatters, type Translator } from '@/lib/i18n';
+import { useRichT } from '@/lib/i18n/rich';
 import { cn } from '@/lib/utils';
 
 const ACTIVITY_ICONS: Record<ActivityType, LucideIcon> = {
@@ -40,105 +43,133 @@ const ACTIVITY_ICONS: Record<ActivityType, LucideIcon> = {
 
 const USER_AUTHORED = new Set<ActivityType>(['NOTE', 'CALL', 'EMAIL', 'MEETING', 'WHATSAPP']);
 
-const stageName = (key: string | undefined): string =>
-  key ? (STAGE_LABELS[key as keyof typeof STAGE_LABELS] ?? key) : 'unknown';
-
 /**
- * Builds the sentence for a system-generated entry from its structured
- * metadata.
+ * The sentence used for an entry the user wrote, keyed by its type.
  *
- * The server stores the *facts* (`fromStage`, `toStage`) rather than a rendered
- * English string, so Phase 3 can produce the Arabic sentence from the same row
- * without a migration or a backfill.
+ * Every one of these takes exactly `{actor}` and nothing else, which is what
+ * lets the switch below hand the whole set to `rich` with one argument shape.
  */
-function describeSystemActivity(activity: ActivityDto): React.ReactNode {
-  const meta = activity.metadata ?? {};
-  const actor = activity.author?.name ?? 'Someone';
+type ActorSentenceKey =
+  | 'activity.loggedCall'
+  | 'activity.loggedEmail'
+  | 'activity.loggedMeeting'
+  | 'activity.loggedWhatsapp'
+  | 'activity.addedNote'
+  | 'activity.addedEntry';
 
-  switch (activity.type) {
-    case 'LEAD_CREATED':
-      return (
-        <>
-          <strong className="font-medium text-foreground">{actor}</strong> created this lead
-        </>
-      );
-    case 'STAGE_CHANGED':
-      return (
-        <>
-          <strong className="font-medium text-foreground">{actor}</strong> moved the lead from{' '}
-          <strong className="font-medium text-foreground">{stageName(meta.fromStage)}</strong> to{' '}
-          <strong className="font-medium text-foreground">{stageName(meta.toStage)}</strong>
-        </>
-      );
-    case 'ASSIGNED':
-      return meta.toAssignee ? (
-        <>
-          <strong className="font-medium text-foreground">{actor}</strong> assigned this lead to{' '}
-          <strong className="font-medium text-foreground">{meta.toAssignee}</strong>
-        </>
-      ) : (
-        <>
-          <strong className="font-medium text-foreground">{actor}</strong> removed the assigned rep
-        </>
-      );
-    case 'FIELD_UPDATED': {
-      const label = meta.field ? (FIELD_LABELS[meta.field] ?? meta.field) : 'a field';
-      return (
-        <>
-          <strong className="font-medium text-foreground">{actor}</strong> updated the {label}
-          {meta.to ? (
-            <>
-              {' '}
-              to <strong className="font-medium text-foreground">{meta.to}</strong>
-            </>
-          ) : null}
-        </>
-      );
-    }
-    case 'FOLLOW_UP_SCHEDULED':
-      return (
-        <>
-          <strong className="font-medium text-foreground">{actor}</strong> scheduled{' '}
-          <strong className="font-medium text-foreground">{meta.followUpTitle}</strong>
-          {meta.dueAt ? ` for ${formatDateTime(meta.dueAt)}` : null}
-        </>
-      );
-    case 'FOLLOW_UP_COMPLETED':
-      return (
-        <>
-          <strong className="font-medium text-foreground">{actor}</strong> completed{' '}
-          <strong className="font-medium text-foreground">{meta.followUpTitle}</strong>
-        </>
-      );
-    case 'FOLLOW_UP_CANCELLED':
-      return (
-        <>
-          <strong className="font-medium text-foreground">{actor}</strong> cancelled{' '}
-          <strong className="font-medium text-foreground">{meta.followUpTitle}</strong>
-        </>
-      );
-    default:
-      return actor;
-  }
-}
-
-const TYPE_VERB: Partial<Record<ActivityType, string>> = {
-  CALL: 'logged a call',
-  EMAIL: 'logged an email',
-  MEETING: 'logged a meeting',
-  WHATSAPP: 'logged a WhatsApp message',
-  NOTE: 'added a note',
+const AUTHORED_SENTENCE: Partial<Record<ActivityType, ActorSentenceKey>> = {
+  CALL: 'activity.loggedCall',
+  EMAIL: 'activity.loggedEmail',
+  MEETING: 'activity.loggedMeeting',
+  WHATSAPP: 'activity.loggedWhatsapp',
+  NOTE: 'activity.addedNote',
 };
 
-function ActivityRow({ activity, isLast }: { activity: ActivityDto; isLast: boolean }) {
+/** Emphasis for a name or value dropped into an activity sentence. */
+function Strong({ children }: { children: React.ReactNode }) {
+  return <strong className="font-medium text-foreground">{children}</strong>;
+}
+
+function ActivityRow({
+  activity,
+  isLast,
+  t,
+  rich,
+  format,
+}: {
+  activity: ActivityDto;
+  isLast: boolean;
+  t: Translator;
+  rich: ReturnType<typeof useRichT>;
+  format: Formatters;
+}) {
   const Icon = ACTIVITY_ICONS[activity.type] ?? StickyNote;
   const isAuthored = USER_AUTHORED.has(activity.type);
+  const meta = activity.metadata ?? {};
+
+  /** A stage key from activity metadata, rendered in the active language. */
+  const stageLabel = (key: string | undefined) => {
+    const known = STAGE_KEYS.find((candidate) => candidate === key);
+    return known ? t(`stage.${known as StageKey}`) : t('activity.unknownStage');
+  };
+
+  /**
+   * Builds the sentence from the entry's structured metadata.
+   *
+   * The server stores the *facts* (`fromStage`, `toStage`) rather than a
+   * rendered English string, which is what makes this possible at all: the same
+   * row from a year ago renders in Arabic with no migration and no backfill.
+   */
+  const sentence = (): React.ReactNode => {
+    const actor = <Strong>{activity.author?.name ?? t('activity.someone')}</Strong>;
+
+    if (isAuthored) {
+      const key = AUTHORED_SENTENCE[activity.type] ?? 'activity.addedEntry';
+      return rich(key, {
+        actor: <Strong>{activity.author?.name ?? t('activity.teammate')}</Strong>,
+      });
+    }
+
+    switch (activity.type) {
+      case 'LEAD_CREATED':
+        return rich('activity.created', { actor });
+
+      case 'STAGE_CHANGED':
+        return rich('activity.stageChanged', {
+          actor,
+          from: <Strong>{stageLabel(meta.fromStage)}</Strong>,
+          to: <Strong>{stageLabel(meta.toStage)}</Strong>,
+        });
+
+      case 'ASSIGNED':
+        return meta.toAssignee
+          ? rich('activity.assigned', { actor, assignee: <Strong>{meta.toAssignee}</Strong> })
+          : rich('activity.unassigned', { actor });
+
+      case 'FIELD_UPDATED': {
+        const field = leadFieldLabel(t, meta.field);
+        return meta.to
+          ? rich('activity.fieldUpdatedTo', { actor, field, value: <Strong>{meta.to}</Strong> })
+          : rich('activity.fieldUpdated', { actor, field });
+      }
+
+      case 'FOLLOW_UP_SCHEDULED': {
+        const title = <Strong>{meta.followUpTitle}</Strong>;
+        return meta.dueAt
+          ? rich('activity.followUpScheduledFor', {
+              actor,
+              title,
+              date: format.dateTime(meta.dueAt),
+            })
+          : rich('activity.followUpScheduled', { actor, title });
+      }
+
+      case 'FOLLOW_UP_COMPLETED':
+        return rich('activity.followUpCompleted', {
+          actor,
+          title: <Strong>{meta.followUpTitle}</Strong>,
+        });
+
+      case 'FOLLOW_UP_CANCELLED':
+        return rich('activity.followUpCancelled', {
+          actor,
+          title: <Strong>{meta.followUpTitle}</Strong>,
+        });
+
+      default:
+        return actor;
+    }
+  };
 
   return (
     <li className="relative flex gap-3 pb-6 last:pb-0">
-      {/* Connector line, hidden on the final entry so the timeline ends cleanly. */}
+      {/*
+        Connector line, hidden on the final entry so the timeline ends cleanly.
+        It is pinned to the inline start so it stays under the icon column when
+        the whole timeline mirrors.
+      */}
       {!isLast && (
-        <span className="absolute top-8 bottom-0 left-[15px] w-px bg-border" aria-hidden />
+        <span className="absolute start-[15px] top-8 bottom-0 w-px bg-border" aria-hidden />
       )}
 
       <span
@@ -155,30 +186,29 @@ function ActivityRow({ activity, isLast }: { activity: ActivityDto; isLast: bool
 
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <p className="text-sm text-muted-foreground">
-            {isAuthored ? (
-              <>
-                <strong className="font-medium text-foreground">
-                  {activity.author?.name ?? 'A teammate'}
-                </strong>{' '}
-                {TYPE_VERB[activity.type] ?? 'added an entry'}
-              </>
-            ) : (
-              describeSystemActivity(activity)
-            )}
-          </p>
+          <p className="text-sm text-muted-foreground">{sentence()}</p>
           <time
             dateTime={activity.occurredAt}
-            title={formatDateTime(activity.occurredAt)}
+            title={format.dateTime(activity.occurredAt)}
             className="text-xs whitespace-nowrap text-muted-foreground/80"
           >
-            {formatRelative(activity.occurredAt)}
+            {format.relative(activity.occurredAt)}
           </time>
         </div>
 
         {activity.body && (
           <div className="rounded-lg border bg-card px-3 py-2.5">
-            <p className="text-sm whitespace-pre-wrap text-foreground">{activity.body}</p>
+            {/*
+              Direction is taken from the text itself, not from the interface.
+              A note written in English inside an Arabic page would otherwise
+              have its trailing full stop dragged to the wrong end of the line —
+              the classic bidi artefact. `dir="auto"` reads the first strong
+              character and lays the paragraph out accordingly, so each entry
+              reads the way its author wrote it.
+            */}
+            <p className="text-sm whitespace-pre-wrap text-foreground" dir="auto">
+              {activity.body}
+            </p>
           </div>
         )}
       </div>
@@ -197,10 +227,14 @@ export function ActivityTimeline({
   error?: unknown;
   onRetry?: () => void;
 }) {
+  const { t } = useI18n();
+  const rich = useRichT();
+  const format = useFormat();
+
   // A failed timeline must not look like a lead with no history — those are very
   // different facts, and only one of them is the user's problem to act on.
   if (error) {
-    return <ErrorState error={error} onRetry={onRetry} title="Could not load the activity" />;
+    return <ErrorState error={error} onRetry={onRetry} title={t('activity.couldNotLoad')} />;
   }
 
   if (isLoading) {
@@ -223,8 +257,8 @@ export function ActivityTimeline({
     return (
       <EmptyState
         icon={CircleCheck}
-        title="Nothing logged yet"
-        description="Add the first note or log a call — everything the team does with this lead shows up here."
+        title={t('activity.emptyTitle')}
+        description={t('activity.emptyBody')}
       />
     );
   }
@@ -236,6 +270,9 @@ export function ActivityTimeline({
           key={activity.id}
           activity={activity}
           isLast={index === activities.length - 1}
+          t={t}
+          rich={rich}
+          format={format}
         />
       ))}
     </ol>

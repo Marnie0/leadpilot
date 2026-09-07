@@ -76,6 +76,8 @@ export interface DashboardSummaryDto {
 export interface DashboardStageDto {
   key: StageKey;
   name: string;
+  /** Arabic label for the stage, so the charts localise with the rest of the UI. */
+  nameAr: string;
   color: string;
   order: number;
   type: StageType;
@@ -102,10 +104,14 @@ export interface DashboardSourceDto {
 }
 
 export interface DashboardTrendPointDto {
-  /** Bucket start, ISO. Weekly for 30d/90d, monthly for 12m. */
+  /**
+   * Bucket start, ISO, truncated in UTC.
+   *
+   * The axis label is derived from this in the browser rather than sent
+   * pre-formatted: "7 Sep" and "٧ سبتمبر" are the same bucket, and only the
+   * client knows which language it is rendering in.
+   */
   bucket: string;
-  /** Pre-formatted axis label, so the chart does not re-derive it per render. */
-  label: string;
   created: number;
   won: number;
   wonValue: number;

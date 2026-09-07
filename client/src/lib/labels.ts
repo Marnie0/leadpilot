@@ -1,40 +1,15 @@
-import type {
-  ActivityType,
-  FollowUpChannel,
-  FollowUpStatus,
-  LeadPriority,
-  LeadSource,
-  StageKey,
-  UserRole,
-} from '@leadpilot/shared';
+import type { LeadPriority, Locale } from '@leadpilot/shared';
+import type { StaticKey, Translator } from './i18n/translate';
 
 /**
- * Display strings for every enum the API returns.
+ * Display helpers for values that come back from the API.
  *
- * Centralised here rather than inlined at each call site so Phase 3 can swap
- * this module for a translation lookup without touching a single component.
+ * Most enums need no helper at all: their labels live in the dictionary under a
+ * matching prefix, so a component writes `` t(`source.${lead.source}`) `` and
+ * the compiler checks that every member of the union has a translation. What is
+ * left here is the two cases that cannot work that way, plus the one map that
+ * is about styling rather than language.
  */
-
-export const SOURCE_LABELS: Record<LeadSource, string> = {
-  WEBSITE: 'Website',
-  REFERRAL: 'Referral',
-  SOCIAL_MEDIA: 'Social media',
-  PAID_ADS: 'Paid ads',
-  COLD_CALL: 'Cold call',
-  EMAIL_CAMPAIGN: 'Email campaign',
-  EVENT: 'Event',
-  WALK_IN: 'Walk-in',
-  PARTNER: 'Partner',
-  MARKETPLACE: 'Marketplace',
-  OTHER: 'Other',
-};
-
-export const PRIORITY_LABELS: Record<LeadPriority, string> = {
-  LOW: 'Low',
-  MEDIUM: 'Medium',
-  HIGH: 'High',
-  URGENT: 'Urgent',
-};
 
 /** Tailwind classes per priority — muted for low, loud for urgent. */
 export const PRIORITY_STYLES: Record<LeadPriority, string> = {
@@ -44,79 +19,40 @@ export const PRIORITY_STYLES: Record<LeadPriority, string> = {
   URGENT: 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/25',
 };
 
-export const STAGE_LABELS: Record<StageKey, string> = {
-  NEW: 'New',
-  CONTACTED: 'Contacted',
-  QUALIFIED: 'Qualified',
-  PROPOSAL: 'Proposal',
-  WON: 'Won',
-  LOST: 'Lost',
-};
+/**
+ * A pipeline stage's name in the active language.
+ *
+ * Stage names are per-tenant data, not UI copy — a workspace can rename
+ * "Proposal" to "Quote sent" — so they come from the row rather than the
+ * dictionary. Every stage carries both languages; `nameAr` falls back to `name`
+ * so a stage added in English still renders rather than disappearing.
+ */
+export function stageName(stage: { name: string; nameAr?: string }, locale: Locale): string {
+  if (locale !== 'ar') return stage.name;
+  return stage.nameAr && stage.nameAr.length > 0 ? stage.nameAr : stage.name;
+}
 
-export const ROLE_LABELS: Record<UserRole, string> = {
-  OWNER: 'Owner',
-  ADMIN: 'Admin',
-  MEMBER: 'Sales rep',
-};
+/** The set of lead fields a FIELD_UPDATED activity entry can name. */
+const LEAD_FIELDS = [
+  'customerName',
+  'company',
+  'email',
+  'phone',
+  'requestedService',
+  'estimatedValue',
+  'priority',
+  'source',
+] as const;
 
-export const CHANNEL_LABELS: Record<FollowUpChannel, string> = {
-  CALL: 'Call',
-  EMAIL: 'Email',
-  MEETING: 'Meeting',
-  WHATSAPP: 'WhatsApp',
-  SMS: 'SMS',
-  OTHER: 'Other',
-};
-
-export const FOLLOW_UP_STATUS_LABELS: Record<FollowUpStatus, string> = {
-  PENDING: 'Pending',
-  COMPLETED: 'Completed',
-  CANCELLED: 'Cancelled',
-};
-
-export const ACTIVITY_LABELS: Record<ActivityType, string> = {
-  NOTE: 'Note',
-  CALL: 'Call',
-  EMAIL: 'Email',
-  MEETING: 'Meeting',
-  WHATSAPP: 'WhatsApp',
-  LEAD_CREATED: 'Lead created',
-  STAGE_CHANGED: 'Stage changed',
-  ASSIGNED: 'Assignment',
-  FIELD_UPDATED: 'Details updated',
-  FOLLOW_UP_SCHEDULED: 'Follow-up scheduled',
-  FOLLOW_UP_COMPLETED: 'Follow-up completed',
-  FOLLOW_UP_CANCELLED: 'Follow-up cancelled',
-};
-
-/** Human labels for the fields named in a FIELD_UPDATED activity entry. */
-export const FIELD_LABELS: Record<string, string> = {
-  customerName: 'customer name',
-  company: 'company',
-  email: 'email',
-  phone: 'phone',
-  requestedService: 'requested service',
-  estimatedValue: 'estimated value',
-  priority: 'priority',
-  source: 'lead source',
-};
-
-export const SORT_LABELS: Record<string, string> = {
-  updatedAt: 'Last updated',
-  createdAt: 'Date created',
-  customerName: 'Customer name',
-  company: 'Company',
-  estimatedValue: 'Estimated value',
-  nextFollowUpAt: 'Next follow-up',
-  lastActivityAt: 'Last activity',
-  stage: 'Pipeline stage',
-  priority: 'Priority',
-};
-
-export const FOLLOW_UP_FILTER_LABELS: Record<string, string> = {
-  any: 'Any follow-up',
-  overdue: 'Overdue',
-  today: 'Due today',
-  week: 'Due this week',
-  none: 'No follow-up set',
-};
+/**
+ * Human label for the field named in a FIELD_UPDATED activity entry.
+ *
+ * `metadata.field` is a free-form string on the wire, so it is matched against
+ * the known set rather than interpolated into a key — an unrecognised value
+ * must not produce `leadField.somethingElse` on screen.
+ */
+export function leadFieldLabel(t: Translator, field: string | undefined): string {
+  const known = LEAD_FIELDS.find((candidate) => candidate === field);
+  if (!known) return field ?? t('activity.aField');
+  return t(`leadField.${known}` as StaticKey);
+}

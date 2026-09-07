@@ -25,9 +25,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
-import { ApiError } from '@/lib/api-client';
-import { describeDueDate, formatDateTime } from '@/lib/format';
-import { CHANNEL_LABELS } from '@/lib/labels';
+import { useFormat, useT } from '@/lib/i18n';
+import { useApiErrorMessage } from '@/lib/i18n/errors';
+import { useLocalizedResolver } from '@/lib/i18n/zod-resolver';
 import { cn } from '@/lib/utils';
 import { useCancelFollowUp, useCompleteFollowUp, useCreateFollowUp } from '../api';
 
@@ -41,9 +41,11 @@ function defaultDueAt(): string {
 }
 
 function FollowUpRow({ followUp, leadId }: { followUp: FollowUpDto; leadId: string }) {
+  const t = useT();
+  const format = useFormat();
   const complete = useCompleteFollowUp(leadId);
   const cancel = useCancelFollowUp(leadId);
-  const due = describeDueDate(followUp.dueAt);
+  const due = format.dueDate(followUp.dueAt);
   const isPending = followUp.status === 'PENDING';
 
   return (
@@ -57,6 +59,7 @@ function FollowUpRow({ followUp, leadId }: { followUp: FollowUpDto; leadId: stri
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <p
+            dir="auto"
             className={cn(
               'text-sm font-medium text-foreground',
               followUp.status !== 'PENDING' && 'text-muted-foreground line-through',
@@ -65,11 +68,11 @@ function FollowUpRow({ followUp, leadId }: { followUp: FollowUpDto; leadId: stri
             {followUp.title}
           </p>
           <Badge variant="outline" className="text-[10px]">
-            {CHANNEL_LABELS[followUp.channel]}
+            {t(`channel.${followUp.channel}`)}
           </Badge>
           {followUp.status === 'CANCELLED' && (
             <Badge variant="secondary" className="text-[10px]">
-              Cancelled
+              {t('followUp.cancelled')}
             </Badge>
           )}
         </div>
@@ -82,11 +85,17 @@ function FollowUpRow({ followUp, leadId }: { followUp: FollowUpDto; leadId: stri
               : 'text-muted-foreground',
           )}
         >
-          {isPending ? due.label : `Completed ${formatDateTime(followUp.completedAt)}`}
+          {isPending
+            ? due.label
+            : t('followUp.completedAt', { date: format.dateTime(followUp.completedAt) })}
           {followUp.assignedTo && ` · ${followUp.assignedTo.name}`}
         </p>
 
-        {followUp.notes && <p className="text-xs text-muted-foreground">{followUp.notes}</p>}
+        {followUp.notes && (
+          <p className="text-xs text-muted-foreground" dir="auto">
+            {followUp.notes}
+          </p>
+        )}
       </div>
 
       {isPending && (
@@ -95,14 +104,14 @@ function FollowUpRow({ followUp, leadId }: { followUp: FollowUpDto; leadId: stri
             variant="ghost"
             size="icon"
             className="size-8"
-            aria-label={`Mark "${followUp.title}" complete`}
+            aria-label={t('followUp.markComplete', { title: followUp.title })}
             disabled={complete.isPending}
             onClick={() => {
               complete.mutate(
                 { id: followUp.id },
                 {
-                  onSuccess: () => toast.success('Follow-up completed'),
-                  onError: () => toast.error('Could not complete that follow-up'),
+                  onSuccess: () => toast.success(t('followUp.completed')),
+                  onError: () => toast.error(t('followUp.couldNotComplete')),
                 },
               );
             }}
@@ -117,12 +126,12 @@ function FollowUpRow({ followUp, leadId }: { followUp: FollowUpDto; leadId: stri
             variant="ghost"
             size="icon"
             className="size-8 text-muted-foreground"
-            aria-label={`Cancel "${followUp.title}"`}
+            aria-label={t('followUp.cancelOne', { title: followUp.title })}
             disabled={cancel.isPending}
             onClick={() => {
               cancel.mutate(followUp.id, {
-                onSuccess: () => toast.success('Follow-up cancelled'),
-                onError: () => toast.error('Could not cancel that follow-up'),
+                onSuccess: () => toast.success(t('followUp.wasCancelled')),
+                onError: () => toast.error(t('followUp.couldNotCancel')),
               });
             }}
           >
@@ -147,11 +156,13 @@ export function FollowUpPanel({
   error?: unknown;
   onRetry?: () => void;
 }) {
+  const t = useT();
+  const describeError = useApiErrorMessage();
   const [isAdding, setAdding] = useState(false);
   const createFollowUp = useCreateFollowUp(leadId);
 
   const form = useForm<CreateFollowUpFormValues, unknown, CreateFollowUpInput>({
-    resolver: zodResolver(createFollowUpSchema),
+    resolver: useLocalizedResolver(zodResolver(createFollowUpSchema)),
     defaultValues: {
       title: '',
       dueAt: new Date(defaultDueAt()).toISOString(),
@@ -163,7 +174,7 @@ export function FollowUpPanel({
   const onSubmit = async (values: CreateFollowUpInput) => {
     try {
       await createFollowUp.mutateAsync(values);
-      toast.success('Follow-up scheduled');
+      toast.success(t('followUp.scheduled'));
       form.reset({
         title: '',
         dueAt: new Date(defaultDueAt()).toISOString(),
@@ -172,9 +183,7 @@ export function FollowUpPanel({
       });
       setAdding(false);
     } catch (error) {
-      toast.error('Could not schedule that', {
-        description: error instanceof ApiError ? error.message : 'Please try again.',
-      });
+      toast.error(t('followUp.couldNotSchedule'), { description: describeError(error) });
     }
   };
 
@@ -185,7 +194,7 @@ export function FollowUpPanel({
     <div className="space-y-4">
       {!isAdding && (
         <Button variant="outline" size="sm" className="w-full" onClick={() => setAdding(true)}>
-          <Plus className="size-4" /> Schedule follow-up
+          <Plus className="size-4" /> {t('followUp.schedule')}
         </Button>
       )}
 
@@ -197,11 +206,11 @@ export function FollowUpPanel({
         >
           <div className="space-y-1.5">
             <Label htmlFor="followup-title" className="text-xs">
-              What needs doing?
+              {t('followUp.whatNeedsDoing')}
             </Label>
             <Input
               id="followup-title"
-              placeholder="Call to confirm viewing time"
+              placeholder={t('followUp.titlePlaceholder')}
               className="h-9"
               aria-invalid={Boolean(form.formState.errors.title)}
               {...form.register('title')}
@@ -214,7 +223,7 @@ export function FollowUpPanel({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="followup-due" className="text-xs">
-                Due
+                {t('followUp.due')}
               </Label>
               <Input
                 id="followup-due"
@@ -236,7 +245,7 @@ export function FollowUpPanel({
 
             <div className="space-y-1.5">
               <Label htmlFor="followup-channel" className="text-xs">
-                Channel
+                {t('followUp.channel')}
               </Label>
               <Select
                 defaultValue="CALL"
@@ -250,7 +259,7 @@ export function FollowUpPanel({
                 <SelectContent>
                   {FOLLOW_UP_CHANNELS.map((channel) => (
                     <SelectItem key={channel} value={channel}>
-                      {CHANNEL_LABELS[channel]}
+                      {t(`channel.${channel}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -260,12 +269,12 @@ export function FollowUpPanel({
 
           <div className="space-y-1.5">
             <Label htmlFor="followup-notes" className="text-xs">
-              Notes (optional)
+              {t('followUp.notes')}
             </Label>
             <Textarea
               id="followup-notes"
               rows={2}
-              placeholder="Prefers a call after 6pm…"
+              placeholder={t('followUp.notesPlaceholder')}
               {...form.register('notes')}
             />
           </div>
@@ -280,18 +289,18 @@ export function FollowUpPanel({
                 form.reset();
               }}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" size="sm" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting && <Loader2 className="size-4 animate-spin" />}
-              Schedule
+              {t('followUp.submit')}
             </Button>
           </div>
         </form>
       )}
 
       {error ? (
-        <ErrorState error={error} onRetry={onRetry} title="Could not load follow-ups" />
+        <ErrorState error={error} onRetry={onRetry} title={t('followUp.couldNotLoad')} />
       ) : isLoading ? (
         <div className="space-y-2">
           <Skeleton className="h-16 w-full rounded-lg" />
@@ -300,8 +309,8 @@ export function FollowUpPanel({
       ) : followUps.length === 0 ? (
         <EmptyState
           icon={CalendarClock}
-          title="No follow-ups scheduled"
-          description="Book the next touchpoint so this lead does not go quiet."
+          title={t('followUp.emptyTitle')}
+          description={t('followUp.emptyBody')}
           className="py-8"
         />
       ) : (
@@ -317,7 +326,7 @@ export function FollowUpPanel({
           {past.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Past
+                {t('followUp.past')}
               </p>
               <ul className="space-y-2">
                 {past.map((followUp) => (

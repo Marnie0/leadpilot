@@ -3,13 +3,68 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0f172a" />
+    <!--
+      Two entries so the browser chrome matches the page rather than always
+      claiming to be dark. An explicit theme choice overrides both at runtime —
+      see ThemeProvider.
+    -->
+    <meta name="theme-color" content="#fcfdff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#151827" media="(prefers-color-scheme: dark)" />
     <meta
       name="description"
       content="LeadPilot — capture, assign and close more leads. Bilingual lead management for service businesses."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      Inter carries no Arabic, so the two families are listed together and the
+      browser falls through per glyph: Latin from Inter, Arabic from IBM Plex
+      Sans Arabic. They are drawn to the same grotesque proportions, which is
+      what stops a bilingual sentence looking like two different documents.
+    -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400..700&display=swap"
+      rel="stylesheet"
+    />
+
     <title>LeadPilot</title>
+
+    <script>
+      /*
+       * Applies the stored theme and language before the first paint.
+       *
+       * Without this the page renders light and left-to-right for one frame,
+       * then flips — which for an Arabic reader is the entire layout jumping
+       * across the screen, not just a colour change. React sets both again on
+       * mount; this only prevents the flash.
+       */
+      (function () {
+        try {
+          var theme = localStorage.getItem('leadpilot.theme');
+          var dark =
+            theme === 'dark' ||
+            ((!theme || theme === 'system') &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', dark);
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+
+          var locale = localStorage.getItem('leadpilot.locale');
+          if (locale !== 'ar' && locale !== 'en') {
+            locale = (navigator.languages || [navigator.language || 'en']).some(function (tag) {
+              return String(tag).toLowerCase().indexOf('ar') === 0;
+            })
+              ? 'ar'
+              : 'en';
+          }
+          document.documentElement.lang = locale;
+          document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
+        } catch (error) {
+          /* Blocked storage — the defaults in the markup already apply. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

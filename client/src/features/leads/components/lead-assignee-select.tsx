@@ -8,7 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ApiError } from '@/lib/api-client';
+import { useT } from '@/lib/i18n';
+import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { useAssignLead, type TeamMemberDetail } from '../api';
 
 const NO_ASSIGNEE = '__none__';
@@ -20,6 +21,8 @@ export function LeadAssigneeSelect({
   lead: LeadDetailDto;
   members: TeamMemberDetail[];
 }) {
+  const t = useT();
+  const describeError = useApiErrorMessage();
   const assignLead = useAssignLead(lead.id);
 
   // A deactivated rep still assigned to this lead must remain listed, or the
@@ -37,28 +40,26 @@ export function LeadAssigneeSelect({
             onSuccess: (updated) =>
               toast.success(
                 updated.assignedTo
-                  ? `Assigned to ${updated.assignedTo.name}`
-                  : 'Lead is now unassigned',
+                  ? t('lead.assignedTo', { name: updated.assignedTo.name })
+                  : t('lead.nowUnassigned'),
               ),
             onError: (error) =>
-              toast.error('Could not reassign', {
-                description: error instanceof ApiError ? error.message : 'Please try again.',
-              }),
+              toast.error(t('lead.couldNotReassign'), { description: describeError(error) }),
           },
         );
       }}
     >
-      <SelectTrigger size="sm" className="w-full" aria-label="Assigned rep">
+      <SelectTrigger size="sm" className="w-full" aria-label={t('lead.assignedRep')}>
         {assignLead.isPending ? (
           <span className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" /> Saving…
+            <Loader2 className="size-3.5 animate-spin" /> {t('common.saving')}
           </span>
         ) : (
           <SelectValue />
         )}
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={NO_ASSIGNEE}>Unassigned</SelectItem>
+        <SelectItem value={NO_ASSIGNEE}>{t('common.unassigned')}</SelectItem>
         {options.map((member) => (
           <SelectItem key={member.id} value={member.id}>
             <span className="flex items-center gap-2">
@@ -68,7 +69,7 @@ export function LeadAssigneeSelect({
                 aria-hidden
               />
               {member.name}
-              {!member.isActive && ' (deactivated)'}
+              {!member.isActive && t('common.deactivatedSuffix')}
             </span>
           </SelectItem>
         ))}

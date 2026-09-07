@@ -3,6 +3,7 @@ import { UserRound } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { initials } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 /**
@@ -18,6 +19,8 @@ export function AssigneeAvatar({
   showName?: boolean;
   className?: string;
 }) {
+  const t = useT();
+
   if (!member) {
     return (
       <span className={cn('flex items-center gap-2 text-muted-foreground', className)}>
@@ -27,8 +30,11 @@ export function AssigneeAvatar({
         >
           <UserRound className="size-3.5" />
         </span>
-        {showName && <span className="text-sm">Unassigned</span>}
-        {!showName && <span className="sr-only">Unassigned</span>}
+        {showName ? (
+          <span className="text-sm">{t('common.unassigned')}</span>
+        ) : (
+          <span className="sr-only">{t('common.unassigned')}</span>
+        )}
       </span>
     );
   }
@@ -60,7 +66,7 @@ export function AssigneeAvatar({
       </TooltipTrigger>
       <TooltipContent>
         {member.name}
-        {!member.isActive && ' (deactivated)'}
+        {!member.isActive && t('common.deactivatedSuffix')}
       </TooltipContent>
     </Tooltip>
   );

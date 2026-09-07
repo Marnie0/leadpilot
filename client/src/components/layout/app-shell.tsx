@@ -5,6 +5,7 @@ import { Logo } from '@/components/common/logo';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/features/auth/auth-context';
+import { useI18n } from '@/lib/i18n';
 import { SidebarNav } from './sidebar-nav';
 import { UserMenu } from './user-menu';
 import { DemoBanner } from './demo-banner';
@@ -18,6 +19,7 @@ import { DemoBanner } from './demo-banner';
  */
 export function AppShell() {
   const { user } = useAuth();
+  const { t, isRtl } = useI18n();
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -27,7 +29,7 @@ export function AppShell() {
   return (
     <div className="min-h-svh bg-background lg:grid lg:grid-cols-[260px_minmax(0,1fr)]">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-svh flex-col border-r border-sidebar-border bg-sidebar lg:flex">
+      <aside className="sticky top-0 hidden h-svh flex-col border-e border-sidebar-border bg-sidebar lg:flex">
         <div className="px-5 py-5">
           <Link
             to="/leads"
@@ -56,13 +58,18 @@ export function AppShell() {
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
           <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Open navigation">
+              <Button variant="ghost" size="icon" aria-label={t('nav.openNavigation')}>
                 <Menu className="size-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[264px] bg-sidebar p-0">
+            {/*
+              The drawer slides in from whichever edge the reading direction
+              starts at, so it opens under the hamburger rather than across
+              the page from it.
+            */}
+            <SheetContent side={isRtl ? 'right' : 'left'} className="w-[264px] bg-sidebar p-0">
               <SheetHeader className="px-5 py-5">
-                <SheetTitle className="sr-only">Navigation</SheetTitle>
+                <SheetTitle className="sr-only">{t('nav.navigation')}</SheetTitle>
                 <Logo />
               </SheetHeader>
               <div className="flex-1 overflow-y-auto px-3">

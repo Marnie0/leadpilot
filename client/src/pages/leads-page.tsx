@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
 import { PaginationBar } from '@/components/common/pagination-bar';
 import { useCurrentUser } from '@/features/auth/auth-context';
+import { useT } from '@/lib/i18n';
 import { useLeadFilters } from '@/features/leads/hooks/use-lead-filters';
 import { useLeadStats, useLeads, useStages, useTeamMembers } from '@/features/leads/api';
 import { LeadFilterBar } from '@/features/leads/components/lead-filter-bar';
@@ -17,6 +18,7 @@ import { LeadCard, LeadCardSkeleton } from '@/features/leads/components/lead-car
 import { LeadFormDialog } from '@/features/leads/components/lead-form-dialog';
 
 export function LeadsPage() {
+  const t = useT();
   const user = useCurrentUser();
   const { filters, setFilters, resetFilters, hasActiveFilters } = useLeadFilters();
   const [isCreateOpen, setCreateOpen] = useState(false);
@@ -43,11 +45,11 @@ export function LeadsPage() {
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <PageHeader
-        title="Leads"
-        description={`Every enquiry across ${user.organization.name}, in one place.`}
+        title={t('leads.title')}
+        description={t('leads.description', { organization: user.organization.name })}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" /> New lead
+            <Plus className="size-4" /> {t('leads.newLead')}
           </Button>
         }
       />
@@ -72,7 +74,7 @@ export function LeadsPage() {
           <ErrorState
             error={leadsQuery.error}
             onRetry={() => void leadsQuery.refetch()}
-            title="Could not load leads"
+            title={t('leads.couldNotLoad')}
           />
         </Card>
       ) : showEmptyState ? (
@@ -80,22 +82,22 @@ export function LeadsPage() {
           {hasActiveFilters ? (
             <EmptyState
               icon={SearchX}
-              title="No leads match these filters"
-              description="Try widening your search, or clear the filters to see the whole pipeline."
+              title={t('leads.noMatchTitle')}
+              description={t('leads.noMatchBody')}
               action={
                 <Button variant="outline" onClick={resetFilters}>
-                  Clear filters
+                  {t('common.clearFilters')}
                 </Button>
               }
             />
           ) : (
             <EmptyState
               icon={Users}
-              title="No leads yet"
-              description="Add your first enquiry and it will show up here with its full activity history."
+              title={t('leads.emptyTitle')}
+              description={t('leads.emptyBody')}
               action={
                 <Button onClick={() => setCreateOpen(true)}>
-                  <Plus className="size-4" /> New lead
+                  <Plus className="size-4" /> {t('leads.newLead')}
                 </Button>
               }
             />
@@ -114,7 +116,7 @@ export function LeadsPage() {
                   meta={meta}
                   onPageChange={(page) => setFilters({ page })}
                   onPageSizeChange={(pageSize) => setFilters({ pageSize, page: 1 })}
-                  itemLabel="leads"
+                  itemLabel={t('leads.itemLabel')}
                 />
               </Card>
             )}
@@ -133,7 +135,7 @@ export function LeadsPage() {
                 meta={meta}
                 onPageChange={(page) => setFilters({ page })}
                 onPageSizeChange={(pageSize) => setFilters({ pageSize, page: 1 })}
-                itemLabel="leads"
+                itemLabel={t('leads.itemLabel')}
               />
             )}
           </Card>

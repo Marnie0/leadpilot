@@ -144,9 +144,16 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  /*
+   * Two families, one stack. Inter has no Arabic coverage, so the browser falls
+   * through to IBM Plex Sans Arabic glyph by glyph: Latin and digits from
+   * Inter, Arabic from Plex. Both are grotesques of similar proportion, so a
+   * bilingual line — an Arabic label next to an AED figure — reads as one
+   * typeface rather than two.
+   */
   --font-sans:
-    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif;
+    'Inter', 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', 'Noto Sans Arabic', sans-serif;
 }
 
 @layer base {
@@ -161,6 +168,16 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /*
+   * Arabic script sits taller than Latin at the same font-size — ascenders and
+   * descenders both reach further — so the default leading crowds it. This is a
+   * small bump rather than a large one: enough to stop diacritics colliding with
+   * the line above, not enough to change any component's height.
+   */
+  [dir='rtl'] body {
+    line-height: 1.65;
   }
 
   /* Tabular figures keep currency columns aligned as values change. */
@@ -182,6 +199,17 @@
 }
 
 @layer utilities {
+  /*
+   * Mirrors an icon that means "forward" or "back" rather than a fixed
+   * direction. A chevron pointing into a link must flip in Arabic; an arrow
+   * meaning "up" or "increasing" must not. Naming the intent keeps the two
+   * apart — `rtl:-scale-x-100` scattered inline says nothing about which is
+   * which.
+   */
+  .icon-directional:where([dir='rtl'] *) {
+    transform: scaleX(-1);
+  }
+
   /* Thin scrollbars inside panels, so a scrollable list does not shout. */
   .scrollbar-slim {
     scrollbar-width: thin;

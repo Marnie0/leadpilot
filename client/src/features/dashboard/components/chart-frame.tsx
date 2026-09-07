@@ -1,6 +1,7 @@
 import { ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 /**
@@ -21,7 +22,37 @@ import { cn } from '@/lib/utils';
  *
  * The tooltip is a plain React component rather than Recharts' default, so it
  * inherits the app's tokens like anything else.
+ *
+ * ## Direction
+ *
+ * Recharts knows nothing about `dir`. It lays out SVG by absolute coordinate,
+ * so an Arabic chart would keep its category axis running left-to-right while
+ * every label beside it ran the other way — the graph would read backwards
+ * against its own text. `useChartDirection` returns the handful of props that
+ * mirror it: axes swap sides, the category order reverses, and the bar corner
+ * radii follow. It is applied per chart rather than globally because "which
+ * end is the start" is a question only each chart can answer.
  */
+
+/** Axis and geometry props that have to flip when the document is RTL. */
+export function useChartDirection() {
+  const { isRtl } = useI18n();
+
+  return {
+    isRtl,
+    /** Categories run from the reading-start edge. */
+    categoryAxis: { reversed: isRtl } as const,
+    /** The value axis sits on the reading-end side. */
+    valueAxisSide: (isRtl ? 'right' : 'left') as 'left' | 'right',
+    /** Rounds the growing end of a horizontal bar. */
+    horizontalBarRadius: (isRtl ? [3, 0, 0, 3] : [0, 3, 3, 0]) as [number, number, number, number],
+    /**
+     * Trims the gutter the value axis no longer needs. Recharts' margin is
+     * physical, so the negative inset has to move with the axis.
+     */
+    axisMargin: (value: number) => (isRtl ? { right: value, left: 8 } : { left: value, right: 8 }),
+  };
+}
 
 /** Series colours. Fixed hexes: legible on both themes, no runtime lookup. */
 export const SERIES = {
@@ -124,7 +155,7 @@ export function ChartTooltip({ title, rows }: { title: string; rows: TooltipRow[
               />
             )}
             <span className="text-muted-foreground">{row.label}</span>
-            <span className="ml-auto font-medium tabular-nums">{row.value}</span>
+            <span className="ms-auto font-medium tabular-nums">{row.value}</span>
           </li>
         ))}
       </ul>

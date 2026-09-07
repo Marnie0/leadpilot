@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 /**
@@ -34,6 +35,7 @@ export function KpiCard({
   /** Shown in a tooltip on the label — how the figure is actually calculated. */
   explainer?: string;
 }) {
+  const t = useT();
   const change = delta?.changePct ?? null;
   const isFlat = change !== null && Math.abs(change) < 0.5;
   const isGood = change === null ? null : higherIsBetter ? change > 0 : change < 0;
@@ -74,12 +76,17 @@ export function KpiCard({
                       : 'text-destructive',
                 )}
               >
+                {/*
+                  Not `icon-directional`: an arrow "up and to the right" here
+                  means growth, and mirroring it in Arabic would leave a rising
+                  metric pointing up-and-back. Up is up in both directions.
+                */}
                 <TrendIcon className="size-3.5" aria-hidden />
                 {change === null
-                  ? 'No prior data'
+                  ? t('dashboard.noPriorData')
                   : isFlat
-                    ? 'Flat'
-                    : `${Math.abs(change).toFixed(0)}%`}
+                    ? t('dashboard.flat')
+                    : t('common.percent', { value: Math.abs(change).toFixed(0) })}
               </span>
             )}
             {hint && <span className="leading-snug text-muted-foreground">{hint}</span>}

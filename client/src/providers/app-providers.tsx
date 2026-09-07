@@ -5,14 +5,17 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import { createQueryClient } from '@/lib/query-client';
 import { AuthProvider } from '@/features/auth/auth-context';
+import { LocaleProvider } from '@/lib/i18n';
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { ThemeProvider } from './theme-provider';
 
 /**
  * Provider stack, outermost first.
  *
- * Order matters: the router must sit above AuthProvider (which redirects), and
- * the query client above AuthProvider (which owns the session query).
+ * Order matters: the router must sit above AuthProvider (which redirects), the
+ * query client above AuthProvider (which owns the session query), and
+ * LocaleProvider below it — the language is stored on the user's profile, so it
+ * needs the session to read and to write it back.
  */
 export function AppProviders({ children }: { children: React.ReactNode }) {
   // Created in state so React's strict-mode double render does not build two
@@ -25,10 +28,12 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <AuthProvider>
-              <TooltipProvider delayDuration={300}>
-                {children}
-                <Toaster />
-              </TooltipProvider>
+              <LocaleProvider>
+                <TooltipProvider delayDuration={300}>
+                  {children}
+                  <Toaster />
+                </TooltipProvider>
+              </LocaleProvider>
             </AuthProvider>
           </BrowserRouter>
         </QueryClientProvider>

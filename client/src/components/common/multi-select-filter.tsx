@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 export interface FilterOption {
   value: string;
@@ -37,6 +38,7 @@ export function MultiSelectFilter({
   className?: string;
   align?: 'start' | 'end';
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -71,7 +73,7 @@ export function MultiSelectFilter({
         >
           {label}
           {summary && (
-            <Badge variant="secondary" className="ml-0.5 max-w-24 truncate px-1.5 py-0 text-xs">
+            <Badge variant="secondary" className="ms-0.5 max-w-24 truncate px-1.5 py-0 text-xs">
               {summary}
             </Badge>
           )}
@@ -85,9 +87,9 @@ export function MultiSelectFilter({
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={`Search ${label.toLowerCase()}…`}
+              placeholder={t('common.searchIn', { label })}
               className="h-8"
-              aria-label={`Search ${label}`}
+              aria-label={t('common.searchIn', { label })}
             />
           </div>
         )}
@@ -97,7 +99,9 @@ export function MultiSelectFilter({
         <div className="scrollbar-slim max-h-64 overflow-y-auto overscroll-contain">
           <div className="p-1" role="listbox" aria-multiselectable aria-label={label}>
             {visible.length === 0 && (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground">No matches</p>
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                {t('common.noMatches')}
+              </p>
             )}
             {visible.map((option) => {
               const isSelected = selected.includes(option.value);
@@ -108,7 +112,7 @@ export function MultiSelectFilter({
                   role="option"
                   aria-selected={isSelected}
                   onClick={() => toggle(option.value)}
-                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-start text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
                 >
                   <span
                     className={cn(
@@ -137,7 +141,7 @@ export function MultiSelectFilter({
               className="w-full justify-center text-xs"
               onClick={() => onChange([])}
             >
-              Clear selection
+              {t('common.clearSelection')}
             </Button>
           </div>
         )}

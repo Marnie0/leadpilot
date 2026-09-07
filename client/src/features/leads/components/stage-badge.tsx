@@ -1,22 +1,27 @@
 import type { PipelineStageDto } from '@leadpilot/shared';
 import { cn } from '@/lib/utils';
+import { stageName } from '@/lib/labels';
+import { useI18n } from '@/lib/i18n';
 
 /**
  * Stage pill coloured from the stage row's own hex value.
  *
  * The colour comes from the database rather than a hard-coded map so a tenant
- * that recolours its pipeline (Phase 2) is reflected everywhere at once. Colour
- * is applied at low alpha with matching text so contrast holds in both themes.
+ * that recolours its pipeline is reflected everywhere at once. Colour is applied
+ * at low alpha with matching text so contrast holds in both themes. The name
+ * comes from the row too, in whichever language is active.
  */
 export function StageBadge({
   stage,
   className,
   size = 'default',
 }: {
-  stage: Pick<PipelineStageDto, 'name' | 'color'>;
+  stage: Pick<PipelineStageDto, 'name' | 'nameAr' | 'color'>;
   className?: string;
   size?: 'default' | 'sm';
 }) {
+  const { locale } = useI18n();
+
   return (
     <span
       className={cn(
@@ -35,7 +40,7 @@ export function StageBadge({
         style={{ backgroundColor: stage.color }}
         aria-hidden
       />
-      {stage.name}
+      {stageName(stage, locale)}
     </span>
   );
 }

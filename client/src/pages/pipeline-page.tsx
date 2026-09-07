@@ -20,8 +20,8 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ErrorState } from '@/components/common/error-state';
-import { ApiError } from '@/lib/api-client';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { useFormat, useT } from '@/lib/i18n';
+import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useTeamMembers } from '@/features/leads/api';
 import { LeadFormDialog } from '@/features/leads/components/lead-form-dialog';
@@ -61,6 +61,9 @@ import { LostReasonDialog } from '@/features/board/components/lost-reason-dialog
  */
 export function PipelinePage() {
   const user = useCurrentUser();
+  const t = useT();
+  const format = useFormat();
+  const describeError = useApiErrorMessage();
   const { filters, setFilters, resetFilters, hasActiveFilters } = useBoardFilters();
 
   /*
@@ -135,10 +138,7 @@ export function PipelinePage() {
       },
       {
         onError: (error) => {
-          toast.error('Could not move the lead', {
-            description:
-              error instanceof ApiError ? error.message : 'Please check your connection.',
-          });
+          toast.error(t('lead.couldNotMove'), { description: describeError(error) });
         },
       },
     );
@@ -227,15 +227,21 @@ export function PipelinePage() {
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <PageHeader
-        title="Pipeline"
+        title={t('board.title')}
         description={
           totals
-            ? `${formatNumber(totals.leads)} leads · ${formatCurrency(totals.openValue, board?.currency ?? user.organization.defaultCurrency)} in open pipeline`
-            : `Every deal in ${user.organization.name}, by stage.`
+            ? t('board.description', {
+                leads: format.number(totals.leads),
+                value: format.currency(
+                  totals.openValue,
+                  board?.currency ?? user.organization.defaultCurrency,
+                ),
+              })
+            : t('board.fallbackDescription', { organization: user.organization.name })
         }
         actions={
           <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" /> New lead
+            <Plus className="size-4" /> {t('leads.newLead')}
           </Button>
         }
       />
@@ -253,7 +259,7 @@ export function PipelinePage() {
           <ErrorState
             error={boardQuery.error}
             onRetry={() => void boardQuery.refetch()}
-            title="Could not load the pipeline"
+            title={t('board.couldNotLoad')}
           />
         </Card>
       ) : (
@@ -268,21 +274,19 @@ export function PipelinePage() {
               </span>
               <div className="min-w-0 flex-1 space-y-0.5">
                 <p className="text-sm font-medium text-foreground">
-                  {hasActiveFilters ? 'No leads match these filters' : 'Your pipeline is empty'}
+                  {hasActiveFilters ? t('board.noMatchTitle') : t('board.emptyTitle')}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {hasActiveFilters
-                    ? 'The stages below are still yours — none of them holds a matching lead.'
-                    : 'Add your first enquiry and it will appear in the New column.'}
+                  {hasActiveFilters ? t('board.noMatchBody') : t('board.emptyBody')}
                 </p>
               </div>
               {hasActiveFilters ? (
                 <Button variant="outline" size="sm" onClick={resetFilters}>
-                  Clear filters
+                  {t('common.clearFilters')}
                 </Button>
               ) : (
                 <Button size="sm" onClick={() => setCreateOpen(true)}>
-                  <Plus className="size-4" /> New lead
+                  <Plus className="size-4" /> {t('leads.newLead')}
                 </Button>
               )}
             </div>

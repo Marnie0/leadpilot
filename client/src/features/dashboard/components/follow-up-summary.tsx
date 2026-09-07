@@ -2,29 +2,43 @@ import { Link } from 'react-router-dom';
 import type { DashboardFollowUpsDto } from '@leadpilot/shared';
 import { CalendarCheck, ChevronRight } from 'lucide-react';
 import { EmptyState } from '@/components/common/empty-state';
-import { describeDueDate, formatNumber } from '@/lib/format';
-import { CHANNEL_LABELS } from '@/lib/labels';
+import { useFormat, useT, type StaticKey } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 const BUCKETS = [
-  { key: 'overdue', label: 'Overdue', href: '/leads?followUp=overdue', tone: 'text-destructive' },
+  {
+    key: 'overdue',
+    labelKey: 'dashboard.followUpOverdue',
+    href: '/leads?followUp=overdue',
+    tone: 'text-destructive',
+  },
   {
     key: 'today',
-    label: 'Today',
+    labelKey: 'dashboard.followUpToday',
     href: '/leads?followUp=today',
     tone: 'text-amber-600 dark:text-amber-400',
   },
-  { key: 'thisWeek', label: 'This week', href: '/leads?followUp=week', tone: 'text-foreground' },
+  {
+    key: 'thisWeek',
+    labelKey: 'dashboard.followUpThisWeek',
+    href: '/leads?followUp=week',
+    tone: 'text-foreground',
+  },
   // There is no "later" preset in the follow-up filter, so this one sorts the
   // whole list by next follow-up instead of pretending to filter. Linking it to
   // a bare /leads would claim a filter that was never applied.
   {
     key: 'later',
-    label: 'Later',
+    labelKey: 'dashboard.followUpLater',
     href: '/leads?sortBy=nextFollowUpAt&sortDir=asc',
     tone: 'text-muted-foreground',
   },
-] as const;
+] as const satisfies ReadonlyArray<{
+  key: keyof Omit<DashboardFollowUpsDto, 'upcoming'>;
+  labelKey: StaticKey;
+  href: string;
+  tone: string;
+}>;
 
 const DUE_TONE: Record<string, string> = {
   overdue: 'text-destructive',
@@ -43,6 +57,9 @@ const DUE_TONE: Record<string, string> = {
  * already applied, so the panel is a way in rather than a dead end.
  */
 export function FollowUpSummary({ followUps }: { followUps: DashboardFollowUpsDto }) {
+  const t = useT();
+  const format = useFormat();
+
   const total = followUps.overdue + followUps.today + followUps.thisWeek + followUps.later;
 
   return (
@@ -55,9 +72,9 @@ export function FollowUpSummary({ followUps }: { followUps: DashboardFollowUpsDt
             className="rounded-lg border p-3 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <p className={cn('text-lg font-semibold tabular-nums', bucket.tone)}>
-              {formatNumber(followUps[bucket.key])}
+              {format.number(followUps[bucket.key])}
             </p>
-            <p className="text-xs text-muted-foreground">{bucket.label}</p>
+            <p className="text-xs text-muted-foreground">{t(bucket.labelKey)}</p>
           </Link>
         ))}
       </div>
@@ -65,18 +82,18 @@ export function FollowUpSummary({ followUps }: { followUps: DashboardFollowUpsDt
       {total === 0 ? (
         <EmptyState
           icon={CalendarCheck}
-          title="Nothing scheduled"
-          description="Follow-ups you book on a lead show up here."
+          title={t('dashboard.followUpsEmptyTitle')}
+          description={t('dashboard.followUpsEmptyBody')}
           className="py-8"
         />
       ) : followUps.upcoming.length > 0 ? (
         <div className="space-y-1">
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Next up
+            {t('dashboard.nextUp')}
           </p>
           <ul className="divide-y">
             {followUps.upcoming.map((followUp) => {
-              const due = describeDueDate(followUp.dueAt);
+              const due = format.dueDate(followUp.dueAt);
               return (
                 <li key={followUp.id}>
                   <Link
@@ -84,9 +101,14 @@ export function FollowUpSummary({ followUps }: { followUps: DashboardFollowUpsDt
                     className="flex items-center gap-3 py-2 transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-foreground">{followUp.title}</p>
+                      {/* Direction from the text, so a Latin title truncates
+                          from its own end rather than the interface's. */}
+                      <p className="truncate text-sm text-foreground" dir="auto">
+                        {followUp.title}
+                      </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {followUp.lead?.customerName ?? 'Lead'} · {CHANNEL_LABELS[followUp.channel]}
+                        {followUp.lead?.customerName ?? t('dashboard.lead')} ·{' '}
+                        {t(`channel.${followUp.channel}`)}
                       </p>
                     </div>
                     <span
@@ -97,7 +119,10 @@ export function FollowUpSummary({ followUps }: { followUps: DashboardFollowUpsDt
                     >
                       {due.label}
                     </span>
-                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <ChevronRight
+                      className="icon-directional size-4 shrink-0 text-muted-foreground"
+                      aria-hidden
+                    />
                   </Link>
                 </li>
               );

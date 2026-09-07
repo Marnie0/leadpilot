@@ -3,10 +3,11 @@ import { CircleDollarSign, CircleAlert, Trophy, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { useFormat, useT } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 interface StatDefinition {
+  key: string;
   label: string;
   value: string;
   hint?: string;
@@ -20,7 +21,13 @@ const TONE_STYLES = {
   warning: 'bg-destructive/10 text-destructive',
 } as const;
 
-function StatCard({ label, value, hint, icon: Icon, tone = 'default' }: StatDefinition) {
+function StatCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone = 'default',
+}: Omit<StatDefinition, 'key'>) {
   return (
     <Card className="gap-0 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -66,6 +73,9 @@ export function LeadStats({
   currency: string;
   isLoading: boolean;
 }) {
+  const t = useT();
+  const format = useFormat();
+
   if (isLoading && !stats) {
     return (
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -85,31 +95,36 @@ export function LeadStats({
 
   const cards: StatDefinition[] = [
     {
-      label: 'Open leads',
-      value: formatNumber(stats.openLeads),
-      hint: `${formatNumber(stats.totalLeads)} total in view`,
+      key: 'open',
+      label: t('leads.stat.open'),
+      value: format.number(stats.openLeads),
+      hint: t('leads.stat.openHint', { total: format.number(stats.totalLeads) }),
       icon: Users,
     },
     {
-      label: 'Pipeline value',
-      value: formatCurrency(stats.totalPipelineValue, currency),
-      hint: 'Estimated value of open leads',
+      key: 'pipeline',
+      label: t('leads.stat.pipelineValue'),
+      value: format.currency(stats.totalPipelineValue, currency),
+      hint: t('leads.stat.pipelineValueHint'),
       icon: CircleDollarSign,
     },
     {
-      label: 'Won',
-      value: formatCurrency(stats.wonValue, currency),
+      key: 'won',
+      label: t('leads.stat.won'),
+      value: format.currency(stats.wonValue, currency),
       hint:
         winRate === null
-          ? `${formatNumber(stats.wonLeads)} deals closed`
-          : `${formatNumber(stats.wonLeads)} deals · ${winRate}% win rate`,
+          ? t('leads.stat.wonHintNoRate', { count: format.number(stats.wonLeads) })
+          : t('leads.stat.wonHint', { count: format.number(stats.wonLeads), rate: winRate }),
       icon: Trophy,
       tone: 'success',
     },
     {
-      label: 'Overdue follow-ups',
-      value: formatNumber(stats.overdueFollowUps),
-      hint: stats.overdueFollowUps > 0 ? 'Needs attention today' : 'Nothing overdue',
+      key: 'overdue',
+      label: t('leads.stat.overdue'),
+      value: format.number(stats.overdueFollowUps),
+      hint:
+        stats.overdueFollowUps > 0 ? t('leads.stat.overdueHint') : t('leads.stat.nothingOverdue'),
       icon: CircleAlert,
       tone: stats.overdueFollowUps > 0 ? 'warning' : 'default',
     },
@@ -117,8 +132,8 @@ export function LeadStats({
 
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {cards.map((card) => (
-        <StatCard key={card.label} {...card} />
+      {cards.map(({ key, ...card }) => (
+        <StatCard key={key} {...card} />
       ))}
     </div>
   );

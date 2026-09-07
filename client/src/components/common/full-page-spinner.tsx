@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 /**
  * @param inline sizes the spinner for a region inside the app shell rather
@@ -8,6 +9,8 @@ import { cn } from '@/lib/utils';
  * into a scroll it does not need.
  */
 export function FullPageSpinner({ label, inline = false }: { label?: string; inline?: boolean }) {
+  const t = useT();
+
   return (
     <div
       className={cn(
@@ -18,7 +21,7 @@ export function FullPageSpinner({ label, inline = false }: { label?: string; inl
       aria-live="polite"
     >
       <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
-      <p className="text-sm text-muted-foreground">{label ?? 'Loading…'}</p>
+      <p className="text-sm text-muted-foreground">{label ?? t('common.loading')}</p>
     </div>
   );
 }
