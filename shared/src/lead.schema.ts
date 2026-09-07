@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msg } from './message.js';
 import { LEAD_PRIORITIES, LEAD_SOURCES, STAGE_KEYS, STAGE_TYPES } from './enums.js';
 import {
   csvArray,
@@ -14,9 +15,9 @@ import {
 export const phoneSchema = z
   .string()
   .trim()
-  .max(32, { message: 'Phone number is too long' })
+  .max(32, { message: msg('validation.phoneTooLong') })
   .refine((value) => value.length === 0 || /^[+()\d][\d\s().-]{5,}$/.test(value), {
-    message: 'Enter a valid phone number',
+    message: msg('validation.phone'),
   })
   // Empty becomes null, not undefined, so an emptied field is a real clear.
   .transform((value) => (value.length === 0 ? null : value))
@@ -29,7 +30,7 @@ export const leadEmailSchema = z
   .toLowerCase()
   .max(254)
   .refine((value) => value.length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
-    message: 'Enter a valid email address',
+    message: msg('validation.email'),
   })
   .transform((value) => (value.length === 0 ? null : value))
   .nullable()
@@ -37,17 +38,17 @@ export const leadEmailSchema = z
 
 /** Money is stored as Prisma `Decimal` and travels over JSON as a number. */
 export const estimatedValueSchema = z.coerce
-  .number({ message: 'Enter a number' })
-  .min(0, { message: 'Value cannot be negative' })
-  .max(1_000_000_000, { message: 'Value is unrealistically large' });
+  .number({ message: msg('validation.number') })
+  .min(0, { message: msg('validation.negative') })
+  .max(1_000_000_000, { message: msg('validation.tooLarge') });
 
 export const createLeadSchema = z.object({
-  customerName: requiredTrimmed('Customer name', 120, 2),
+  customerName: requiredTrimmed('field.customerName', 120, 2),
   company: optionalTrimmed(120),
   email: leadEmailSchema,
   phone: phoneSchema,
   source: z.enum(LEAD_SOURCES).default('OTHER'),
-  requestedService: requiredTrimmed('Requested service', 160, 2),
+  requestedService: requiredTrimmed('field.requestedService', 160, 2),
   estimatedValue: estimatedValueSchema.default(0),
   // Currency is deliberately NOT accepted from the client. Every lead inherits
   // the workspace currency, because the pipeline aggregates sum estimatedValue
@@ -57,7 +58,10 @@ export const createLeadSchema = z.object({
   stageKey: z.enum(STAGE_KEYS).default('NEW'),
   assignedToId: idSchema.nullish(),
   description: optionalTrimmed(2000),
-  tags: z.array(requiredTrimmed('Tag', 32)).max(12, { message: 'Up to 12 tags' }).optional(),
+  tags: z
+    .array(requiredTrimmed('field.tag', 32))
+    .max(12, { message: msg('validation.tagsMax', { count: 12 }) })
+    .optional(),
   nextFollowUpAt: isoDateTime.nullish(),
 });
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
@@ -76,7 +80,7 @@ export const updateLeadSchema = createLeadSchema
   .partial()
   .extend({ lostReason: optionalTrimmed(280) })
   .refine((values) => Object.keys(values).length > 0, {
-    message: 'No changes supplied',
+    message: msg('validation.noChanges'),
   });
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 

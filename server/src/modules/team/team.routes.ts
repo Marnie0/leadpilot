@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { idSchema, requiredTrimmed, USER_ROLES } from '@leadpilot/shared';
+import { idSchema, msg, requiredTrimmed, USER_ROLES } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
 import { asyncHandler, getAuth, requireAuth, requireRole } from '../../middleware/auth.js';
 import { param, validate } from '../../middleware/validate.js';
@@ -36,11 +36,11 @@ teamRouter.get(
 
 const updateMemberSchema = z
   .object({
-    name: requiredTrimmed('Name', 80, 2).optional(),
+    name: requiredTrimmed('field.name', 80, 2).optional(),
     role: z.enum(USER_ROLES).optional(),
     isActive: z.boolean().optional(),
   })
-  .refine((values) => Object.keys(values).length > 0, { message: 'No changes supplied' });
+  .refine((values) => Object.keys(values).length > 0, { message: msg('validation.noChanges') });
 
 teamRouter.patch(
   '/:id',

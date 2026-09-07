@@ -45,7 +45,7 @@ export const requireAuth: RequestHandler = async (
       claims = await verifyAccessToken(token);
     } catch {
       // Expired or tampered — the client should hit /api/auth/refresh.
-      next(unauthorized('Your session has expired. Please sign in again.'));
+      next(unauthorized('Your session has expired. Please sign in again.', 'SESSION_EXPIRED'));
       return;
     }
 
@@ -62,7 +62,7 @@ export const requireAuth: RequestHandler = async (
     });
 
     if (!user || !user.isActive) {
-      next(unauthorized('Your account is no longer active'));
+      next(unauthorized('Your account is no longer active', 'ACCOUNT_INACTIVE'));
       return;
     }
 

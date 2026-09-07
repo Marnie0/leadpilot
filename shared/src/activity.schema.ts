@@ -5,14 +5,14 @@ import type { TeamMemberSummaryDto } from './lead.schema.js';
 
 export const createActivitySchema = z.object({
   type: z.enum(USER_ACTIVITY_TYPES).default('NOTE'),
-  body: requiredTrimmed('Note', 4000, 1),
+  body: requiredTrimmed('field.note', 4000, 1),
   /** Defaults to now; lets a rep log a call they made earlier. */
   occurredAt: isoDateTime.optional(),
 });
 export type CreateActivityInput = z.infer<typeof createActivitySchema>;
 
 export const updateActivitySchema = z.object({
-  body: requiredTrimmed('Note', 4000, 1),
+  body: requiredTrimmed('field.note', 4000, 1),
 });
 export type UpdateActivityInput = z.infer<typeof updateActivitySchema>;
 

@@ -178,12 +178,12 @@ export async function login(input: LoginInput, context: SessionContext): Promise
   // attacker enumerate which emails have accounts.
   if (!user || !user.isActive) {
     await simulatePasswordVerification();
-    throw unauthorized('Incorrect email or password');
+    throw unauthorized('Incorrect email or password', 'INVALID_CREDENTIALS');
   }
 
   const valid = await verifyPassword(input.password, user.passwordHash);
   if (!valid) {
-    throw unauthorized('Incorrect email or password');
+    throw unauthorized('Incorrect email or password', 'INVALID_CREDENTIALS');
   }
 
   // The template is cloned, never entered. Signing into it directly would let a
@@ -217,7 +217,7 @@ export async function refreshSession(
   try {
     claims = await verifyRefreshToken(rawToken);
   } catch {
-    throw unauthorized('Your session has expired. Please sign in again.');
+    throw unauthorized('Your session has expired. Please sign in again.', 'SESSION_EXPIRED');
   }
 
   const stored = await prisma.refreshToken.findUnique({
@@ -226,7 +226,7 @@ export async function refreshSession(
   });
 
   if (!stored || stored.userId !== claims.sub) {
-    throw unauthorized('Your session has expired. Please sign in again.');
+    throw unauthorized('Your session has expired. Please sign in again.', 'SESSION_EXPIRED');
   }
 
   if (stored.revokedAt) {
@@ -235,11 +235,11 @@ export async function refreshSession(
       where: { userId: stored.userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
-    throw unauthorized('Your session has expired. Please sign in again.');
+    throw unauthorized('Your session has expired. Please sign in again.', 'SESSION_EXPIRED');
   }
 
   if (stored.expiresAt.getTime() <= Date.now()) {
-    throw unauthorized('Your session has expired. Please sign in again.');
+    throw unauthorized('Your session has expired. Please sign in again.', 'SESSION_EXPIRED');
   }
 
   const user = await prisma.user.findUnique({
@@ -247,7 +247,7 @@ export async function refreshSession(
     include: AUTH_USER_INCLUDE,
   });
   if (!user || !user.isActive) {
-    throw unauthorized('Your account is no longer active');
+    throw unauthorized('Your account is no longer active', 'ACCOUNT_INACTIVE');
   }
 
   const [accessToken, next] = await Promise.all([
@@ -318,7 +318,8 @@ export async function changePassword(userId: string, input: ChangePasswordInput)
   if (!user) throw unauthorized();
 
   const valid = await verifyPassword(input.currentPassword, user.passwordHash);
-  if (!valid) throw unauthorized('Your current password is incorrect');
+  if (!valid)
+    throw unauthorized('Your current password is incorrect', 'CURRENT_PASSWORD_INCORRECT');
 
   const passwordHash = await hashPassword(input.newPassword);
   await prisma.$transaction([

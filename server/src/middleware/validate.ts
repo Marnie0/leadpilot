@@ -1,15 +1,24 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { ZodError, type ZodType } from 'zod';
+import { renderMessageEn } from '@leadpilot/shared';
 import { badRequest, validationError } from '../lib/errors.js';
 
 type Source = 'body' | 'query' | 'params';
 
-/** Flattens Zod issues into `{ 'field.path': ['message'] }` for form display. */
+/**
+ * Flattens Zod issues into `{ 'field.path': ['message'] }` for form display.
+ *
+ * The shared schemas emit message *tokens* rather than prose so the browser can
+ * render them in Arabic. They are resolved to English here, at the very edge,
+ * because the API contract is English for every consumer — the browser
+ * re-validates with the same schemas before submitting, so a user in Arabic
+ * sees the Arabic wording without the wire format ever carrying a token.
+ */
 export function toFieldErrors(error: ZodError): Record<string, string[]> {
   const fields: Record<string, string[]> = {};
   for (const issue of error.issues) {
     const key = issue.path.length > 0 ? issue.path.join('.') : '_root';
-    (fields[key] ??= []).push(issue.message);
+    (fields[key] ??= []).push(renderMessageEn(issue.message));
   }
   return fields;
 }

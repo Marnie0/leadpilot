@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msg } from './message.js';
 import { FOLLOW_UP_CHANNELS, FOLLOW_UP_STATUSES } from './enums.js';
 import {
   csvArray,
@@ -12,7 +13,7 @@ import {
 import type { TeamMemberSummaryDto } from './lead.schema.js';
 
 export const createFollowUpSchema = z.object({
-  title: requiredTrimmed('Title', 160, 2),
+  title: requiredTrimmed('field.title', 160, 2),
   dueAt: isoDateTime,
   channel: z.enum(FOLLOW_UP_CHANNELS).default('CALL'),
   notes: optionalTrimmed(1000),
@@ -26,7 +27,7 @@ export type CreateFollowUpFormValues = z.input<typeof createFollowUpSchema>;
 export const updateFollowUpSchema = createFollowUpSchema
   .partial()
   .extend({ status: z.enum(FOLLOW_UP_STATUSES).optional() })
-  .refine((values) => Object.keys(values).length > 0, { message: 'No changes supplied' });
+  .refine((values) => Object.keys(values).length > 0, { message: msg('validation.noChanges') });
 export type UpdateFollowUpInput = z.infer<typeof updateFollowUpSchema>;
 
 export const completeFollowUpSchema = z.object({

@@ -1,7 +1,11 @@
 import { z } from 'zod';
+import { msg, type MessageKey } from './message.js';
 
 /** CUID v2 ids are what Prisma generates; keep validation loose but non-empty. */
-export const idSchema = z.string().min(1, { message: 'Required' }).max(64);
+export const idSchema = z
+  .string()
+  .min(1, { message: msg('validation.requiredShort') })
+  .max(64);
 
 /**
  * Trims a string before validating and turns `''` into **null**.
@@ -15,20 +19,25 @@ export const optionalTrimmed = (max: number) =>
   z
     .string()
     .trim()
-    .max(max, { message: `Must be ${max} characters or fewer` })
+    .max(max, { message: msg('validation.maxLength', { count: max }) })
     .transform((value) => (value.length === 0 ? null : value))
     .nullable()
     .optional();
 
-export const requiredTrimmed = (label: string, max: number, min = 1) =>
+export const requiredTrimmed = (fieldKey: MessageKey, max: number, min = 1) =>
   z
     // The `error` argument covers the invalid_type case — a field the client
     // omitted entirely. Without it, Zod reports its own internal wording
     // ("expected string, received undefined") straight into the form.
-    .string({ error: `${label} is required` })
+    .string({ error: msg('validation.required', { fieldKey }) })
     .trim()
-    .min(min, { message: `${label} is required` })
-    .max(max, { message: `${label} must be ${max} characters or fewer` });
+    // Two separate lower bounds so an *empty* field reads "Company name is
+    // required" while a *short* one reads "must be at least 2 characters".
+    // Collapsing them into a single `.min(min)` told someone who typed one
+    // character that they had typed nothing.
+    .min(1, { message: msg('validation.required', { fieldKey }) })
+    .min(min, { message: msg('validation.minLength', { fieldKey, count: min }) })
+    .max(max, { message: msg('validation.tooLong', { fieldKey, count: max }) });
 
 /**
  * Parses a comma-separated query-string value (`?stage=NEW,WON`) into an array.
@@ -45,8 +54,8 @@ export const csvArray = <T extends z.ZodTypeAny>(item: T) =>
 
 /** An ISO-8601 date-time string, as sent over JSON. */
 export const isoDateTime = z
-  .string({ error: 'A date is required' })
-  .refine((value) => !Number.isNaN(Date.parse(value)), { message: 'Enter a valid date' });
+  .string({ error: msg('validation.dateRequired') })
+  .refine((value) => !Number.isNaN(Date.parse(value)), { message: msg('validation.date') });
 
 export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

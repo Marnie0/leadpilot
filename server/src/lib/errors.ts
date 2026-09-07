@@ -32,11 +32,20 @@ export const badRequest = (message: string, details?: Record<string, string[]>) 
 export const validationError = (details: Record<string, string[]>) =>
   new AppError(422, 'VALIDATION_ERROR', 'Some fields need your attention', { details });
 
-export const unauthorized = (message = 'You need to sign in to continue') =>
-  new AppError(401, 'UNAUTHORIZED', message);
+/*
+ * The helpers below take an optional `code`. The default is the generic one for
+ * the status, which is all most guards need; a specific code is worth adding
+ * when the browser has to say something particular about *this* failure, since
+ * the client translates by code rather than by matching English prose.
+ */
 
-export const forbidden = (message = 'You do not have access to this resource') =>
-  new AppError(403, 'FORBIDDEN', message);
+export const unauthorized = (message = 'You need to sign in to continue', code = 'UNAUTHORIZED') =>
+  new AppError(401, code, message);
+
+export const forbidden = (
+  message = 'You do not have access to this resource',
+  code = 'FORBIDDEN',
+) => new AppError(403, code, message);
 
 /**
  * Used for both "does not exist" and "belongs to another organisation" so the
