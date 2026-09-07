@@ -185,7 +185,7 @@ export function LeadFormDialog({
             overflowed the box and covered the footer, making Cancel and the
             submit button physically unclickable at every viewport.
           */}
-          <div className="max-h-[62svh] overflow-y-auto overscroll-contain scrollbar-slim">
+          <div className="scrollbar-slim max-h-[62svh] overflow-y-auto overscroll-contain">
             <div className="space-y-5 px-6 py-5">
               {formError && (
                 <Alert variant="destructive">

@@ -305,7 +305,7 @@ export function PipelinePage() {
               lets the scroll region run to the screen edge while the columns
               stay aligned with the page gutter.
             */}
-            <div className="-mx-4 snap-x snap-mandatory overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 scrollbar-slim">
+            <div className="scrollbar-slim -mx-4 snap-x snap-mandatory overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
               <div className="flex min-h-[60svh] items-stretch gap-3 sm:gap-4">
                 {(board?.columns ?? []).map((column) => (
                   <BoardColumn

@@ -94,7 +94,7 @@ export function MultiSelectFilter({
 
         {/* Native scrolling for the same reason as the lead form dialog: a Radix
             ScrollArea viewport does not size against a `max-height` parent. */}
-        <div className="max-h-64 overflow-y-auto overscroll-contain scrollbar-slim">
+        <div className="scrollbar-slim max-h-64 overflow-y-auto overscroll-contain">
           <div className="p-1" role="listbox" aria-multiselectable aria-label={label}>
             {visible.length === 0 && (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground">No matches</p>

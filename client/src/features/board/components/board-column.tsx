@@ -57,10 +57,10 @@ export function BoardColumn({
           aria-hidden
         />
         <h2 className="truncate text-sm font-semibold text-foreground">{column.stage.name}</h2>
-        <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
           {formatNumber(column.total)}
         </span>
-        <span className="ml-auto shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+        <span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
           {formatCurrency(column.value, currency)}
         </span>
       </header>

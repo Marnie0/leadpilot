@@ -128,7 +128,7 @@ export function StagePerformance({
                 <td className="px-2 py-2 text-right tabular-nums">
                   {formatCurrency(stage.value, currency)}
                 </td>
-                <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
+                <td className="px-2 py-2 text-right text-muted-foreground tabular-nums">
                   {/*
                     Age is time since the lead was created, which only means
                     something while the deal is live. On a deal closed six

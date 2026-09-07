@@ -37,13 +37,13 @@ export function AppShell() {
           </Link>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 scrollbar-slim">
+        <div className="scrollbar-slim flex-1 overflow-y-auto px-3">
           <SidebarNav />
         </div>
 
         <div className="border-t border-sidebar-border p-3">
           {user && (
-            <p className="mb-2 truncate px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 truncate px-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
               {user.organization.name}
             </p>
           )}

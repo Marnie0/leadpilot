@@ -33,7 +33,7 @@ function StatCard({ label, value, hint, icon: Icon, tone = 'default' }: StatDefi
             clipped. At 390px in a two-up grid, `text-2xl` plus the icon left
             too little room and values rendered as "AED 4…".
           */}
-          <p className="text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{value}</p>
+          <p className="text-xl font-semibold text-foreground tabular-nums sm:text-2xl">{value}</p>
           {hint && <p className="text-xs leading-snug text-muted-foreground">{hint}</p>}
         </div>
         {/* Decorative: dropped on the narrowest screens to give the value its width back. */}

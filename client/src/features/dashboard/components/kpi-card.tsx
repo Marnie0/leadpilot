@@ -60,7 +60,7 @@ export function KpiCard({
           )}
 
           {/* The number is the point of the card, so it must never be clipped. */}
-          <p className="text-xl font-semibold tabular-nums text-foreground sm:text-2xl">{value}</p>
+          <p className="text-xl font-semibold text-foreground tabular-nums sm:text-2xl">{value}</p>
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
             {delta && (

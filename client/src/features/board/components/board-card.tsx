@@ -47,7 +47,7 @@ function BoardCardBody({ lead, currency }: { lead: LeadListItemDto; currency: st
 
       <div className="flex items-center gap-2">
         <PriorityBadge priority={lead.priority} />
-        <span className="ml-auto text-sm font-semibold tabular-nums text-foreground">
+        <span className="ml-auto text-sm font-semibold text-foreground tabular-nums">
           {formatCurrency(lead.estimatedValue, currency)}
         </span>
       </div>
@@ -149,7 +149,7 @@ export function BoardCard({
                 <button
                   type="button"
                   aria-label={`Move ${lead.customerName} to another stage`}
-                  className="flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none group-hover:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
+                  className="flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:opacity-100 pointer-coarse:opacity-100"
                 >
                   <MoveRight className="size-3.5" />
                 </button>
@@ -185,7 +185,7 @@ export function BoardCard({
               {...attributes}
               {...listeners}
               aria-label={`Reorder ${lead.customerName}`}
-              className="flex size-6 cursor-grab items-center justify-center rounded-md text-muted-foreground/60 opacity-0 transition hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none group-hover:opacity-100 active:cursor-grabbing pointer-coarse:opacity-100"
+              className="flex size-6 cursor-grab items-center justify-center rounded-md text-muted-foreground/60 opacity-0 transition group-hover:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:cursor-grabbing pointer-coarse:opacity-100"
             >
               <GripVertical className="size-3.5" />
             </button>

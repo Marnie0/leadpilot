@@ -148,7 +148,7 @@ export function SourceBreakdown({
               </Link>
             )}
             <span className="shrink-0 tabular-nums">{formatNumber(slice.total)}</span>
-            <span className="w-12 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+            <span className="w-12 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
               {slice.conversionRate === null ? '—' : `${slice.conversionRate.toFixed(0)}%`}
             </span>
           </li>

@@ -47,10 +47,10 @@ export function AuthLayout({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.22),transparent_45%),radial-gradient(circle_at_85%_80%,rgba(255,255,255,0.16),transparent_40%)]" />
         <div className="relative flex h-full flex-col justify-center gap-10 px-14 text-primary-foreground">
           <div className="space-y-4">
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary-foreground/70">
+            <p className="text-sm font-medium tracking-[0.18em] text-primary-foreground/70 uppercase">
               Lead management
             </p>
-            <p className="max-w-md text-3xl font-semibold leading-tight">
+            <p className="max-w-md text-3xl leading-tight font-semibold">
               Stop losing deals in a spreadsheet.
             </p>
             <p className="max-w-md text-base text-primary-foreground/80">

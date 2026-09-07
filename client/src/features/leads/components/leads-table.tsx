@@ -122,7 +122,7 @@ export function LeadsTable({
   };
 
   return (
-    <div className="w-full overflow-x-auto scrollbar-slim">
+    <div className="scrollbar-slim w-full overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -197,7 +197,7 @@ export function LeadsTable({
                 <StageBadge stage={lead.stage} size="sm" />
               </TableCell>
 
-              <TableCell className="text-right font-medium tabular-nums whitespace-nowrap">
+              <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
                 {formatCurrency(lead.estimatedValue, lead.currency)}
               </TableCell>
 

@@ -43,7 +43,7 @@ export function LeadCard({ lead }: { lead: LeadListItemDto }) {
         <div className="flex flex-wrap items-center gap-2">
           <StageBadge stage={lead.stage} size="sm" />
           <PriorityBadge priority={lead.priority} />
-          <span className="ml-auto text-sm font-semibold tabular-nums text-foreground">
+          <span className="ml-auto text-sm font-semibold text-foreground tabular-nums">
             {formatCurrency(lead.estimatedValue, lead.currency)}
           </span>
         </div>
