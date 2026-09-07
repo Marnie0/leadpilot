@@ -10,7 +10,15 @@ const BUCKETS = [
   { key: 'overdue', label: 'Overdue', href: '/leads?followUp=overdue', tone: 'text-destructive' },
   { key: 'today', label: 'Today', href: '/leads?followUp=today', tone: 'text-amber-600 dark:text-amber-400' },
   { key: 'thisWeek', label: 'This week', href: '/leads?followUp=week', tone: 'text-foreground' },
-  { key: 'later', label: 'Later', href: '/leads', tone: 'text-muted-foreground' },
+  // There is no "later" preset in the follow-up filter, so this one sorts the
+  // whole list by next follow-up instead of pretending to filter. Linking it to
+  // a bare /leads would claim a filter that was never applied.
+  {
+    key: 'later',
+    label: 'Later',
+    href: '/leads?sortBy=nextFollowUpAt&sortDir=asc',
+    tone: 'text-muted-foreground',
+  },
 ] as const;
 
 const DUE_TONE: Record<string, string> = {
