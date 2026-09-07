@@ -59,7 +59,12 @@ export function applyBoardMove(board: BoardDto, move: BoardMove): BoardDto {
       if (column.stage.key !== move.toStageKey) {
         // Source column (or an untouched one): drop the card and its value.
         return removed
-          ? { ...column, leads: without, total: column.total - 1, value: column.value - lead.estimatedValue }
+          ? {
+              ...column,
+              leads: without,
+              total: column.total - 1,
+              value: column.value - lead.estimatedValue,
+            }
           : column;
       }
 
@@ -94,10 +99,7 @@ export function useMoveLeadOnBoard(filters: BoardFilterState, limit: number) {
   const key = queryKeys.board.view({ ...filters, limit });
 
   return useMutation({
-    mutationFn: async ({
-      leadId,
-      ...input
-    }: MoveLeadOnBoardInput & { leadId: string }) =>
+    mutationFn: async ({ leadId, ...input }: MoveLeadOnBoardInput & { leadId: string }) =>
       (await api.post<{ lead: LeadDetailDto }>(`/leads/${leadId}/board-position`, input)).lead,
 
     onMutate: async (variables) => {

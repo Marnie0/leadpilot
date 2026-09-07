@@ -40,13 +40,7 @@ function defaultDueAt(): string {
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
-function FollowUpRow({
-  followUp,
-  leadId,
-}: {
-  followUp: FollowUpDto;
-  leadId: string;
-}) {
+function FollowUpRow({ followUp, leadId }: { followUp: FollowUpDto; leadId: string }) {
   const complete = useCompleteFollowUp(leadId);
   const cancel = useCancelFollowUp(leadId);
   const due = describeDueDate(followUp.dueAt);
@@ -92,9 +86,7 @@ function FollowUpRow({
           {followUp.assignedTo && ` · ${followUp.assignedTo.name}`}
         </p>
 
-        {followUp.notes && (
-          <p className="text-xs text-muted-foreground">{followUp.notes}</p>
-        )}
+        {followUp.notes && <p className="text-xs text-muted-foreground">{followUp.notes}</p>}
       </div>
 
       {isPending && (
@@ -231,11 +223,9 @@ export function FollowUpPanel({
                 defaultValue={defaultDueAt()}
                 onChange={(event) => {
                   const date = new Date(event.target.value);
-                  form.setValue(
-                    'dueAt',
-                    Number.isNaN(date.getTime()) ? '' : date.toISOString(),
-                    { shouldValidate: true },
-                  );
+                  form.setValue('dueAt', Number.isNaN(date.getTime()) ? '' : date.toISOString(), {
+                    shouldValidate: true,
+                  });
                 }}
                 aria-invalid={Boolean(form.formState.errors.dueAt)}
               />

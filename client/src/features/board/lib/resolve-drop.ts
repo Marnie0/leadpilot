@@ -13,11 +13,7 @@ import type { BoardMove } from '../api';
  * callers treat that as "nothing happened", which is what a drag that ends
  * where it started should do.
  */
-export function resolveDrop(
-  board: BoardDto,
-  activeId: string,
-  overId: string,
-): BoardMove | null {
+export function resolveDrop(board: BoardDto, activeId: string, overId: string): BoardMove | null {
   const sourceColumn = board.columns.find((column) =>
     column.leads.some((lead) => lead.id === activeId),
   );
@@ -82,9 +78,7 @@ export function resolveDrop(
  * only question that matters: where does the user see the card now.
  */
 export function positionOf(board: BoardDto, leadId: string): BoardMove | null {
-  const column = board.columns.find((entry) =>
-    entry.leads.some((lead) => lead.id === leadId),
-  );
+  const column = board.columns.find((entry) => entry.leads.some((lead) => lead.id === leadId));
   if (!column) return null;
 
   const index = column.leads.findIndex((lead) => lead.id === leadId);

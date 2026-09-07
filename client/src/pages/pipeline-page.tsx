@@ -318,14 +318,11 @@ export function PipelinePage() {
                     // ordinary refetch after a drag does not set every
                     // "show more" button spinning.
                     isLoadingMore={
-                      boardQuery.isFetching &&
-                      column.leads.length < Math.min(column.total, limit)
+                      boardQuery.isFetching && column.leads.length < Math.min(column.total, limit)
                     }
                     canLoadMore={limit < BOARD_MAX_LIMIT}
                     onLoadMore={() =>
-                      setLimit((current) =>
-                        Math.min(current + BOARD_PAGE_SIZE, BOARD_MAX_LIMIT),
-                      )
+                      setLimit((current) => Math.min(current + BOARD_PAGE_SIZE, BOARD_MAX_LIMIT))
                     }
                     onMoveToStage={handleMoveToStage}
                   />

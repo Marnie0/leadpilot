@@ -138,10 +138,7 @@ function ActivityRow({ activity, isLast }: { activity: ActivityDto; isLast: bool
     <li className="relative flex gap-3 pb-6 last:pb-0">
       {/* Connector line, hidden on the final entry so the timeline ends cleanly. */}
       {!isLast && (
-        <span
-          className="absolute top-8 bottom-0 left-[15px] w-px bg-border"
-          aria-hidden
-        />
+        <span className="absolute top-8 bottom-0 left-[15px] w-px bg-border" aria-hidden />
       )}
 
       <span

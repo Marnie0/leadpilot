@@ -52,12 +52,7 @@ export async function recordActivity(tx: TxClient, entry: ActivityLogEntry) {
   return activity;
 }
 
-const CONTACT_ACTIVITY_TYPES = new Set<ActivityType>([
-  'CALL',
-  'EMAIL',
-  'MEETING',
-  'WHATSAPP',
-]);
+const CONTACT_ACTIVITY_TYPES = new Set<ActivityType>(['CALL', 'EMAIL', 'MEETING', 'WHATSAPP']);
 
 /**
  * Recomputes `lead.nextFollowUpAt` from the earliest pending follow-up.

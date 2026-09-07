@@ -18,8 +18,8 @@ export function NotFoundPage({ embedded = false }: { embedded?: boolean }) {
         <div className="space-y-2">
           <h1 className="text-xl font-semibold tracking-tight">Page not found</h1>
           <p className="max-w-sm text-sm text-muted-foreground">
-            That page does not exist yet. The pipeline board, dashboard and follow-up inbox
-            arrive in a later release.
+            That page does not exist yet. The pipeline board, dashboard and follow-up inbox arrive
+            in a later release.
           </p>
         </div>
         <Button asChild>

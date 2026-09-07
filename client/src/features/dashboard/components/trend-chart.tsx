@@ -1,12 +1,4 @@
-import {
-  Area,
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Area, Bar, CartesianGrid, ComposedChart, Tooltip, XAxis, YAxis } from 'recharts';
 import type { DashboardTrendPointDto } from '@leadpilot/shared';
 import { EmptyState } from '@/components/common/empty-state';
 import { LineChart } from 'lucide-react';
@@ -91,7 +83,13 @@ export function TrendChart({
           strokeWidth={2}
           fill="url(#trend-created)"
         />
-        <Bar dataKey="won" name="Deals won" fill={SERIES.won} radius={[3, 3, 0, 0]} maxBarSize={22} />
+        <Bar
+          dataKey="won"
+          name="Deals won"
+          fill={SERIES.won}
+          radius={[3, 3, 0, 0]}
+          maxBarSize={22}
+        />
       </ComposedChart>
     </ChartFrame>
   );

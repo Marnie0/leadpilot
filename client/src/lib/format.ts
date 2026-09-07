@@ -97,8 +97,9 @@ export function describeDueDate(value: string | Date | null | undefined): DueDes
     };
   }
   if (isToday(date)) return { label: `Today, ${format(date, 'HH:mm')}`, tone: 'today', daysUntil };
-  if (isTomorrow(date)) return { label: `Tomorrow, ${format(date, 'HH:mm')}`, tone: 'soon', daysUntil };
-  if (daysUntil <= 7) return { label: format(date, "EEEE, HH:mm"), tone: 'soon', daysUntil };
+  if (isTomorrow(date))
+    return { label: `Tomorrow, ${format(date, 'HH:mm')}`, tone: 'soon', daysUntil };
+  if (daysUntil <= 7) return { label: format(date, 'EEEE, HH:mm'), tone: 'soon', daysUntil };
 
   return { label: formatDate(date), tone: 'later', daysUntil };
 }

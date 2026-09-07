@@ -167,10 +167,7 @@ export async function createDemoSandbox(): Promise<DemoSandbox> {
     throw new AppError(503, 'DEMO_UNAVAILABLE', 'The demo workspace is misconfigured.');
   }
 
-  logger.info(
-    { organizationId, durationMs: Date.now() - startedAt },
-    'demo sandbox created',
-  );
+  logger.info({ organizationId, durationMs: Date.now() - startedAt }, 'demo sandbox created');
 
   return { organizationId, ownerUserId: owner.id };
 }

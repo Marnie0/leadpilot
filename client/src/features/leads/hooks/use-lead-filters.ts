@@ -71,7 +71,8 @@ export function useLeadFilters() {
       sortBy: readOne(searchParams, 'sortBy', LEAD_SORT_FIELDS, DEFAULTS.sortBy),
       sortDir: readOne(searchParams, 'sortDir', ['asc', 'desc'] as const, DEFAULTS.sortDir),
       page: Number.isFinite(page) && page > 0 ? page : DEFAULTS.page,
-      pageSize: Number.isFinite(pageSize) && pageSize > 0 ? Math.min(pageSize, 100) : DEFAULTS.pageSize,
+      pageSize:
+        Number.isFinite(pageSize) && pageSize > 0 ? Math.min(pageSize, 100) : DEFAULTS.pageSize,
     };
   }, [searchParams]);
 

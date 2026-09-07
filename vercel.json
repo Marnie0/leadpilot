@@ -4,9 +4,7 @@
   "outputDirectory": "client/dist",
   "installCommand": "npm install",
   "framework": null,
-  "regions": [
-    "fra1"
-  ],
+  "regions": ["fra1"],
   "functions": {
     "api/index.js": {
       "memory": 1024,

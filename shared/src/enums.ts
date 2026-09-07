@@ -7,14 +7,7 @@
  */
 
 /** Ordered pipeline stage keys. Order here defines board column order. */
-export const STAGE_KEYS = [
-  'NEW',
-  'CONTACTED',
-  'QUALIFIED',
-  'PROPOSAL',
-  'WON',
-  'LOST',
-] as const;
+export const STAGE_KEYS = ['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL', 'WON', 'LOST'] as const;
 export type StageKey = (typeof STAGE_KEYS)[number];
 
 /** Whether a stage is still in play, or a terminal win/loss. */
@@ -62,23 +55,10 @@ export const ACTIVITY_TYPES = [
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
 /** Activity types a user is allowed to create directly. */
-export const USER_ACTIVITY_TYPES = [
-  'NOTE',
-  'CALL',
-  'EMAIL',
-  'MEETING',
-  'WHATSAPP',
-] as const;
+export const USER_ACTIVITY_TYPES = ['NOTE', 'CALL', 'EMAIL', 'MEETING', 'WHATSAPP'] as const;
 export type UserActivityType = (typeof USER_ACTIVITY_TYPES)[number];
 
-export const FOLLOW_UP_CHANNELS = [
-  'CALL',
-  'EMAIL',
-  'MEETING',
-  'WHATSAPP',
-  'SMS',
-  'OTHER',
-] as const;
+export const FOLLOW_UP_CHANNELS = ['CALL', 'EMAIL', 'MEETING', 'WHATSAPP', 'SMS', 'OTHER'] as const;
 export type FollowUpChannel = (typeof FOLLOW_UP_CHANNELS)[number];
 
 export const FOLLOW_UP_STATUSES = ['PENDING', 'COMPLETED', 'CANCELLED'] as const;

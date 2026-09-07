@@ -12,7 +12,6 @@ import { apiLimiter } from './middleware/rate-limit.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { forbidden } from './lib/errors.js';
 
-
 /** Hostnames that always count as "this machine" during development. */
 const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 
@@ -122,9 +121,7 @@ export function createApp(): Express {
       // handler's catch-all and reports a blank 500, indistinguishable from a
       // genuine server fault.
       callback(
-        forbidden(
-          `Origin ${origin} is not allowed by CORS. Add it to CORS_ORIGINS in your .env.`,
-        ),
+        forbidden(`Origin ${origin} is not allowed by CORS. Add it to CORS_ORIGINS in your .env.`),
       );
     }),
   );

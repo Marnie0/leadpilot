@@ -23,8 +23,7 @@ function decimalToNumber(value: Prisma.Decimal | number | null | undefined): num
   return typeof value === 'number' ? value : value.toNumber();
 }
 
-const iso = (value: Date | null | undefined): string | null =>
-  value ? value.toISOString() : null;
+const iso = (value: Date | null | undefined): string | null => (value ? value.toISOString() : null);
 
 export const TEAM_MEMBER_SELECT = {
   id: true,
@@ -194,8 +193,7 @@ export function toActivityDto(
     occurredAt: activity.occurredAt.toISOString(),
     createdAt: activity.createdAt.toISOString(),
     author: toTeamMemberDto(activity.user),
-    canEdit:
-      !isSystemEntry && isUserAuthored && (activity.userId === viewer.userId || isManager),
+    canEdit: !isSystemEntry && isUserAuthored && (activity.userId === viewer.userId || isManager),
   };
 }
 

@@ -24,9 +24,7 @@ export function LeadAssigneeSelect({
 
   // A deactivated rep still assigned to this lead must remain listed, or the
   // Select would render an empty value and silently offer to clear it.
-  const options = members.filter(
-    (member) => member.isActive || member.id === lead.assignedTo?.id,
-  );
+  const options = members.filter((member) => member.isActive || member.id === lead.assignedTo?.id);
 
   return (
     <Select

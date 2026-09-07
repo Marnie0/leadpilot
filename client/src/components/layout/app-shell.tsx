@@ -29,7 +29,10 @@ export function AppShell() {
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-svh flex-col border-r border-sidebar-border bg-sidebar lg:flex">
         <div className="px-5 py-5">
-          <Link to="/leads" className="w-fit rounded-md focus-visible:ring-2 focus-visible:ring-ring">
+          <Link
+            to="/leads"
+            className="w-fit rounded-md focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <Logo />
           </Link>
         </div>

@@ -2,14 +2,8 @@ import { Router } from 'express';
 import { prisma } from './db.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { leadsRouter } from './modules/leads/leads.routes.js';
-import {
-  activitiesRouter,
-  leadActivitiesRouter,
-} from './modules/activities/activities.routes.js';
-import {
-  followUpsRouter,
-  leadFollowUpsRouter,
-} from './modules/follow-ups/follow-ups.routes.js';
+import { activitiesRouter, leadActivitiesRouter } from './modules/activities/activities.routes.js';
+import { followUpsRouter, leadFollowUpsRouter } from './modules/follow-ups/follow-ups.routes.js';
 import { teamRouter } from './modules/team/team.routes.js';
 import { stagesRouter } from './modules/stages/stages.routes.js';
 import { boardRouter } from './modules/board/board.routes.js';

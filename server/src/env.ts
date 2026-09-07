@@ -64,7 +64,6 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .optional()
     .transform((value) => value === 'true'),
-
 });
 
 const parsed = envSchema.safeParse(process.env);

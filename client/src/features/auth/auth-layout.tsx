@@ -43,10 +43,7 @@ export function AuthLayout({
       </div>
 
       {/* Decorative only — hidden from assistive tech and from small screens. */}
-      <div
-        className="relative hidden overflow-hidden bg-primary lg:block"
-        aria-hidden
-      >
+      <div className="relative hidden overflow-hidden bg-primary lg:block" aria-hidden>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.22),transparent_45%),radial-gradient(circle_at_85%_80%,rgba(255,255,255,0.16),transparent_40%)]" />
         <div className="relative flex h-full flex-col justify-center gap-10 px-14 text-primary-foreground">
           <div className="space-y-4">

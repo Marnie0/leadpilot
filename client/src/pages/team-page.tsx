@@ -24,10 +24,7 @@ export function TeamPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <PageHeader
-        title="Team"
-        description={`Everyone with access to ${user.organization.name}.`}
-      />
+      <PageHeader title="Team" description={`Everyone with access to ${user.organization.name}.`} />
 
       <Card className="gap-0 p-0">
         {teamQuery.isError ? (
@@ -49,10 +46,7 @@ export function TeamPage() {
         ) : (
           <ul className="divide-y">
             {members.map((member) => (
-              <li
-                key={member.id}
-                className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-6"
-              >
+              <li key={member.id} className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
                 <Avatar className="size-10 shrink-0">
                   <AvatarFallback
                     style={{ backgroundColor: member.avatarColor }}
@@ -78,7 +72,9 @@ export function TeamPage() {
                 </div>
 
                 <p className="w-full text-xs text-muted-foreground sm:w-auto sm:min-w-[140px] sm:text-right">
-                  {member.lastLoginAt ? `Active ${formatRelative(member.lastLoginAt)}` : 'Never signed in'}
+                  {member.lastLoginAt
+                    ? `Active ${formatRelative(member.lastLoginAt)}`
+                    : 'Never signed in'}
                 </p>
               </li>
             ))}

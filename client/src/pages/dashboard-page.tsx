@@ -1,12 +1,6 @@
 import { DASHBOARD_RANGES, type DashboardRange } from '@leadpilot/shared';
 import { useSearchParams } from 'react-router-dom';
-import {
-  CalendarClock,
-  CircleDollarSign,
-  Target,
-  TrendingUp,
-  Users,
-} from 'lucide-react';
+import { CalendarClock, CircleDollarSign, Target, TrendingUp, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card } from '@/components/ui/card';
 import {
@@ -241,8 +235,8 @@ export function DashboardPage() {
       {data && (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <CalendarClock className="size-3.5" aria-hidden />
-          Figures are in {currency}, the workspace currency. Pipeline and follow-up panels show
-          the current state; everything else covers the selected period.
+          Figures are in {currency}, the workspace currency. Pipeline and follow-up panels show the
+          current state; everything else covers the selected period.
         </p>
       )}
     </div>

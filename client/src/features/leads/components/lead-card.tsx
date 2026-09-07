@@ -32,9 +32,7 @@ export function LeadCard({ lead }: { lead: LeadListItemDto }) {
                 {lead.company}
               </p>
             ) : (
-              <p className="truncate text-xs text-muted-foreground">
-                {SOURCE_LABELS[lead.source]}
-              </p>
+              <p className="truncate text-xs text-muted-foreground">{SOURCE_LABELS[lead.source]}</p>
             )}
           </div>
           <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />

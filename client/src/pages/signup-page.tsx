@@ -2,11 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  PASSWORD_MIN_LENGTH,
-  signupFormSchema,
-  type SignupFormValues,
-} from '@leadpilot/shared';
+import { PASSWORD_MIN_LENGTH, signupFormSchema, type SignupFormValues } from '@leadpilot/shared';
 import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { AuthLayout } from '@/features/auth/auth-layout';
 import { useAuth } from '@/features/auth/auth-context';

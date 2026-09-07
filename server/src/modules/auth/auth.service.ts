@@ -82,7 +82,10 @@ function slugify(value: string): string {
 async function uniqueSlug(candidate: string): Promise<string> {
   let slug = candidate;
   for (let attempt = 0; attempt < 6; attempt += 1) {
-    const existing = await prisma.organization.findUnique({ where: { slug }, select: { id: true } });
+    const existing = await prisma.organization.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
     if (!existing) return slug;
     slug = `${candidate}-${Math.random().toString(36).slice(2, 6)}`;
   }
@@ -291,10 +294,7 @@ export async function getCurrentUser(userId: string): Promise<AuthUser> {
   return toAuthUser(user);
 }
 
-export async function updateProfile(
-  userId: string,
-  input: UpdateProfileInput,
-): Promise<AuthUser> {
+export async function updateProfile(userId: string, input: UpdateProfileInput): Promise<AuthUser> {
   const user = await prisma.user.update({
     where: { id: userId },
     data: {
@@ -310,10 +310,7 @@ export async function updateProfile(
  * Changing a password revokes every other session, which is the whole point of
  * the control — a stolen cookie stops working the moment the owner reacts.
  */
-export async function changePassword(
-  userId: string,
-  input: ChangePasswordInput,
-): Promise<void> {
+export async function changePassword(userId: string, input: ChangePasswordInput): Promise<void> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, passwordHash: true },

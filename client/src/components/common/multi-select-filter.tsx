@@ -46,9 +46,7 @@ export function MultiSelectFilter({
 
   const toggle = (value: string) => {
     onChange(
-      selected.includes(value)
-        ? selected.filter((entry) => entry !== value)
-        : [...selected, value],
+      selected.includes(value) ? selected.filter((entry) => entry !== value) : [...selected, value],
     );
   };
 
@@ -65,7 +63,11 @@ export function MultiSelectFilter({
         <Button
           variant="outline"
           size="sm"
-          className={cn('h-9 gap-1.5 border-dashed', selected.length > 0 && 'border-solid', className)}
+          className={cn(
+            'h-9 gap-1.5 border-dashed',
+            selected.length > 0 && 'border-solid',
+            className,
+          )}
         >
           {label}
           {summary && (

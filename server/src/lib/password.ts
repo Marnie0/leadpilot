@@ -38,12 +38,12 @@ const PREFIX = 'scrypt';
 /** Produces `scrypt$N$r$p$<salt-b64url>$<key-b64url>`. */
 export async function hashPassword(plaintext: string): Promise<string> {
   const salt = randomBytes(SALT_LENGTH);
-  const derived = (await scrypt(plaintext.normalize('NFKC'), salt, KEY_LENGTH, {
+  const derived = await scrypt(plaintext.normalize('NFKC'), salt, KEY_LENGTH, {
     N: SCRYPT_N,
     r: SCRYPT_R,
     p: SCRYPT_P,
     maxmem: MAX_MEM,
-  }));
+  });
 
   return [
     PREFIX,
@@ -82,12 +82,12 @@ export async function verifyPassword(plaintext: string, digest: string): Promise
   if (salt.length === 0 || expected.length === 0) return false;
 
   try {
-    const actual = (await scrypt(plaintext.normalize('NFKC'), salt, expected.length, {
+    const actual = await scrypt(plaintext.normalize('NFKC'), salt, expected.length, {
       N,
       r,
       p,
       maxmem: MAX_MEM,
-    }));
+    });
     return actual.length === expected.length && timingSafeEqual(actual, expected);
   } catch {
     return false;

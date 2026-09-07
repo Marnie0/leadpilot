@@ -142,12 +142,7 @@ export function LeadsTable({
                     : undefined
                 }
               >
-                <SortableHeader
-                  column={column}
-                  sortBy={sortBy}
-                  sortDir={sortDir}
-                  onSort={onSort}
-                />
+                <SortableHeader column={column} sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
               </TableHead>
             ))}
           </TableRow>
@@ -219,7 +214,10 @@ export function LeadsTable({
               </TableCell>
 
               <TableCell
-                className={cn('text-sm whitespace-nowrap text-muted-foreground', HIDE_CLASSES['2xl'])}
+                className={cn(
+                  'text-sm whitespace-nowrap text-muted-foreground',
+                  HIDE_CLASSES['2xl'],
+                )}
               >
                 {formatRelative(lead.updatedAt)}
               </TableCell>

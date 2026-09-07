@@ -61,13 +61,7 @@ function BoardCardBody({ lead, currency }: { lead: LeadListItemDto; currency: st
 }
 
 /** The card as it appears under the cursor mid-drag. */
-export function BoardCardOverlay({
-  lead,
-  currency,
-}: {
-  lead: LeadListItemDto;
-  currency: string;
-}) {
+export function BoardCardOverlay({ lead, currency }: { lead: LeadListItemDto; currency: string }) {
   return (
     <Card className="w-[272px] cursor-grabbing gap-2.5 border-primary/50 p-3 shadow-xl ring-2 ring-primary/20">
       <BoardCardBody lead={lead} currency={currency} />

@@ -29,7 +29,8 @@ import {
 // Seeding runs against the unpooled endpoint: it is a long single session doing
 // many writes, which is exactly what the pooler is not for.
 const prisma = new PrismaClient({
-  datasourceUrl: process.env.DIRECT_URL ?? process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL,
+  datasourceUrl:
+    process.env.DIRECT_URL ?? process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL,
 });
 
 /* ------------------------------------------------------------------ *
@@ -149,7 +150,10 @@ function emailFor(name: string, company: string | null): string {
     .slice(0, 2)
     .join('.');
   const domain = company
-    ? `${company.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 14)}.com`
+    ? `${company
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 14)}.com`
     : pick(['gmail.com', 'outlook.com', 'proton.me', 'icloud.com']);
   return `${handle}@${domain}`;
 }
@@ -228,7 +232,9 @@ async function createLead(
   const owner = org.users[0];
   if (!owner) throw new Error(`Organisation ${org.slug} has no users`);
 
-  const customerName = CONTACT_NAMES[(index * 7 + stage.order * 13) % CONTACT_NAMES.length] as string;
+  const customerName = CONTACT_NAMES[
+    (index * 7 + stage.order * 13) % CONTACT_NAMES.length
+  ] as string;
   const company = COMPANIES[(index * 5 + stage.order * 3) % COMPANIES.length] ?? null;
   const createdAt = daysAgo(ageDays);
 
@@ -247,8 +253,7 @@ async function createLead(
    * months on identical-looking deals.
    */
   const salesCycleDays = intBetween(18, 70);
-  const closedAt =
-    isWon || isLost ? daysAgo(Math.max(1, ageDays - salesCycleDays)) : null;
+  const closedAt = isWon || isLost ? daysAgo(Math.max(1, ageDays - salesCycleDays)) : null;
   const intendedUpdatedAt = closedAt ?? daysAgo(Math.max(0, Math.floor(ageDays / 3)));
 
   const lead = await prisma.lead.create({
@@ -456,14 +461,14 @@ async function main(): Promise<void> {
   }
 
   console.log(`› Creating "${SECONDARY_ORG.name}" (isolation check tenant)…`);
-  const otherOrg = await createOrganization(
-    SECONDARY_ORG,
-    SECONDARY_USERS,
-    passwordHash,
-    false,
-  );
+  const otherOrg = await createOrganization(SECONDARY_ORG, SECONDARY_USERS, passwordHash, false);
   for (let i = 0; i < 6; i += 1) {
-    await createLead(otherOrg, pick(['NEW', 'CONTACTED', 'QUALIFIED', 'WON'] as StageKey[]), intBetween(1, 40), i);
+    await createLead(
+      otherOrg,
+      pick(['NEW', 'CONTACTED', 'QUALIFIED', 'WON'] as StageKey[]),
+      intBetween(1, 40),
+      i,
+    );
   }
 
   const [leadCount, activityCount, followUpCount] = await Promise.all([

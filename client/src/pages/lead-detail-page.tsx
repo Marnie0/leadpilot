@@ -63,13 +63,7 @@ import { LeadFormDialog } from '@/features/leads/components/lead-form-dialog';
 import { FollowUpCell } from '@/features/leads/components/follow-up-cell';
 
 /** Label + value row used throughout the details card. */
-function DetailRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2">
       <dt className="shrink-0 text-sm text-muted-foreground">{label}</dt>
@@ -231,10 +225,7 @@ export function LeadDetailPage() {
                 {canArchive && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onSelect={() => setArchiveOpen(true)}
-                    >
+                    <DropdownMenuItem variant="destructive" onSelect={() => setArchiveOpen(true)}>
                       <Archive className="size-4" /> Archive lead
                     </DropdownMenuItem>
                   </>
@@ -422,9 +413,7 @@ export function LeadDetailPage() {
                     </span>
                   )}
                 </DetailRow>
-                {lead.wonAt && (
-                  <DetailRow label="Won on">{formatDate(lead.wonAt)}</DetailRow>
-                )}
+                {lead.wonAt && <DetailRow label="Won on">{formatDate(lead.wonAt)}</DetailRow>}
               </dl>
 
               {lead.tags.length > 0 && (
@@ -490,20 +479,16 @@ export function LeadDetailPage() {
             <DialogTitle>Archive this lead?</DialogTitle>
             <DialogDescription>
               {lead.customerName} will be removed from the pipeline and from every total. Their{' '}
-              {lead.counts.activities} activity{' '}
-              {lead.counts.activities === 1 ? 'entry' : 'entries'} and any follow-ups are kept, and
-              an owner or admin can restore the lead from the Archived filter.
+              {lead.counts.activities} activity {lead.counts.activities === 1 ? 'entry' : 'entries'}{' '}
+              and any follow-ups are kept, and an owner or admin can restore the lead from the
+              Archived filter.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setArchiveOpen(false)}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleArchive}
-              disabled={archiveLead.isPending}
-            >
+            <Button variant="destructive" onClick={handleArchive} disabled={archiveLead.isPending}>
               Archive lead
             </Button>
           </DialogFooter>

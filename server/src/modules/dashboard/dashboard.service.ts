@@ -65,9 +65,7 @@ function subtractDays(from: Date, days: number): Date {
  * zero-filled gaps sit half a day off the buckets the database returned.
  */
 function truncateUtc(date: Date, bucket: 'week' | 'month'): Date {
-  const day = new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-  );
+  const day = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   if (bucket === 'month') {
     return new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1));
   }
@@ -168,28 +166,28 @@ export async function getDashboard(
     sourceGroups,
   ] = await Promise.all([
     prisma.$transaction([
-    prisma.pipelineStage.findMany({
-      where: { organizationId },
-      select: {
-        id: true,
-        key: true,
-        name: true,
-        color: true,
-        order: true,
-        type: true,
-        winProbability: true,
-      },
-      orderBy: { order: 'asc' },
-    }),
-    prisma.organization.findUniqueOrThrow({
-      where: { id: organizationId },
-      select: { defaultCurrency: true },
-    }),
+      prisma.pipelineStage.findMany({
+        where: { organizationId },
+        select: {
+          id: true,
+          key: true,
+          name: true,
+          color: true,
+          order: true,
+          type: true,
+          winProbability: true,
+        },
+        orderBy: { order: 'asc' },
+      }),
+      prisma.organization.findUniqueOrThrow({
+        where: { id: organizationId },
+        select: { defaultCurrency: true },
+      }),
 
-    /* --- Snapshot: how each stage looks right now --------------------- *
-     * Raw because the average age is a date arithmetic expression, which
-     * Prisma's `groupBy` cannot express — `_avg` only takes numeric columns. */
-    prisma.$queryRaw<StageAggregateRow[]>`
+      /* --- Snapshot: how each stage looks right now --------------------- *
+       * Raw because the average age is a date arithmetic expression, which
+       * Prisma's `groupBy` cannot express — `_avg` only takes numeric columns. */
+      prisma.$queryRaw<StageAggregateRow[]>`
       SELECT "stageId",
              count(*)::int                                              AS "count",
              coalesce(sum("estimatedValue"), 0)::float8                  AS "value",
@@ -199,23 +197,23 @@ export async function getDashboard(
       GROUP BY "stageId"
     `,
 
-    /* --- Windowed: what happened, and what happened before it ---------- */
-    prisma.lead.count({ where: { ...live, createdAt: inWindow } }),
-    prisma.lead.count({ where: { ...live, createdAt: inPreviousWindow } }),
-    prisma.lead.aggregate({
-      where: { ...live, wonAt: inWindow },
-      _count: { _all: true },
-      _sum: { estimatedValue: true },
-    }),
-    prisma.lead.aggregate({
-      where: { ...live, wonAt: inPreviousWindow },
-      _count: { _all: true },
-      _sum: { estimatedValue: true },
-    }),
-    prisma.lead.count({ where: { ...live, lostAt: inWindow } }),
-    prisma.lead.count({ where: { ...live, lostAt: inPreviousWindow } }),
+      /* --- Windowed: what happened, and what happened before it ---------- */
+      prisma.lead.count({ where: { ...live, createdAt: inWindow } }),
+      prisma.lead.count({ where: { ...live, createdAt: inPreviousWindow } }),
+      prisma.lead.aggregate({
+        where: { ...live, wonAt: inWindow },
+        _count: { _all: true },
+        _sum: { estimatedValue: true },
+      }),
+      prisma.lead.aggregate({
+        where: { ...live, wonAt: inPreviousWindow },
+        _count: { _all: true },
+        _sum: { estimatedValue: true },
+      }),
+      prisma.lead.count({ where: { ...live, lostAt: inWindow } }),
+      prisma.lead.count({ where: { ...live, lostAt: inPreviousWindow } }),
 
-    prisma.$queryRaw<Array<{ days: number | null }>>`
+      prisma.$queryRaw<Array<{ days: number | null }>>`
       SELECT avg(extract(epoch FROM ("wonAt" - "createdAt")) / 86400)::float8 AS "days"
       FROM "leads"
       WHERE "organizationId" = ${organizationId}
@@ -223,7 +221,7 @@ export async function getDashboard(
         AND "wonAt" >= ${from}
     `,
 
-    prisma.$queryRaw<TrendRow[]>`
+      prisma.$queryRaw<TrendRow[]>`
       SELECT date_trunc(${trendBucket}::text, "createdAt")     AS "bucket",
              count(*)::int                               AS "count",
              0::float8                                   AS "value"
@@ -234,7 +232,7 @@ export async function getDashboard(
       GROUP BY 1
       ORDER BY 1
     `,
-    prisma.$queryRaw<TrendRow[]>`
+      prisma.$queryRaw<TrendRow[]>`
       SELECT date_trunc(${trendBucket}::text, "wonAt")         AS "bucket",
              count(*)::int                               AS "count",
              coalesce(sum("estimatedValue"), 0)::float8  AS "value"
@@ -246,21 +244,21 @@ export async function getDashboard(
       ORDER BY 1
     `,
 
-    /* --- Snapshot: open follow-up workload ------------------------------ */
-    prisma.followUp.count({ where: { ...pendingFollowUp, dueAt: { lt: startOfToday() } } }),
-    prisma.followUp.count({
-      where: { ...pendingFollowUp, dueAt: { gte: startOfToday(), lte: endOfToday() } },
-    }),
-    prisma.followUp.count({
-      where: { ...pendingFollowUp, dueAt: { gt: endOfToday(), lte: weekEnd } },
-    }),
-    prisma.followUp.count({ where: { ...pendingFollowUp, dueAt: { gt: weekEnd } } }),
-    prisma.followUp.findMany({
-      where: pendingFollowUp,
-      select: FOLLOW_UP_WITH_LEAD_SELECT,
-      orderBy: [{ dueAt: 'asc' }, { createdAt: 'asc' }],
-      take: 6,
-    }),
+      /* --- Snapshot: open follow-up workload ------------------------------ */
+      prisma.followUp.count({ where: { ...pendingFollowUp, dueAt: { lt: startOfToday() } } }),
+      prisma.followUp.count({
+        where: { ...pendingFollowUp, dueAt: { gte: startOfToday(), lte: endOfToday() } },
+      }),
+      prisma.followUp.count({
+        where: { ...pendingFollowUp, dueAt: { gt: endOfToday(), lte: weekEnd } },
+      }),
+      prisma.followUp.count({ where: { ...pendingFollowUp, dueAt: { gt: weekEnd } } }),
+      prisma.followUp.findMany({
+        where: pendingFollowUp,
+        select: FOLLOW_UP_WITH_LEAD_SELECT,
+        orderBy: [{ dueAt: 'asc' }, { createdAt: 'asc' }],
+        take: 6,
+      }),
     ] as const),
     prisma.lead.groupBy({
       by: ['source', 'stageId'],
@@ -273,9 +271,7 @@ export async function getDashboard(
   /* --- Stage snapshot -------------------------------------------------- */
 
   const aggregateByStageId = new Map(stageAggregates.map((row) => [row.stageId, row]));
-  const stageTypeById = new Map<string, StageType>(
-    stages.map((stage) => [stage.id, stage.type]),
-  );
+  const stageTypeById = new Map<string, StageType>(stages.map((stage) => [stage.id, stage.type]));
 
   const stageDtos: DashboardStageDto[] = stages.map((stage) => {
     const aggregate = aggregateByStageId.get(stage.id);
@@ -355,9 +351,7 @@ export async function getDashboard(
    * Zero-filled here rather than in the chart: a line that simply skips a
    * quiet week draws a straight segment across it and overstates the gap. */
 
-  const createdByBucket = new Map(
-    createdTrend.map((row) => [row.bucket.getTime(), row.count]),
-  );
+  const createdByBucket = new Map(createdTrend.map((row) => [row.bucket.getTime(), row.count]));
   const wonByBucket = new Map(wonTrend.map((row) => [row.bucket.getTime(), row]));
 
   const trend: DashboardTrendPointDto[] = [];

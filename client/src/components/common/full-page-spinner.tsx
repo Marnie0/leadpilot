@@ -7,13 +7,7 @@ import { cn } from '@/lib/utils';
  * header around it, and a full-height spinner underneath them pushes the page
  * into a scroll it does not need.
  */
-export function FullPageSpinner({
-  label,
-  inline = false,
-}: {
-  label?: string;
-  inline?: boolean;
-}) {
+export function FullPageSpinner({ label, inline = false }: { label?: string; inline?: boolean }) {
   return (
     <div
       className={cn(

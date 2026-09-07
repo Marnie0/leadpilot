@@ -67,9 +67,10 @@ export function LeadFilterBar({
     setSearchDraft((draft) => (draft === filters.q ? draft : filters.q));
   }, [filters.q]);
 
-  const stageOptions: FilterOption[] = (stages.length > 0
-    ? stages.map((stage) => ({ key: stage.key, name: stage.name, color: stage.color }))
-    : STAGE_KEYS.map((key) => ({ key, name: STAGE_LABELS[key], color: '#94a3b8' }))
+  const stageOptions: FilterOption[] = (
+    stages.length > 0
+      ? stages.map((stage) => ({ key: stage.key, name: stage.name, color: stage.color }))
+      : STAGE_KEYS.map((key) => ({ key, name: STAGE_LABELS[key], color: '#94a3b8' }))
   ).map((stage) => ({
     value: stage.key,
     label: stage.name,
@@ -160,7 +161,9 @@ export function LeadFilterBar({
             className="size-9 shrink-0"
             onClick={() => onChange({ sortDir: filters.sortDir === 'asc' ? 'desc' : 'asc' })}
             aria-label={
-              filters.sortDir === 'asc' ? 'Sorted ascending — switch to descending' : 'Sorted descending — switch to ascending'
+              filters.sortDir === 'asc'
+                ? 'Sorted ascending — switch to descending'
+                : 'Sorted descending — switch to ascending'
             }
             title={filters.sortDir === 'asc' ? 'Ascending' : 'Descending'}
           >

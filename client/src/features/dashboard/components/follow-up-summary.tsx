@@ -8,7 +8,12 @@ import { cn } from '@/lib/utils';
 
 const BUCKETS = [
   { key: 'overdue', label: 'Overdue', href: '/leads?followUp=overdue', tone: 'text-destructive' },
-  { key: 'today', label: 'Today', href: '/leads?followUp=today', tone: 'text-amber-600 dark:text-amber-400' },
+  {
+    key: 'today',
+    label: 'Today',
+    href: '/leads?followUp=today',
+    tone: 'text-amber-600 dark:text-amber-400',
+  },
   { key: 'thisWeek', label: 'This week', href: '/leads?followUp=week', tone: 'text-foreground' },
   // There is no "later" preset in the follow-up filter, so this one sorts the
   // whole list by next follow-up instead of pretending to filter. Linking it to
@@ -38,8 +43,7 @@ const DUE_TONE: Record<string, string> = {
  * already applied, so the panel is a way in rather than a dead end.
  */
 export function FollowUpSummary({ followUps }: { followUps: DashboardFollowUpsDto }) {
-  const total =
-    followUps.overdue + followUps.today + followUps.thisWeek + followUps.later;
+  const total = followUps.overdue + followUps.today + followUps.thisWeek + followUps.later;
 
   return (
     <div className="space-y-4">
@@ -82,8 +86,7 @@ export function FollowUpSummary({ followUps }: { followUps: DashboardFollowUpsDt
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm text-foreground">{followUp.title}</p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {followUp.lead?.customerName ?? 'Lead'} ·{' '}
-                        {CHANNEL_LABELS[followUp.channel]}
+                        {followUp.lead?.customerName ?? 'Lead'} · {CHANNEL_LABELS[followUp.channel]}
                       </p>
                     </div>
                     <span
@@ -94,10 +97,7 @@ export function FollowUpSummary({ followUps }: { followUps: DashboardFollowUpsDt
                     >
                       {due.label}
                     </span>
-                    <ChevronRight
-                      className="size-4 shrink-0 text-muted-foreground"
-                      aria-hidden
-                    />
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   </Link>
                 </li>
               );

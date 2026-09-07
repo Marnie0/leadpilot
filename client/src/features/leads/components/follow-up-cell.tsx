@@ -11,13 +11,7 @@ const TONE_STYLES: Record<string, string> = {
 };
 
 /** Renders a follow-up date as an urgency-coloured phrase rather than a raw date. */
-export function FollowUpCell({
-  dueAt,
-  className,
-}: {
-  dueAt: string | null;
-  className?: string;
-}) {
+export function FollowUpCell({ dueAt, className }: { dueAt: string | null; className?: string }) {
   const { label, tone } = describeDueDate(dueAt);
   const Icon = tone === 'overdue' ? CircleAlert : CalendarClock;
 

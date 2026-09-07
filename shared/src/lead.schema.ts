@@ -1,10 +1,5 @@
 import { z } from 'zod';
-import {
-  LEAD_PRIORITIES,
-  LEAD_SOURCES,
-  STAGE_KEYS,
-  STAGE_TYPES,
-} from './enums.js';
+import { LEAD_PRIORITIES, LEAD_SOURCES, STAGE_KEYS, STAGE_TYPES } from './enums.js';
 import {
   csvArray,
   idSchema,
