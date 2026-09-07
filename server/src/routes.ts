@@ -12,6 +12,8 @@ import {
 } from './modules/follow-ups/follow-ups.routes.js';
 import { teamRouter } from './modules/team/team.routes.js';
 import { stagesRouter } from './modules/stages/stages.routes.js';
+import { boardRouter } from './modules/board/board.routes.js';
+import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
 import { asyncHandler } from './middleware/auth.js';
 
@@ -36,6 +38,8 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/internal', adminRouter);
 apiRouter.use('/stages', stagesRouter);
 apiRouter.use('/team', teamRouter);
+apiRouter.use('/board', boardRouter);
+apiRouter.use('/dashboard', dashboardRouter);
 
 // Nested resources are declared before the bare /leads router so that
 // /leads/:leadId/activities is not swallowed by /leads/:id.

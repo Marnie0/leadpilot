@@ -5,6 +5,7 @@ import {
   createLeadSchema,
   idSchema,
   leadQuerySchema,
+  moveLeadOnBoardSchema,
   moveLeadStageSchema,
   updateLeadSchema,
 } from '@leadpilot/shared';
@@ -12,6 +13,7 @@ import { asyncHandler, getAuth, requireAuth } from '../../middleware/auth.js';
 import { param, validate, validatedQuery } from '../../middleware/validate.js';
 import type { Actor } from './leads.service.js';
 import * as leadsService from './leads.service.js';
+import * as boardService from '../board/board.service.js';
 
 export const leadsRouter = Router();
 
@@ -87,6 +89,23 @@ leadsRouter.post(
   validate(moveLeadStageSchema),
   asyncHandler(async (req, res) => {
     const lead = await leadsService.moveLeadStage(actorFrom(req), param(req, 'id'), req.body);
+    res.json({ lead });
+  }),
+);
+
+/**
+ * Drag-and-drop on the pipeline board.
+ *
+ * Distinct from `/:id/stage` because it also carries *where in the column* the
+ * card landed, and distinct from `PATCH /:id` because a reposition inside one
+ * stage is not an edit to the lead's data and must not read as one.
+ */
+leadsRouter.post(
+  '/:id/board-position',
+  validate(leadParams, 'params'),
+  validate(moveLeadOnBoardSchema),
+  asyncHandler(async (req, res) => {
+    const lead = await boardService.moveLeadOnBoard(actorFrom(req), param(req, 'id'), req.body);
     res.json({ lead });
   }),
 );
