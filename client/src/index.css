@@ -198,6 +198,32 @@
   }
 }
 
+@layer base {
+  /*
+   * Charts stay left-to-right internally, even in Arabic.
+   *
+   * SVG resolves `text-anchor: start` and `end` against the *inline base
+   * direction*, not against the coordinate system. Under `dir="rtl"` the two
+   * swap, and Recharts — which computes its anchors assuming left-to-right —
+   * draws every axis label away from its tick instead of towards it. On the
+   * horizontal bar chart that put the stage names inside the plot area, on top
+   * of the bars they label.
+   *
+   * The mirroring a reader actually needs is done deliberately and per chart in
+   * `useChartDirection`: the category axis reverses, the value axis moves to
+   * the reading-end side, the bar radii follow. Fighting the same battle a
+   * second time through CSS text direction only breaks the geometry. Arabic
+   * labels still shape right-to-left inside their own run, which is all a
+   * single-language label needs.
+   *
+   * Scoped to the SVG so the tooltip — a sibling div, and real prose — keeps
+   * the page's direction.
+   */
+  .recharts-surface {
+    direction: ltr;
+  }
+}
+
 @layer utilities {
   /*
    * Mirrors an icon that means "forward" or "back" rather than a fixed

@@ -115,7 +115,19 @@ export function ChartFrame({
   return (
     <div
       style={fill ? undefined : { height }}
-      className={cn('w-full text-border', fill && 'min-h-[260px] flex-1')}
+      className={cn(
+        // `text-border` is the `currentColor` the grid lines and the tooltip
+        // cursor resolve against — both want to be barely there.
+        'w-full text-border',
+        // Tick labels do not. They used to inherit that same `currentColor`
+        // and render at the border colour, which on a white card is almost
+        // invisible and in dark mode is white at 12% opacity. Recharts 3 does
+        // not forward an axis `className` to the DOM, so the colour has to be
+        // put on the text itself — as a CSS rule, because `var()` is not valid
+        // in the SVG `fill` presentation attribute Recharts writes.
+        '[&_.recharts-cartesian-axis-tick-value]:fill-muted-foreground',
+        fill && 'min-h-[260px] flex-1',
+      )}
     >
       <ResponsiveContainer width="100%" height="100%">
         {children}
@@ -163,11 +175,17 @@ export function ChartTooltip({ title, rows }: { title: string; rows: TooltipRow[
   );
 }
 
-/** Shared axis styling, so every chart's ticks look the same. */
+/**
+ * Shared axis styling, so every chart's ticks look the same.
+ *
+ * The tick colour is deliberately *not* here: Recharts 3 drops a `className`
+ * passed to an axis, so it never reached the DOM and every label silently
+ * rendered at whatever `currentColor` happened to be. `ChartFrame` sets it on
+ * the text instead.
+ */
 export const AXIS_PROPS = {
   stroke: 'currentColor',
   tickLine: false,
   axisLine: false,
-  tick: { fontSize: 11, fill: 'currentColor' },
-  className: 'text-muted-foreground',
+  tick: { fontSize: 11 },
 } as const;
