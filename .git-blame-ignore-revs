@@ -1,0 +1,11 @@
+# Revisions to skip when running `git blame`.
+#
+# Bulk reformats attribute every touched line to whoever ran the formatter,
+# which buries the person who actually wrote the code. Point git at this file:
+#
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitHub reads it automatically.
+
+# style: format the repo with Prettier
+e9b882b9af020e5f067d64841fe2141cc48666cf
