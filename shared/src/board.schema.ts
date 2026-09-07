@@ -4,28 +4,42 @@ import { idSchema, optionalTrimmed } from './common.js';
 import { leadQuerySchema, type LeadListItemDto, type PipelineStageDto } from './lead.schema.js';
 
 /**
+ * Ceiling on cards per column.
+ *
+ * A Kanban column is not a list view: nobody scans two hundred cards, and
+ * loading them makes the board slower for everyone who does not need them.
+ * Past this the UI stops offering "show more" and points at the leads table,
+ * which is the right tool for that many records.
+ */
+export const BOARD_MAX_LIMIT = 200;
+
+/**
  * The board reuses the table's filters so a narrowed table and a narrowed board
  * mean the same thing, minus the parts that make no sense on a Kanban view:
  *
  *  - `stage` — the board *is* the stage breakdown; filtering it out would empty
  *    columns rather than filter cards.
  *  - `archived` — archived leads have no place on a working board.
- *  - `page` / `pageSize` / `sortBy` / `sortDir` — each column is independently
- *    paged and always ordered by the manual board rank.
+ *  - `page` / `pageSize` / `sortBy` / `sortDir` — the board is always ordered by
+ *    the manual rank within each stage, and depth is controlled by `limit`.
  */
 export const boardQuerySchema = leadQuerySchema
   .omit({ page: true, pageSize: true, sortBy: true, sortDir: true, stage: true, archived: true })
   .extend({
-    /** How many cards to load per column. Columns are paged one at a time. */
-    limit: z.coerce.number().int().min(1).max(100).default(40),
+    /**
+     * Cards to load per column.
+     *
+     * One number for the whole board rather than a per-column cursor. "Show
+     * more" raises it and the board refetches, which means the loaded depth is
+     * part of the request instead of state accumulated in the client — so a
+     * refetch (after a drag, on window focus, on any invalidation) returns the
+     * same cards the user was already looking at. Appending pages into the
+     * cache instead looked cheaper and silently threw those pages away the
+     * next time anything refreshed the board.
+     */
+    limit: z.coerce.number().int().min(1).max(BOARD_MAX_LIMIT).default(40),
   });
 export type BoardQueryInput = z.infer<typeof boardQuerySchema>;
-
-/** Loading more of a single column, once the first page is on screen. */
-export const boardColumnQuerySchema = boardQuerySchema.extend({
-  offset: z.coerce.number().int().min(0).max(10_000).default(0),
-});
-export type BoardColumnQueryInput = z.infer<typeof boardColumnQuerySchema>;
 
 /**
  * Repositions a lead on the board, optionally moving it to another stage.

@@ -1,7 +1,8 @@
+import { Link } from 'react-router-dom';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { BoardColumnDto, PipelineStageDto, StageKey } from '@leadpilot/shared';
-import { Loader2 } from 'lucide-react';
+import { ArrowUpRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ export function BoardColumn({
   stages,
   isLoading,
   isLoadingMore,
+  canLoadMore,
   onLoadMore,
   onMoveToStage,
 }: {
@@ -30,6 +32,8 @@ export function BoardColumn({
   stages: PipelineStageDto[];
   isLoading: boolean;
   isLoadingMore: boolean;
+  /** False once the board has hit its ceiling; the table takes over from there. */
+  canLoadMore: boolean;
   onLoadMore: () => void;
   onMoveToStage: (leadId: string, stageKey: StageKey) => void;
 }) {
@@ -88,21 +92,32 @@ export function BoardColumn({
           )}
         </SortableContext>
 
-        {hasMore && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs text-muted-foreground"
-            onClick={onLoadMore}
-            disabled={isLoadingMore}
-          >
-            {isLoadingMore && <Loader2 className="size-3.5 animate-spin" />}
-            Show {Math.min(column.total - column.leads.length, BOARD_PAGE_SIZE)} more
-            <span className="text-muted-foreground/70">
-              ({column.leads.length} of {column.total})
-            </span>
-          </Button>
-        )}
+        {hasMore &&
+          (canLoadMore ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs text-muted-foreground"
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore && <Loader2 className="size-3.5 animate-spin" />}
+              Show {Math.min(column.total - column.leads.length, BOARD_PAGE_SIZE)} more
+              <span className="text-muted-foreground/70">
+                ({column.leads.length} of {column.total})
+              </span>
+            </Button>
+          ) : (
+            // Past the board's ceiling, more cards stop being useful. The table
+            // is built for this many records — sorting, paging, bulk scanning —
+            // so the column hands over rather than pretending to be one.
+            <Button variant="ghost" size="sm" className="w-full text-xs" asChild>
+              <Link to={`/leads?stage=${column.stage.key}`}>
+                View all {column.total} in the table
+                <ArrowUpRight className="size-3.5" />
+              </Link>
+            </Button>
+          ))}
       </div>
     </section>
   );

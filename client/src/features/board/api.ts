@@ -1,72 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type {
-  BoardColumnDto,
-  BoardDto,
-  LeadDetailDto,
-  MoveLeadOnBoardInput,
-  StageKey,
-} from '@leadpilot/shared';
+import type { BoardDto, LeadDetailDto, MoveLeadOnBoardInput, StageKey } from '@leadpilot/shared';
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
 import type { BoardFilterState } from './hooks/use-board-filters';
 
-/** Cards fetched per column on first load. "Load more" pages from here. */
+/** Cards shown per column initially, and the step each "Show more" adds. */
 export const BOARD_PAGE_SIZE = 40;
 
-export function useBoard(filters: BoardFilterState) {
-  return useQuery({
-    queryKey: queryKeys.board.view(filters),
-    queryFn: () =>
-      api.get<BoardDto>('/board', { params: { ...filters, limit: BOARD_PAGE_SIZE } }),
-    // Keeps the previous board on screen while a filter change loads, so the
-    // columns never collapse to empty and back.
-    placeholderData: (previous) => previous,
-  });
-}
-
-/** Merges a freshly fetched slice into a column, ignoring cards already shown. */
-function appendColumn(board: BoardDto, incoming: BoardColumnDto): BoardDto {
-  return {
-    ...board,
-    columns: board.columns.map((column) => {
-      if (column.stage.key !== incoming.stage.key) return column;
-      // A card can be dragged elsewhere between pages being fetched, so the
-      // next offset can hand back something already on screen. Deduplicating
-      // by id is cheaper than trying to keep the offsets exact.
-      const seen = new Set(column.leads.map((lead) => lead.id));
-      return {
-        ...column,
-        total: incoming.total,
-        value: incoming.value,
-        leads: [...column.leads, ...incoming.leads.filter((lead) => !seen.has(lead.id))],
-      };
-    }),
-  };
-}
-
 /**
- * Loads the next slice of one column.
- *
- * The result is written straight into the cached board rather than kept in
- * component state: the drag-and-drop logic then has one structure to reason
- * about, whether a card arrived on first load or through "Load more".
+ * @param limit cards per column. Raising it is how "Show more" works: the
+ * depth is part of the request, so every refetch returns what the user already
+ * had on screen. Holding extra pages in the cache instead meant the next
+ * refresh — after a drag, on window focus — silently discarded them.
  */
-export function useLoadMoreColumn(filters: BoardFilterState) {
-  const queryClient = useQueryClient();
-  const key = queryKeys.board.view(filters);
-
-  return useMutation({
-    mutationFn: async ({ stageKey, offset }: { stageKey: StageKey; offset: number }) =>
-      (
-        await api.get<{ column: BoardColumnDto }>(`/board/columns/${stageKey}`, {
-          params: { ...filters, offset, limit: BOARD_PAGE_SIZE },
-        })
-      ).column,
-    onSuccess: (column) => {
-      queryClient.setQueryData<BoardDto>(key, (board) =>
-        board ? appendColumn(board, column) : board,
-      );
-    },
+export function useBoard(filters: BoardFilterState, limit: number) {
+  return useQuery({
+    queryKey: queryKeys.board.view({ ...filters, limit }),
+    queryFn: () => api.get<BoardDto>('/board', { params: { ...filters, limit } }),
+    // Keeps the previous board on screen while a filter change or a deeper page
+    // loads, so the columns never collapse to empty and back.
+    placeholderData: (previous) => previous,
   });
 }
 
@@ -136,9 +89,9 @@ export function applyBoardMove(board: BoardDto, move: BoardMove): BoardDto {
  * the server refuses the move the snapshot is restored and the card returns to
  * where it came from, which is the honest outcome.
  */
-export function useMoveLeadOnBoard(filters: BoardFilterState) {
+export function useMoveLeadOnBoard(filters: BoardFilterState, limit: number) {
   const queryClient = useQueryClient();
-  const key = queryKeys.board.view(filters);
+  const key = queryKeys.board.view({ ...filters, limit });
 
   return useMutation({
     mutationFn: async ({

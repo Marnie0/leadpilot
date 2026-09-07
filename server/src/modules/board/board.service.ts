@@ -1,8 +1,5 @@
 import { Prisma } from '@prisma/client';
-import type { StageKey } from '@prisma/client';
 import type {
-  BoardColumnDto,
-  BoardColumnQueryInput,
   BoardDto,
   BoardQueryInput,
   LeadDetailDto,
@@ -111,40 +108,6 @@ export async function getBoard(actor: Actor, query: BoardQueryInput): Promise<Bo
         value: totalsForStage?._sum.estimatedValue?.toNumber() ?? 0,
       };
     }),
-  };
-}
-
-/** The next slice of one column, for its "Load more" button. */
-export async function getBoardColumn(
-  actor: Actor,
-  stageKey: StageKey,
-  query: BoardColumnQueryInput,
-): Promise<BoardColumnDto> {
-  const stage = await prisma.pipelineStage.findUnique({
-    where: { organizationId_key: { organizationId: actor.organizationId, key: stageKey } },
-    select: STAGE_SELECT,
-  });
-  if (!stage) throw notFound('Pipeline stage');
-
-  const where = { ...boardWhere(actor.organizationId, query), stageId: stage.id };
-
-  const [rows, total, sum] = await prisma.$transaction([
-    prisma.lead.findMany({
-      where,
-      select: LEAD_LIST_SELECT,
-      orderBy: BOARD_ORDER,
-      skip: query.offset,
-      take: query.limit,
-    }),
-    prisma.lead.count({ where }),
-    prisma.lead.aggregate({ where, _sum: { estimatedValue: true } }),
-  ]);
-
-  return {
-    stage: toStageDto(stage),
-    leads: rows.map((row) => toLeadListItemDto(row, actor)),
-    total,
-    value: sum._sum.estimatedValue?.toNumber() ?? 0,
   };
 }
 

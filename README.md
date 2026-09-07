@@ -256,6 +256,14 @@ runs out of integers between two adjacent positions and needs a rebalancing pass
 merely shifted up by one, and scramble the leads table's "Last updated" sort every time anyone
 touched the board.
 
+**Paging is a request parameter, not client state.** "Show more" raises a single
+`limit` for the board and refetches, rather than appending an extra page into the cache. The first
+version did append, and it was subtly broken: the next refresh of the board — after a drag, on
+window focus, on any invalidation — refetched at the base page size and silently threw the extra
+cards away. Making depth part of the request means a refetch returns exactly what the user was
+already looking at. Past 200 cards in one column the board stops offering more and links to the
+leads table, which is the right tool for that many records.
+
 Three other decisions worth naming:
 
 - **Cards a rep cannot move do not pretend otherwise.** Every lead in a list response carries
@@ -514,8 +522,7 @@ All routes are under `/api` and all except the first three require authenticatio
 | `POST` | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id` | CRUD |
 | `POST` | `/leads/:id/stage` · `/leads/:id/assign` | Audited stage move and reassignment |
 | `POST` | `/leads/:id/board-position` | Drag-and-drop: stage **and** rank within the column |
-| `GET` | `/board` | Every stage with its first page of cards, plus per-stage totals |
-| `GET` | `/board/columns/:stageKey` | The next page of one column |
+| `GET` | `/board?limit=` | Every stage with its cards, plus per-stage totals and value |
 | `GET` | `/dashboard?range=30d\|90d\|12m` | Every dashboard figure, aggregated in Postgres |
 | `GET`/`POST` | `/leads/:id/activities` | Timeline |
 | `PATCH`/`DELETE` | `/activities/:id` | Edit or remove your own note |
