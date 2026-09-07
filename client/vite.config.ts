@@ -35,6 +35,13 @@ export default defineConfig({
           react: ['react', 'react-dom', 'react-router-dom'],
           query: ['@tanstack/react-query'],
           forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
+          // Recharts is the single heaviest dependency in the app and only the
+          // dashboard needs it. Splitting it out means the four other screens
+          // never pay for it — combined with the lazy route in App.tsx, it is
+          // not even requested until someone opens the dashboard.
+          charts: ['recharts'],
+          // Same reasoning for the board: drag-and-drop is one screen's cost.
+          dnd: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
         },
       },
     },
