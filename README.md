@@ -9,6 +9,9 @@ leads and a year of activity history. Change anything: drag deals across the pip
 rename leads, archive them, watch the dashboard figures move. Nobody else sees it, and the next
 visitor still starts from a pristine copy. Sandboxes are removed automatically after 24 hours.
 
+Switch the language and the theme from the account menu in the sidebar, or from the top of the
+sign-in screen. Arabic mirrors the entire layout, not just the words.
+
 Nobody can sign into the template itself, so the master copy can never be edited.
 
 Bilingual lead management for small and medium service businesses — real estate agencies,
@@ -21,20 +24,18 @@ move opportunities through a shared pipeline: **New → Contacted → Qualified 
 
 ## Status
 
-**Phases 1 and 2 — complete.** Auth, the full data model, the leads table, the lead detail view
-with activity timeline and follow-ups, a drag-and-drop pipeline board, and a business dashboard
-built on real aggregates.
+**Phases 1 to 3 — complete.** Auth, the full data model, the leads table, the lead detail view
+with activity timeline and follow-ups, a drag-and-drop pipeline board, a business dashboard built
+on real aggregates, and the whole product in English or Arabic with a mirrored right-to-left
+layout and a light/dark theme.
 
 | Phase | Scope                                                             | State   |
 | ----- | ----------------------------------------------------------------- | ------- |
 | 1     | Setup · auth · data model · leads table · lead detail · seed data | ✅ Done |
 | 2     | Drag-and-drop pipeline board · dashboard with charts              | ✅ Done |
-| 3     | EN/AR localisation with full RTL                                  | Planned |
+| 3     | EN/AR localisation with full RTL · light and dark themes          | ✅ Done |
 | 4     | Follow-up management · polish · landing page                      | Planned |
 | 5     | AI lead assistant (stretch)                                       | Planned |
-
-The data model anticipates phase 3 too: `PipelineStage` carries both `name` and `nameAr`, so
-Arabic stage labels need no migration.
 
 ---
 
@@ -49,6 +50,8 @@ Every piece has a genuine free tier. **Total running cost: $0.**
 | Data fetching | TanStack Query v5                                           | Cache keys centralised in `client/src/lib/query-client.ts`  |
 | Forms         | React Hook Form · Zod 4                                     | The **same Zod schemas** validate on both client and server |
 | Routing       | React Router v7                                             | —                                                           |
+| i18n          | ~60 lines over `Intl` — no library                          | Keys, params and plurals are checked by the compiler        |
+| Charts        | Recharts 3                                                  | Axes mirrored explicitly; it has no `dir` support           |
 | Backend       | Node 22 · Express 5 · TypeScript                            | `createApp()` factory — host-agnostic                       |
 | ORM           | Prisma 6                                                    | —                                                           |
 | Database      | **Neon** serverless Postgres                                | Free tier: 0.5 GB, no credit card                           |
@@ -332,6 +335,128 @@ A few smaller judgements about not overstating what the data says: a change from
 zero in it is reported as "no prior data" rather than as infinite growth; a conversion rate over
 zero closed deals is `—`, not `0%`; and the source tooltip gives the denominator, because "100%"
 off one closed deal is not the claim "100%" off twenty is.
+
+---
+
+## Language and direction
+
+The whole product runs in English or Arabic, and Arabic gets a mirrored layout rather than
+translated strings in a left-to-right frame. Pick a language from the account menu, or from the
+top of the sign-in screen — which is the one place someone who cannot read the current language
+needs the control to be.
+
+### No i18n library
+
+There is a `lib/i18n` directory instead, and that is a deliberate trade. What this app needs from
+a library is a lookup, `{placeholder}` interpolation and correct plural selection; the platform
+already provides the third through `Intl.PluralRules`. What the sixty lines in `translate.ts` buy
+in exchange is the thing a runtime library cannot offer: **the compiler checks the keys.**
+
+```ts
+t('leads.title'); // fine
+t('leads.titel'); // ✗ not a key
+t('leads.description'); // ✗ needs { organization }
+t('leads.description', { org: 'Acme' }); // ✗ wrong placeholder name
+t('due.overdue'); // ✗ a plural family needs { count }
+```
+
+`en.ts` is the source of truth for the key list, and `ar.ts` is typed as `Dictionary`, so deleting
+or renaming an English string breaks the build until Arabic catches up. A half-translated
+dictionary is the normal failure mode of i18n work and it is invisible until a user reports it;
+here it cannot be committed.
+
+### Plurals
+
+Arabic has six plural categories where English has two, so `t()` delegates the choice to
+`Intl.PluralRules` rather than testing `count === 1`. "3 days" and "11 days" are genuinely
+different words:
+
+| count | category | Arabic          |
+| ----- | -------- | --------------- |
+| 1     | one      | يوم واحد        |
+| 2     | two      | يومان           |
+| 3–10  | few      | `{count}` أيام  |
+| 11–99 | many     | `{count}` يومًا |
+| 100+  | other    | `{count}` يوم   |
+
+A locale may add forms to a key English keeps singular — `validation.tooLong` has one English
+string and five Arabic ones — which is why the dictionary type allows plural suffixes on any key,
+not only on families English happens to declare.
+
+### Grammar, not just vocabulary
+
+Two problems only appear once the words are right:
+
+- **Gender agreement.** `{field} مطلوب` cannot work, because `الاسم` is masculine and
+  `الخدمة المطلوبة` is feminine, and one adjective cannot agree with both. The Arabic uses an
+  impersonal construction — `يجب إدخال {field}` — that takes the field as an object, so gender
+  never enters into it. The length rules do the same trick with `طول` ("length") as the subject.
+- **Word order.** "Layla moved the lead from New to Won" puts the actor first; Arabic puts the
+  verb first. Concatenating `<strong>{actor}</strong>` with " moved the lead from " produces
+  nonsense in Arabic no matter how good the words are. `useRichT` interpolates React nodes into a
+  whole translated sentence instead, so each language places the pieces where it wants them.
+
+### Validation messages
+
+The shared Zod schemas guard the API _and_ the browser form, so they cannot hard-code English
+prose. They emit a **message token** — a sentinel-prefixed payload naming a key and its params —
+and each side renders it in the language it speaks: the server resolves every token to English
+before responding, so the public API contract stays plain English for any consumer, while the
+browser resolves the same token against the active locale. Since the form validates client-side
+before it ever submits, what a user actually reads is always in their own language.
+
+### Numbers, dates and currency
+
+Every formatter is built once per locale in `lib/format.ts` and reached through `useFormat()` —
+`Intl` constructors are expensive enough that building one per table cell is a real cost.
+
+Arabic uses **Latin digits** (`ar-u-nu-latn`). Arabic-Indic numerals are correct for prose, but
+Gulf business software — invoices, banking, CRMs — overwhelmingly uses Latin digits, and mixing
+them with Latin currency codes and `tabular-nums` column alignment reads as a bug rather than a
+nicety. It is one constant in `locale-provider.tsx` if a workspace disagrees.
+
+Stage names come from the database (`PipelineStage.name` / `nameAr`), not the dictionary, because
+a workspace can rename "Proposal" to "Quote sent" — they are tenant data, not UI copy.
+
+### Right to left
+
+`dir` and `lang` are set on `<html>`, and an inline script in `index.html` applies both before the
+first paint. Without it an Arabic reader watches the entire layout jump across the screen for one
+frame, which is a much louder flash than a colour change.
+
+- **Logical properties everywhere.** `ms-*`, `pe-*`, `start-*`, `end-*`, `text-start`, `border-s`
+  — no physical `ml-`/`pr-`/`left-` survives in application code, including the shadcn primitives.
+- **Radix gets its own direction context.** It reads direction from a provider, not from the DOM,
+  so without `DirectionProvider` a select would still open the wrong way and arrow keys inside a
+  menu would move backwards.
+- **Icons flip only when they mean a direction.** `.icon-directional` mirrors a chevron that points
+  into a link; a trend arrow meaning "up" is left alone, because up is up in both directions.
+- **Charts are mirrored explicitly.** Recharts lays out SVG by absolute coordinate and knows
+  nothing about `dir`, so `useChartDirection()` reverses the category axis, moves the value axis to
+  the reading-end side, and flips the bar corner radii. Left alone, an Arabic chart reads backwards
+  against its own labels.
+- **Two fonts, one stack.** Inter carries no Arabic, so the browser falls through per glyph to IBM
+  Plex Sans Arabic. Both are grotesques of similar proportion, so an Arabic label next to an AED
+  figure reads as one typeface.
+
+---
+
+## Theming
+
+Light and dark are the same design token set with two values each, declared once in `index.css`
+and consumed only through utility classes — `bg-background`, `text-muted-foreground`. Nothing in
+the app hard-codes a hex, which is what makes a theme (or a client's brand colours) a one-file
+change.
+
+The choice is stored per device and applied before the first paint, alongside the language.
+`system` stays live: it tracks the OS preference rather than sampling it once at load. The browser
+chrome follows too — `<meta name="theme-color">` is media-scoped for the system preference and
+overwritten when someone picks a theme explicitly.
+
+Charts are the one place the tokens cannot reach: Recharts writes `fill` and `stroke` as SVG
+presentation attributes, where `var(--token)` is not valid. Structural elements use
+`stroke="currentColor"` so the token resolves through CSS, and the four data-series colours are
+fixed hexes chosen to hold up on both backgrounds.
 The endpoint is closed unless `CRON_SECRET` is set, compared in constant time — a misconfigured
 deploy fails closed, not open.
 
@@ -544,7 +669,7 @@ All routes are under `/api` and all except the first three require authenticatio
 | `POST`           | `/auth/login`                                  | Sign in                                                     |
 | `POST`           | `/auth/refresh`                                | Rotate the session                                          |
 | `POST`           | `/auth/logout`                                 | Revoke this session                                         |
-| `GET`/`PATCH`    | `/auth/me`                                     | Current user                                                |
+| `GET`/`PATCH`    | `/auth/me`                                     | Current user; `PATCH` accepts `name` and `locale`           |
 | `POST`           | `/auth/change-password`                        | Revokes all sessions                                        |
 | `GET`            | `/stages`                                      | The organisation's pipeline stages                          |
 | `GET`            | `/team` · `PATCH /team/:id`                    | Members (edit is owner/admin only)                          |
