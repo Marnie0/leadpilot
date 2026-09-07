@@ -2,13 +2,14 @@
 
 **Live demo → https://leadpilot-ih18.vercel.app**
 
-```
-email     demo@leadpilot.app
-password  DemoPass2026
-```
+Click **Start a demo** on the sign-in screen. No credentials needed.
 
-A second workspace exists purely to demonstrate tenant isolation — sign in as
-`owner@northwind.test` (same password) and none of the demo workspace's 62 leads are visible.
+Each visitor gets their **own private workspace** — a full clone of the demo template with 62
+leads and their complete activity history. Change anything: rename leads, move them through the
+pipeline, archive them. Nobody else sees it, and the next visitor still starts from a pristine
+copy. Sandboxes are removed automatically after 24 hours.
+
+Nobody can sign into the template itself, so the master copy can never be edited.
 
 Bilingual lead management for small and medium service businesses — real estate agencies,
 marketing companies, consultancies and training centres.
@@ -202,6 +203,76 @@ happened, so nobody rewrites it.
 
 ---
 
+## How the demo works
+
+A public demo has a data problem: the first visitor to rename a lead ruins it for everyone after
+them. Read-only would solve that, but it also removes the only interesting part of a CRM.
+
+So the seeded workspace is a **template** that nobody signs into. `POST /api/auth/demo` clones it —
+organisation, users, stages, leads, activities and follow-ups — into a throwaway organisation with
+fresh ids, and signs the visitor into that copy. Isolation is not new code: every tenant-owned row
+already carries `organizationId` and every query is already scoped by it, so the multi-tenancy that
+separates two paying customers is the same mechanism that separates two demo visitors.
+
+Two implementation details are worth knowing:
+
+- The clone is a handful of set-based `INSERT … SELECT` statements rather than ~530 round trips,
+  so a visitor waits a few hundred milliseconds rather than several seconds.
+- It runs as raw SQL specifically to bypass Prisma's `@updatedAt`, which would otherwise stamp
+  every cloned row with "now" and flatten the deliberately aged demo timeline.
+
+Ids are derived rather than mapped: `'d' || substr(md5(<old id> || <token>), 1, 24)` is stable
+within one clone, so a child row computes its parent's new id without a lookup table. Postgres
+returns `NULL` for `NULL || x`, so nullable foreign keys — an unassigned lead — carry through
+correctly for free.
+
+Sandboxes expire after 24 hours. A Vercel cron calls `/api/internal/reap-demo-sandboxes` daily,
+and starting a demo also reaps opportunistically so the table cannot grow unbounded between runs.
+The endpoint is closed unless `CRON_SECRET` is set, compared in constant time — a misconfigured
+deploy fails closed, not open.
+
+---
+
+## Environments
+
+| | Neon branch | Used by |
+| --- | --- | --- |
+| Production | `production` | The live deployment |
+| Development | `dev` | Local `npm run dev`, `db:reset`, `db:seed` |
+
+Local development points at a separate branch on purpose: `npm run db:reset` drops and reseeds,
+and that must never be one mistyped command away from wiping the live demo. `neon checkout dev`
+pins the branch for this working copy.
+
+---
+
+## If this shipped commercially
+
+The engineering is production-shaped; these are the operational gaps that a paying deployment
+would need to close, listed so nothing is hidden:
+
+- **Hosting plan.** Vercel's Hobby tier is licensed for non-commercial use. A commercial
+  deployment needs Pro, or the customer's own account.
+- **Rate limiting** is per-instance and resets on cold start, because serverless functions do not
+  share memory. Real traffic wants a shared store (Upstash Redis has a free tier) behind the same
+  `express-rate-limit` interface — a store swap, not a rewrite.
+- **Account enumeration on signup.** Login is timing-equalised, but signup returns a distinct
+  `409 EMAIL_TAKEN`. Closing it properly means an email-verification flow, which is the right
+  moment to add transactional email.
+- **Backups.** Neon's free tier keeps a short restore window. A paid plan extends point-in-time
+  recovery.
+- **Observability.** Every 5xx is logged with a request id and a full stack trace, but there is no
+  aggregator. The error handler is the single place a Sentry hook would go.
+
+---
+
+## License
+
+All rights reserved. This repository is public so the code can be read and reviewed; it is not
+licensed for reuse. Open an issue if you want to talk about it.
+
+---
+
 ## Errors and debugging
 
 Nothing is hidden behind a generic message. Every API error response carries:
@@ -324,7 +395,7 @@ serverless function. Moving to Render, Fly or a VPS is a config change, not a re
 
 | Model | Notes |
 | --- | --- |
-| `Organization` | The tenant. Owns everything below it. |
+| `Organization` | The tenant. Owns everything below it. `isDemoTemplate` marks the demo master; `expiresAt` marks a throwaway sandbox. |
 | `User` | `OWNER` / `ADMIN` / `MEMBER`. Members edit leads they own or created; only owners and admins archive. |
 | `RefreshToken` | One row per session — what makes a JWT revocable. |
 | `PipelineStage` | Per-tenant stage rows with colour, order, `name`, `nameAr`. |
@@ -345,6 +416,7 @@ All routes are under `/api` and all except the first three require authenticatio
 | Method | Route | Purpose |
 | --- | --- | --- |
 | `POST` | `/auth/signup` | Create an organisation and its owner |
+| `POST` | `/auth/demo` | Clone the demo template into a private sandbox and sign in |
 | `POST` | `/auth/login` | Sign in |
 | `POST` | `/auth/refresh` | Rotate the session |
 | `POST` | `/auth/logout` | Revoke this session |

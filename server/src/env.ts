@@ -50,6 +50,12 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 
   /**
+   * Bearer token Vercel Cron presents when calling the sandbox reaper.
+   * Unset closes the endpoint entirely — it never defaults to open.
+   */
+  CRON_SECRET: z.string().min(16).optional(),
+
+  /**
    * Returns the real error message and stack to the client in production too.
    * Off by default: on a public deployment that is information disclosure.
    * Useful on a portfolio demo where you are the only one reading it.

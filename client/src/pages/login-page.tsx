@@ -12,10 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-const DEMO_CREDENTIALS = { email: 'demo@leadpilot.app', password: 'DemoPass2026' };
-
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login, startDemo } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -38,11 +36,23 @@ export function LoginPage() {
     }
   };
 
-  /** One click into the seeded workspace — this is a portfolio demo, after all. */
-  const fillDemoCredentials = () => {
-    form.setValue('email', DEMO_CREDENTIALS.email, { shouldValidate: true });
-    form.setValue('password', DEMO_CREDENTIALS.password, { shouldValidate: true });
+  const [isStartingDemo, setStartingDemo] = useState(false);
+
+  /**
+   * Opens a private sandbox rather than signing into a shared account, so
+   * anything a visitor changes is invisible to the next one.
+   */
+  const handleStartDemo = async () => {
     clearFormError();
+    setStartingDemo(true);
+    try {
+      await startDemo();
+      navigate('/leads', { replace: true });
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setStartingDemo(false);
+    }
   };
 
   return (
@@ -119,18 +129,21 @@ export function LoginPage() {
       </form>
 
       <div className="mt-6 rounded-lg border border-dashed bg-muted/40 p-4">
-        <p className="text-sm font-medium text-foreground">Trying the demo?</p>
+        <p className="text-sm font-medium text-foreground">Just want a look around?</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Sign in to a fully populated workspace with 62 leads and a live activity history.
+          Opens your own private workspace with 62 leads and a full activity history. Change
+          anything you like — nobody else sees it, and it is removed after a day.
         </p>
         <Button
           type="button"
           variant="outline"
           size="sm"
           className="mt-3 w-full"
-          onClick={fillDemoCredentials}
+          onClick={handleStartDemo}
+          disabled={isStartingDemo || form.formState.isSubmitting}
         >
-          Use demo credentials
+          {isStartingDemo && <Loader2 className="size-4 animate-spin" />}
+          {isStartingDemo ? 'Preparing your workspace…' : 'Start a demo'}
         </Button>
       </div>
     </AuthLayout>

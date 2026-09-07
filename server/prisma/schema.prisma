@@ -112,8 +112,13 @@ model Organization {
   /// Fallback currency for new leads; each lead may override it.
   defaultCurrency String   @default("USD")
   defaultLocale   Locale   @default(en)
-  /// Marks the shipped demo tenant so it can be reset without touching real data.
+  /// A throwaway sandbox created by "Start demo". Cloned from the template.
   isDemo          Boolean  @default(false)
+  /// The pristine workspace every demo sandbox is cloned from. Nobody signs into
+  /// it directly, so visitor edits can never reach it.
+  isDemoTemplate  Boolean  @default(false)
+  /// When a demo sandbox is reaped. Null for real workspaces and for the template.
+  expiresAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -123,6 +128,8 @@ model Organization {
   activities Activity[]
   followUps  FollowUp[]
 
+  // Drives the daily reaper, which scans for sandboxes past their expiry.
+  @@index([expiresAt])
   @@map("organizations")
 }
 

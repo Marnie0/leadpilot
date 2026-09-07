@@ -7,7 +7,7 @@ import {
 } from '@leadpilot/shared';
 import { asyncHandler, getAuth, requireAuth } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validate.js';
-import { authLimiter, signupLimiter } from '../../middleware/rate-limit.js';
+import { authLimiter, demoLimiter, signupLimiter } from '../../middleware/rate-limit.js';
 import { clearAuthCookies, REFRESH_COOKIE, setAuthCookies } from '../../lib/cookies.js';
 import type { SessionContext } from './auth.service.js';
 import * as authService from './auth.service.js';
@@ -29,6 +29,23 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const { user, accessToken, refreshToken } = await authService.signup(
       req.body,
+      sessionContext(req),
+    );
+    setAuthCookies(res, { accessToken, refreshToken });
+    res.status(201).json({ user });
+  }),
+);
+
+/**
+ * Opens a private demo sandbox — a full clone of the template workspace — and
+ * signs the visitor into it. Rate limited per IP: cloning is the most expensive
+ * unauthenticated operation the API exposes.
+ */
+authRouter.post(
+  '/demo',
+  demoLimiter,
+  asyncHandler(async (req, res) => {
+    const { user, accessToken, refreshToken } = await authService.startDemoSession(
       sessionContext(req),
     );
     setAuthCookies(res, { accessToken, refreshToken });

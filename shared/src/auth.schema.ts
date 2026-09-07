@@ -80,6 +80,10 @@ export interface AuthUser {
     name: string;
     slug: string;
     defaultCurrency: string;
+    /** True for a throwaway demo sandbox, so the UI can say so. */
+    isDemo: boolean;
+    /** When the sandbox is reaped. Null for real workspaces. */
+    expiresAt: string | null;
   };
 }
 

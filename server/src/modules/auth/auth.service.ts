@@ -7,7 +7,7 @@ import type {
   UpdateProfileInput,
 } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
-import { conflict, unauthorized } from '../../lib/errors.js';
+import { conflict, forbidden, unauthorized } from '../../lib/errors.js';
 import { hashPassword, simulatePasswordVerification, verifyPassword } from '../../lib/password.js';
 import {
   hashToken,
@@ -17,6 +17,7 @@ import {
 } from '../../lib/tokens.js';
 import { DEFAULT_STAGE_PRESETS, pickAvatarColor } from '../../lib/stage-presets.js';
 import { logger } from '../../logger.js';
+import { createDemoSandbox, reapExpiredSandboxes } from './demo.service.js';
 
 export interface SessionContext {
   userAgent?: string | undefined;
@@ -30,7 +31,17 @@ export interface AuthResult {
 }
 
 const AUTH_USER_INCLUDE = {
-  organization: { select: { id: true, name: true, slug: true, defaultCurrency: true } },
+  organization: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      defaultCurrency: true,
+      isDemo: true,
+      isDemoTemplate: true,
+      expiresAt: true,
+    },
+  },
 } satisfies Prisma.UserInclude;
 
 type AuthUserRow = Prisma.UserGetPayload<{ include: typeof AUTH_USER_INCLUDE }>;
@@ -49,6 +60,8 @@ function toAuthUser(user: AuthUserRow): AuthUser {
       name: user.organization.name,
       slug: user.organization.slug,
       defaultCurrency: user.organization.defaultCurrency,
+      isDemo: user.organization.isDemo,
+      expiresAt: user.organization.expiresAt?.toISOString() ?? null,
     },
   };
 }
@@ -168,6 +181,14 @@ export async function login(input: LoginInput, context: SessionContext): Promise
   const valid = await verifyPassword(input.password, user.passwordHash);
   if (!valid) {
     throw unauthorized('Incorrect email or password');
+  }
+
+  // The template is cloned, never entered. Signing into it directly would let a
+  // visitor edit the master copy every future sandbox is made from.
+  if (user.organization.isDemoTemplate) {
+    throw forbidden(
+      'That account belongs to the demo template. Use "Start demo" to open your own sandbox.',
+    );
   }
 
   await prisma.user.update({
@@ -310,4 +331,34 @@ export async function changePassword(
       data: { revokedAt: new Date() },
     }),
   ]);
+}
+
+/**
+ * Opens a private demo sandbox and signs the visitor into it.
+ *
+ * Each visitor gets a full clone of the template workspace, so anything they
+ * change is invisible to everyone else and the next visitor still starts from a
+ * pristine copy.
+ */
+export async function startDemoSession(context: SessionContext): Promise<AuthResult> {
+  // Opportunistic cleanup: keeps sandboxes from piling up between cron runs.
+  await reapExpiredSandboxes().catch((error) => {
+    logger.warn({ err: error }, 'sandbox reap failed; continuing');
+  });
+
+  const sandbox = await createDemoSandbox();
+
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: sandbox.ownerUserId },
+    include: AUTH_USER_INCLUDE,
+  });
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastLoginAt: new Date() },
+    select: { id: true },
+  });
+
+  const tokens = await createSession(user, context);
+  return { user: toAuthUser(user), ...tokens };
 }

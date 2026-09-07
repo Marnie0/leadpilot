@@ -171,7 +171,10 @@ async function createOrganization(
       name: definition.name,
       slug: definition.slug,
       defaultCurrency: definition.defaultCurrency,
-      isDemo,
+      // The demo workspace is a template: "Start demo" clones it per visitor and
+      // nobody signs into it directly, so it stays pristine.
+      isDemoTemplate: isDemo,
+      isDemo: false,
       stages: {
         create: DEFAULT_STAGE_PRESETS.map((preset) => ({ ...preset })),
       },

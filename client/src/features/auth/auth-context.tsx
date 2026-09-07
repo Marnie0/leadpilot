@@ -10,6 +10,8 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (input: LoginInput) => Promise<AuthUser>;
+  /** Clones the demo template into a private sandbox and signs into it. */
+  startDemo: () => Promise<AuthUser>;
   signup: (input: SignupInput) => Promise<AuthUser>;
   logout: () => Promise<void>;
 }
@@ -62,6 +64,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     mutationFn: (input: SignupInput) => api.post<SessionResponse>('/auth/signup', input),
   });
 
+  const demoMutation = useMutation({
+    mutationFn: () => api.post<SessionResponse>('/auth/demo'),
+  });
+
   const logoutMutation = useMutation({
     mutationFn: () => api.post<void>('/auth/logout'),
   });
@@ -84,6 +90,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [signupMutation, queryClient],
   );
 
+  const startDemo = useCallback(async () => {
+    const { user } = await demoMutation.mutateAsync();
+    queryClient.setQueryData(queryKeys.session, user);
+    return user;
+  }, [demoMutation, queryClient]);
+
   const logout = useCallback(async () => {
     try {
       await logoutMutation.mutateAsync();
@@ -102,9 +114,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(sessionQuery.data),
       login,
       signup,
+      startDemo,
       logout,
     }),
-    [sessionQuery.data, sessionQuery.isLoading, login, signup, logout],
+    [sessionQuery.data, sessionQuery.isLoading, login, signup, startDemo, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

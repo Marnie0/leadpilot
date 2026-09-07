@@ -37,6 +37,16 @@ export const signupLimiter = rateLimit({
   limit: 5,
 });
 
+/**
+ * Starting a demo clones ~530 rows, so it is the most expensive thing an
+ * unauthenticated caller can trigger. Budget is per IP.
+ */
+export const demoLimiter = rateLimit({
+  ...shared,
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+});
+
 /** A generous backstop for the rest of the API. */
 export const apiLimiter = rateLimit({
   ...shared,

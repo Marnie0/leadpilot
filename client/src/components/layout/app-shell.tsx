@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useAuth } from '@/features/auth/auth-context';
 import { SidebarNav } from './sidebar-nav';
 import { UserMenu } from './user-menu';
+import { DemoBanner } from './demo-banner';
 
 /**
  * Application chrome.
@@ -78,6 +79,8 @@ export function AppShell() {
             <UserMenu compact />
           </div>
         </header>
+
+        <DemoBanner />
 
         <main className="min-w-0 flex-1">
           <Outlet />
