@@ -28,18 +28,31 @@ const PRIVATE_IPV4 = /^(?:10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/;
  * `127.0.0.1` and `localhost` are different origins to a browser, and testing
  * the responsive layout on a phone uses the machine's LAN IP.
  */
-export function isOriginAllowed(origin: string): boolean {
+export function isOriginAllowed(origin: string, requestHost?: string | undefined): boolean {
   if (env.corsOrigins.includes(origin)) return true;
-  if (env.isProduction) return false;
 
+  let parsed: URL;
   try {
-    const { hostname, protocol } = new URL(origin);
-    if (protocol !== 'http:' && protocol !== 'https:') return false;
-    return LOOPBACK_HOSTNAMES.has(hostname) || PRIVATE_IPV4.test(hostname);
+    parsed = new URL(origin);
   } catch {
     // Not a parseable URL, so not an origin we can vouch for.
     return false;
   }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+
+  /*
+   * Same-origin always allowed.
+   *
+   * Browsers send `Origin` on same-origin POST/PATCH/DELETE, so the deployed
+   * SPA's own login request arrives carrying one. An allowlist cannot cover it:
+   * on Vercel every preview deployment gets its own hostname, so the only stable
+   * rule is "the Origin matches the host this request was addressed to".
+   */
+  if (requestHost && parsed.host === requestHost) return true;
+
+  if (env.isProduction) return false;
+
+  return LOOPBACK_HOSTNAMES.has(parsed.hostname) || PRIVATE_IPV4.test(parsed.hostname);
 }
 
 /**
@@ -84,30 +97,35 @@ export function createApp(): Express {
    * covers anyone calling the API directly. `credentials: true` is what lets the
    * auth cookie ride along.
    */
+  // The delegate form is used so the check can see the request host, which the
+  // plain `origin(origin, cb)` callback is not given.
   app.use(
-    cors({
-      origin(origin, callback) {
-        // No Origin header at all: curl, server-to-server, same-origin navigation.
-        if (!origin) {
-          callback(null, true);
-          return;
-        }
-        if (isOriginAllowed(origin)) {
-          callback(null, true);
-          return;
-        }
-        // Rejecting with a typed AppError makes this a 403 naming the offending
-        // origin. Passing a bare Error here (as this once did) lands in the
-        // error handler's catch-all and reports a blank 500, which is
-        // indistinguishable from a genuine server fault.
-        callback(
-          forbidden(
-            `Origin ${origin} is not allowed by CORS. Add it to CORS_ORIGINS in your .env.`,
-          ),
-        );
-      },
-      credentials: true,
-      methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    cors((req, callback) => {
+      const origin = req.headers.origin;
+      // Behind Vercel's proxy the original host arrives as x-forwarded-host.
+      const forwarded = req.headers['x-forwarded-host'];
+      const host =
+        (Array.isArray(forwarded) ? forwarded[0] : forwarded) ?? req.headers.host ?? undefined;
+
+      // No Origin header at all: curl, server-to-server, same-origin navigation.
+      if (!origin || isOriginAllowed(origin, host)) {
+        callback(null, {
+          origin: true,
+          credentials: true,
+          methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+        });
+        return;
+      }
+
+      // Rejecting with a typed AppError makes this a 403 naming the offending
+      // origin. Passing a bare Error here (as this once did) lands in the error
+      // handler's catch-all and reports a blank 500, indistinguishable from a
+      // genuine server fault.
+      callback(
+        forbidden(
+          `Origin ${origin} is not allowed by CORS. Add it to CORS_ORIGINS in your .env.`,
+        ),
+      );
     }),
   );
 
