@@ -1,0 +1,39 @@
+{
+  "name": "leadpilot",
+  "private": true,
+  "version": "0.1.0",
+  "description": "LeadPilot — bilingual lead management for small and medium service businesses",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm run dev --workspace @leadpilot/server",
+    "dev:client": "npm run dev --workspace @leadpilot/client",
+    "build": "npm run build --workspace @leadpilot/server && npm run build --workspace @leadpilot/client",
+    "build:vercel": "prisma generate --schema server/prisma/schema.prisma && npm run build --workspace @leadpilot/server && npm run build --workspace @leadpilot/client",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace @leadpilot/server",
+    "db:push": "npm run db:push --workspace @leadpilot/server",
+    "db:migrate": "npm run db:migrate --workspace @leadpilot/server",
+    "db:seed": "npm run db:seed --workspace @leadpilot/server",
+    "db:reset": "npm run db:reset --workspace @leadpilot/server",
+    "db:studio": "npm run db:studio --workspace @leadpilot/server",
+    "db:deploy": "npm run db:deploy --workspace @leadpilot/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@neon/config": "^1.3.0",
+    "@neon/env": "^1.2.1"
+  }
+}
