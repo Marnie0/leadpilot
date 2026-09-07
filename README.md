@@ -1,5 +1,15 @@
 # LeadPilot
 
+**Live demo → https://leadpilot-ih18.vercel.app**
+
+```
+email     demo@leadpilot.app
+password  DemoPass2026
+```
+
+A second workspace exists purely to demonstrate tenant isolation — sign in as
+`owner@northwind.test` (same password) and none of the demo workspace's 62 leads are visible.
+
 Bilingual lead management for small and medium service businesses — real estate agencies,
 marketing companies, consultancies and training centres.
 
@@ -261,6 +271,21 @@ The repo is configured for a **single** Vercel project serving both the SPA and 
 
 `/api/health` returns database connectivity and latency, which is the quickest way to confirm a
 deployment is wired up correctly.
+
+### How the deployment is wired
+
+One Vercel project serves both halves. The SPA is a static build; every `/api/*` request is
+rewritten to a single serverless function that wraps the same `createApp()` Express instance
+`npm run dev` runs locally, so there is no host-specific code in the app itself.
+
+Functions are pinned to `fra1` to sit beside the Neon database in Frankfurt — each request makes
+several Prisma round trips, and that is the hop that decides how fast the app feels. Production
+health checks report ~120 ms of database latency.
+
+Because both halves share an origin, the auth cookie is a first-party `SameSite=Lax` cookie: no
+CORS in production, and none of the third-party-cookie breakage a split origin would inherit.
+Same-origin requests are allowed by comparing `Origin` against the forwarded host rather than an
+allowlist, since every preview deployment gets its own hostname.
 
 ---
 
