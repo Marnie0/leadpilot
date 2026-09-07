@@ -101,6 +101,9 @@ export function LoginPage() {
               id="password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
+              // Wording rather than a row of dots: a masked placeholder reads as
+              // an already-filled field, and people hit Sign in without typing.
+              placeholder="Enter your password"
               className="pr-10"
               aria-invalid={Boolean(form.formState.errors.password)}
               aria-describedby={form.formState.errors.password ? 'password-error' : undefined}
@@ -131,7 +134,7 @@ export function LoginPage() {
       <div className="mt-6 rounded-lg border border-dashed bg-muted/40 p-4">
         <p className="text-sm font-medium text-foreground">Just want a look around?</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Opens your own private workspace with 62 leads and a full activity history. Change
+          Opens your own private workspace with 96 leads and a full activity history. Change
           anything you like — nobody else sees it, and it is removed after a day.
         </p>
         <Button

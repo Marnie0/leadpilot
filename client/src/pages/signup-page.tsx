@@ -118,6 +118,7 @@ export function SignupPage() {
               id="password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
+              placeholder="Create a password"
               className="pr-10"
               aria-invalid={Boolean(errors.password)}
               {...form.register('password')}
@@ -146,6 +147,7 @@ export function SignupPage() {
             id="confirmPassword"
             type={showPassword ? 'text' : 'password'}
             autoComplete="new-password"
+            placeholder="Re-enter your password"
             aria-invalid={Boolean(errors.confirmPassword)}
             {...form.register('confirmPassword')}
           />
