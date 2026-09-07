@@ -1,0 +1,198 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design tokens.
+ *
+ * Every colour the app uses is declared here as a CSS variable and consumed
+ * through Tailwind utility classes (`bg-background`, `text-muted-foreground`,
+ * …). Nothing hard-codes a hex value, which is what makes the dark theme — and
+ * a client's own brand colours — a one-file change.
+ *
+ * Brand hue is indigo; neutrals are a cool slate so the two sit together
+ * without the greys looking muddy next to the primary.
+ */
+:root {
+  --radius: 0.65rem;
+
+  --background: oklch(0.995 0.002 247);
+  --foreground: oklch(0.208 0.036 265);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.208 0.036 265);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.208 0.036 265);
+
+  --primary: oklch(0.512 0.196 267);
+  --primary-foreground: oklch(0.985 0.003 247);
+
+  --secondary: oklch(0.968 0.007 247);
+  --secondary-foreground: oklch(0.28 0.04 265);
+
+  --muted: oklch(0.968 0.007 247);
+  --muted-foreground: oklch(0.556 0.036 257);
+
+  --accent: oklch(0.955 0.014 265);
+  --accent-foreground: oklch(0.35 0.09 267);
+
+  --destructive: oklch(0.585 0.216 27);
+  --destructive-foreground: oklch(0.985 0.003 247);
+
+  --success: oklch(0.63 0.15 155);
+  --success-foreground: oklch(0.985 0.003 247);
+
+  --warning: oklch(0.75 0.15 78);
+  --warning-foreground: oklch(0.25 0.05 78);
+
+  --border: oklch(0.923 0.011 255);
+  --input: oklch(0.923 0.011 255);
+  --ring: oklch(0.512 0.196 267);
+
+  --sidebar: oklch(0.985 0.004 247);
+  --sidebar-foreground: oklch(0.208 0.036 265);
+  --sidebar-primary: oklch(0.512 0.196 267);
+  --sidebar-primary-foreground: oklch(0.985 0.003 247);
+  --sidebar-accent: oklch(0.951 0.012 262);
+  --sidebar-accent-foreground: oklch(0.32 0.07 267);
+  --sidebar-border: oklch(0.923 0.011 255);
+  --sidebar-ring: oklch(0.512 0.196 267);
+}
+
+.dark {
+  --background: oklch(0.169 0.026 265);
+  --foreground: oklch(0.968 0.007 247);
+
+  --card: oklch(0.216 0.028 265);
+  --card-foreground: oklch(0.968 0.007 247);
+
+  --popover: oklch(0.216 0.028 265);
+  --popover-foreground: oklch(0.968 0.007 247);
+
+  --primary: oklch(0.648 0.176 268);
+  --primary-foreground: oklch(0.16 0.03 265);
+
+  --secondary: oklch(0.27 0.03 265);
+  --secondary-foreground: oklch(0.968 0.007 247);
+
+  --muted: oklch(0.27 0.03 265);
+  --muted-foreground: oklch(0.704 0.028 257);
+
+  --accent: oklch(0.3 0.045 266);
+  --accent-foreground: oklch(0.93 0.02 265);
+
+  --destructive: oklch(0.65 0.19 25);
+  --destructive-foreground: oklch(0.98 0.003 247);
+
+  --success: oklch(0.7 0.14 155);
+  --success-foreground: oklch(0.16 0.03 265);
+
+  --warning: oklch(0.79 0.14 78);
+  --warning-foreground: oklch(0.2 0.04 78);
+
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.648 0.176 268);
+
+  --sidebar: oklch(0.196 0.027 265);
+  --sidebar-foreground: oklch(0.968 0.007 247);
+  --sidebar-primary: oklch(0.648 0.176 268);
+  --sidebar-primary-foreground: oklch(0.16 0.03 265);
+  --sidebar-accent: oklch(0.28 0.035 265);
+  --sidebar-accent-foreground: oklch(0.95 0.01 247);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.648 0.176 268);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Tabular figures keep currency columns aligned as values change. */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Respect a reader's reduced-motion preference across every animated element. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Thin scrollbars inside panels, so a scrollable list does not shout. */
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .scrollbar-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
+  }
+}
