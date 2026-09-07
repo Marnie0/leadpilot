@@ -13,13 +13,12 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import type { BoardDto, StageKey } from '@leadpilot/shared';
+import { BOARD_MAX_LIMIT, type BoardDto, type StageKey } from '@leadpilot/shared';
 import { Plus, SearchX } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
 import { ApiError } from '@/lib/api-client';
 import { formatCurrency, formatNumber } from '@/lib/format';
@@ -28,8 +27,8 @@ import { useTeamMembers } from '@/features/leads/api';
 import { LeadFormDialog } from '@/features/leads/components/lead-form-dialog';
 import {
   applyBoardMove,
+  BOARD_PAGE_SIZE,
   useBoard,
-  useLoadMoreColumn,
   useMoveLeadOnBoard,
   type BoardMove,
 } from '@/features/board/api';
@@ -64,10 +63,18 @@ export function PipelinePage() {
   const user = useCurrentUser();
   const { filters, setFilters, resetFilters, hasActiveFilters } = useBoardFilters();
 
-  const boardQuery = useBoard(filters);
+  /*
+   * How deep every column is loaded. "Show more" raises it and the board
+   * refetches at the new depth, so the loaded cards survive every later
+   * refresh. It resets whenever the filters change, because the depth someone
+   * paged to on one view says nothing about the next.
+   */
+  const [limit, setLimit] = useState(BOARD_PAGE_SIZE);
+  useEffect(() => setLimit(BOARD_PAGE_SIZE), [filters]);
+
+  const boardQuery = useBoard(filters, limit);
   const teamQuery = useTeamMembers();
-  const moveLead = useMoveLeadOnBoard(filters);
-  const loadMore = useLoadMoreColumn(filters);
+  const moveLead = useMoveLeadOnBoard(filters, limit);
 
   const [isCreateOpen, setCreateOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -140,14 +147,18 @@ export function PipelinePage() {
   /**
    * Routes a move either straight to the server, or through the reason prompt
    * when it closes the lead as lost.
+   *
+   * @param fromStageKey the stage the lead was in *before* this gesture. It has
+   * to be passed in rather than looked up: by the time a drag ends, `board` is
+   * still the preview — the card has already been moved into the destination
+   * column for the user to see — so asking it where the lead "currently" is
+   * answers with the destination, the stage comparison below is Lost-to-Lost,
+   * and dragging a deal into Lost silently closes it without ever asking why.
    */
-  const requestMove = (move: BoardMove) => {
+  const requestMove = (move: BoardMove, fromStageKey: StageKey | undefined) => {
     const destination = stages.find((stage) => stage.key === move.toStageKey);
-    const currentStage = board?.columns.find((column) =>
-      column.leads.some((lead) => lead.id === move.leadId),
-    )?.stage.key;
 
-    if (destination?.type === 'LOST' && currentStage !== move.toStageKey) {
+    if (destination?.type === 'LOST' && fromStageKey !== move.toStageKey) {
       setPendingLoss(move);
       return;
     }
@@ -160,8 +171,24 @@ export function PipelinePage() {
     const { active, over } = event;
     if (!over || !board || active.id === over.id) return;
 
-    const move = resolveDrop(board, String(active.id), String(over.id));
-    if (move) setPreview(applyBoardMove(board, move));
+    const leadId = String(active.id);
+    const move = resolveDrop(board, leadId, String(over.id));
+    if (!move) return;
+
+    /*
+     * Ignore a hover that would put the card exactly where it already sits.
+     *
+     * This is not just an optimisation. Dragging toward a column that is
+     * scrolled off screen makes dnd-kit auto-scroll the board, every scroll
+     * step re-fires dragOver, and writing an identical preview each time
+     * re-triggers measurement — which scrolls again. That feedback loop ran
+     * until React gave up with "Maximum update depth exceeded", and it was
+     * reachable by the most ordinary gesture on the board: dragging a deal
+     * rightwards into Won or Lost on a 1440px screen.
+     */
+    if (isSamePosition(move, positionOf(board, leadId))) return;
+
+    setPreview(applyBoardMove(board, move));
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -181,15 +208,20 @@ export function PipelinePage() {
     // Dragging a card around and dropping it back where it started should not
     // write to the database or land on the activity timeline.
     if (!after || isSamePosition(before, after)) return;
-    requestMove(after);
+    requestMove(after, before?.toStageKey);
   };
 
   const handleMoveToStage = (leadId: string, stageKey: StageKey) => {
     // From the card menu there is no drop position, so the lead goes to the top
     // of its new column — the same place a newly created lead lands.
-    requestMove({ leadId, toStageKey: stageKey, precedingLeadId: null });
+    const from = boardQuery.data ? positionOf(boardQuery.data, leadId)?.toStageKey : undefined;
+    requestMove({ leadId, toStageKey: stageKey, precedingLeadId: null }, from);
   };
 
+  // Nothing matched. Deliberately *not* a reason to hide the board: the columns
+  // are the screen. Replacing them with a single card takes away the stage
+  // structure, every drop target, and any sense of what the filter excluded —
+  // and it fires on a mistyped search, not only on an empty workspace.
   const isEmpty = board !== undefined && totals?.leads === 0;
 
   return (
@@ -224,85 +256,98 @@ export function PipelinePage() {
             title="Could not load the pipeline"
           />
         </Card>
-      ) : isEmpty ? (
-        <Card>
-          <EmptyState
-            icon={SearchX}
-            title={hasActiveFilters ? 'No leads match these filters' : 'Your pipeline is empty'}
-            description={
-              hasActiveFilters
-                ? 'Try widening your search, or clear the filters to see the whole board.'
-                : 'Add your first enquiry and it will appear in the New column.'
-            }
-            action={
-              hasActiveFilters ? (
-                <Button variant="outline" onClick={resetFilters}>
+      ) : (
+        <>
+          {isEmpty && (
+            <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-4 sm:flex-row sm:items-center">
+              <span
+                className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+                aria-hidden
+              >
+                {hasActiveFilters ? <SearchX className="size-4" /> : <Plus className="size-4" />}
+              </span>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p className="text-sm font-medium text-foreground">
+                  {hasActiveFilters ? 'No leads match these filters' : 'Your pipeline is empty'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {hasActiveFilters
+                    ? 'The stages below are still yours — none of them holds a matching lead.'
+                    : 'Add your first enquiry and it will appear in the New column.'}
+                </p>
+              </div>
+              {hasActiveFilters ? (
+                <Button variant="outline" size="sm" onClick={resetFilters}>
                   Clear filters
                 </Button>
               ) : (
-                <Button onClick={() => setCreateOpen(true)}>
+                <Button size="sm" onClick={() => setCreateOpen(true)}>
                   <Plus className="size-4" /> New lead
                 </Button>
-              )
-            }
-          />
-        </Card>
-      ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-          onDragCancel={() => {
-            setActiveId(null);
-            setPreview(null);
-          }}
-        >
-          {/*
-            One horizontal scroller holds all six columns. `snap-x` makes the
-            swipe between columns land cleanly on a phone; the negative margin
-            lets the scroll region run to the screen edge while the columns
-            stay aligned with the page gutter.
-          */}
-          <div className="-mx-4 snap-x snap-mandatory overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 scrollbar-slim">
-            <div className="flex min-h-[60svh] items-stretch gap-3 sm:gap-4">
-              {(board?.columns ?? []).map((column) => (
-                <BoardColumn
-                  key={column.stage.id}
-                  column={column}
-                  currency={board?.currency ?? user.organization.defaultCurrency}
-                  stages={stages}
-                  isLoading={boardQuery.isLoading}
-                  isLoadingMore={
-                    loadMore.isPending && loadMore.variables?.stageKey === column.stage.key
-                  }
-                  onLoadMore={() =>
-                    loadMore.mutate({
-                      stageKey: column.stage.key,
-                      offset: column.leads.length,
-                    })
-                  }
-                  onMoveToStage={handleMoveToStage}
-                />
-              ))}
+              )}
             </div>
-          </div>
+          )}
 
-          {/*
-            The dragged card is rendered here rather than moved in place, so it
-            can escape the column's `overflow` and follow the cursor across the
-            whole board.
-          */}
-          <DragOverlay dropAnimation={null}>
-            {activeLead && (
-              <BoardCardOverlay
-                lead={activeLead}
-                currency={board?.currency ?? user.organization.defaultCurrency}
-              />
-            )}
-          </DragOverlay>
-        </DndContext>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => {
+              setActiveId(null);
+              setPreview(null);
+            }}
+          >
+            {/*
+              One horizontal scroller holds all six columns. `snap-x` makes the
+              swipe between columns land cleanly on a phone; the negative margin
+              lets the scroll region run to the screen edge while the columns
+              stay aligned with the page gutter.
+            */}
+            <div className="-mx-4 snap-x snap-mandatory overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 scrollbar-slim">
+              <div className="flex min-h-[60svh] items-stretch gap-3 sm:gap-4">
+                {(board?.columns ?? []).map((column) => (
+                  <BoardColumn
+                    key={column.stage.id}
+                    column={column}
+                    currency={board?.currency ?? user.organization.defaultCurrency}
+                    stages={stages}
+                    isLoading={boardQuery.isLoading}
+                    // Only the columns actually waiting on more cards, so an
+                    // ordinary refetch after a drag does not set every
+                    // "show more" button spinning.
+                    isLoadingMore={
+                      boardQuery.isFetching &&
+                      column.leads.length < Math.min(column.total, limit)
+                    }
+                    canLoadMore={limit < BOARD_MAX_LIMIT}
+                    onLoadMore={() =>
+                      setLimit((current) =>
+                        Math.min(current + BOARD_PAGE_SIZE, BOARD_MAX_LIMIT),
+                      )
+                    }
+                    onMoveToStage={handleMoveToStage}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/*
+              The dragged card is rendered here rather than moved in place, so it
+              can escape the column's `overflow` and follow the cursor across the
+              whole board.
+            */}
+            <DragOverlay dropAnimation={null}>
+              {activeLead && (
+                <BoardCardOverlay
+                  lead={activeLead}
+                  currency={board?.currency ?? user.organization.defaultCurrency}
+                />
+              )}
+            </DragOverlay>
+          </DndContext>
+        </>
       )}
 
       <LostReasonDialog
