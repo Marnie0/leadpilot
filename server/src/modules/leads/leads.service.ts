@@ -1,4 +1,4 @@
-import type { Prisma, StageKey } from '@prisma/client';
+import type { Prisma, StageKey, StageType } from '@prisma/client';
 import type {
   AssignLeadInput,
   CreateLeadInput,
@@ -10,10 +10,11 @@ import type {
   Paginated,
   UpdateLeadInput,
 } from '@leadpilot/shared';
-import { MANAGER_ROLES, STAGE_KEYS, UNASSIGNED } from '@leadpilot/shared';
+import { STAGE_KEYS } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
 import { badRequest, forbidden, notFound } from '../../lib/errors.js';
 import { paginate, toPrismaPagination } from '../../lib/pagination.js';
+import { canMutateLead, isManager, type Viewer } from '../../lib/permissions.js';
 import {
   LEAD_DETAIL_SELECT,
   LEAD_LIST_SELECT,
@@ -21,112 +22,11 @@ import {
   toLeadListItemDto,
 } from '../../lib/serializers.js';
 import { recordActivity, syncNextFollowUp } from '../../lib/activity-log.js';
+import { buildLeadWhere, startOfToday } from './lead-filters.js';
 
 /** Identifies the caller. Every function here takes one — there is no unscoped path. */
-export interface Actor {
-  userId: string;
+export interface Actor extends Viewer {
   organizationId: string;
-  role: string;
-}
-
-const startOfToday = () => {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
-};
-
-const endOfToday = () => {
-  const date = new Date();
-  date.setHours(23, 59, 59, 999);
-  return date;
-};
-
-/**
- * Builds the Prisma `where` for a filtered list.
- *
- * `organizationId` is applied here and nowhere else in this module, so there is
- * exactly one line to audit for cross-tenant leakage.
- */
-function buildLeadWhere(organizationId: string, query: LeadQueryInput): Prisma.LeadWhereInput {
-  // Archived leads are excluded here and nowhere else, so there is a single line
-  // to audit — and `?archived=true` is the only way to see them.
-  const where: Prisma.LeadWhereInput = {
-    organizationId,
-    archivedAt: query.archived ? { not: null } : null,
-  };
-  const and: Prisma.LeadWhereInput[] = [];
-
-  if (query.q) {
-    const term = query.q;
-    and.push({
-      OR: [
-        { customerName: { contains: term, mode: 'insensitive' } },
-        { company: { contains: term, mode: 'insensitive' } },
-        { email: { contains: term, mode: 'insensitive' } },
-        { phone: { contains: term, mode: 'insensitive' } },
-        { requestedService: { contains: term, mode: 'insensitive' } },
-        { tags: { has: term.toLowerCase() } },
-      ],
-    });
-  }
-
-  if (query.stage?.length) and.push({ stage: { key: { in: query.stage as StageKey[] } } });
-  if (query.source?.length) and.push({ source: { in: query.source } });
-  if (query.priority?.length) and.push({ priority: { in: query.priority } });
-  if (query.tag?.length) and.push({ tags: { hasSome: query.tag } });
-
-  if (query.assignedToId?.length) {
-    const includeUnassigned = query.assignedToId.includes(UNASSIGNED);
-    const userIds = query.assignedToId.filter((id) => id !== UNASSIGNED);
-    const clauses: Prisma.LeadWhereInput[] = [];
-    if (userIds.length > 0) clauses.push({ assignedToId: { in: userIds } });
-    if (includeUnassigned) clauses.push({ assignedToId: null });
-    if (clauses.length > 0) and.push({ OR: clauses });
-  }
-
-  if (query.minValue !== undefined || query.maxValue !== undefined) {
-    and.push({
-      estimatedValue: {
-        ...(query.minValue !== undefined && { gte: query.minValue }),
-        ...(query.maxValue !== undefined && { lte: query.maxValue }),
-      },
-    });
-  }
-
-  if (query.createdFrom || query.createdTo) {
-    and.push({
-      createdAt: {
-        ...(query.createdFrom && { gte: new Date(query.createdFrom) }),
-        ...(query.createdTo && { lte: new Date(query.createdTo) }),
-      },
-    });
-  }
-
-  switch (query.followUp) {
-    case 'overdue':
-      and.push({ nextFollowUpAt: { lt: startOfToday() } });
-      break;
-    case 'today':
-      and.push({ nextFollowUpAt: { gte: startOfToday(), lte: endOfToday() } });
-      break;
-    case 'week': {
-      const weekEnd = new Date(endOfToday());
-      weekEnd.setDate(weekEnd.getDate() + 7);
-      and.push({ nextFollowUpAt: { gte: startOfToday(), lte: weekEnd } });
-      break;
-    }
-    case 'none':
-      and.push({ nextFollowUpAt: null });
-      break;
-    case 'any':
-    default:
-      break;
-  }
-
-  if (query.openOnly) and.push({ stage: { type: 'OPEN' } });
-
-  if (and.length > 0) where.AND = and;
-  return where;
 }
 
 function buildLeadOrderBy(query: LeadQueryInput): Prisma.LeadOrderByWithRelationInput[] {
@@ -175,7 +75,11 @@ export async function listLeads(
     prisma.lead.count({ where }),
   ]);
 
-  return paginate(rows.map(toLeadListItemDto), query, total);
+  return paginate(
+    rows.map((row) => toLeadListItemDto(row, actor)),
+    query,
+    total,
+  );
 }
 
 /**
@@ -267,7 +171,7 @@ export async function getLeadById(
     prisma.followUp.count({ where: { leadId, status: 'PENDING' } }),
   ]);
 
-  return toLeadDetailDto(lead, { activities, followUps, openFollowUps });
+  return toLeadDetailDto(lead, { activities, followUps, openFollowUps }, actor);
 }
 
 /** Resolves a stage key to this organisation's stage row. */
@@ -281,20 +185,30 @@ async function resolveStage(organizationId: string, key: StageKey) {
 }
 
 /**
- * Write authorisation for a single lead.
+ * The lead columns a stage transition implies.
  *
- * Owners and admins may change any lead in the workspace. A member may only
- * change leads they own — the ones assigned to them or that they created.
- * Reads are deliberately unrestricted within the organisation: a shared
- * pipeline is the point of the product.
+ * Shared by the detail view's stage select and the board's drag-and-drop, so a
+ * `wonAt` can never be stamped by one path and forgotten by the other — and so
+ * moving a lead back out of Won/Lost always clears the closing date rather than
+ * leaving a stale one behind.
  */
-function assertCanMutateLead(
+export function stageTransitionData(
+  stage: { type: StageType },
+  lostReason?: string | null,
+): { wonAt: Date | null; lostAt: Date | null; lostReason: string | null } {
+  return {
+    wonAt: stage.type === 'WON' ? new Date() : null,
+    lostAt: stage.type === 'LOST' ? new Date() : null,
+    lostReason: stage.type === 'LOST' ? (lostReason ?? null) : null,
+  };
+}
+
+/** Throwing form of `canMutateLead`; the rule itself lives in lib/permissions. */
+export function assertCanMutateLead(
   actor: Actor,
   lead: { assignedToId: string | null; createdById?: string | null },
 ): void {
-  if (actor.role === 'OWNER' || actor.role === 'ADMIN') return;
-  const owns = lead.assignedToId === actor.userId || lead.createdById === actor.userId;
-  if (!owns) {
+  if (!canMutateLead(actor, lead)) {
     throw forbidden('You can only edit leads assigned to you');
   }
 }
@@ -318,9 +232,13 @@ export async function createLead(actor: Actor, input: CreateLeadInput): Promise<
   });
 
   const lead = await prisma.$transaction(async (tx) => {
-    const maxPosition = await tx.lead.aggregate({
+    // A new enquiry goes to the *top* of its column, not the bottom: it is the
+    // freshest thing in the pipeline and the first card anyone should see.
+    // Positions are only ever compared, never assumed contiguous, so going
+    // negative here is cheaper than renumbering the whole column to insert.
+    const minPosition = await tx.lead.aggregate({
       where: { organizationId: actor.organizationId, stageId: stage.id },
-      _max: { boardPosition: true },
+      _min: { boardPosition: true },
     });
 
     const created = await tx.lead.create({
@@ -341,7 +259,7 @@ export async function createLead(actor: Actor, input: CreateLeadInput): Promise<
         stageId: stage.id,
         assignedToId: input.assignedToId ?? null,
         createdById: actor.userId,
-        boardPosition: (maxPosition._max.boardPosition ?? -1) + 1,
+        boardPosition: (minPosition._min.boardPosition ?? 0) - 1,
         nextFollowUpAt: input.nextFollowUpAt ? new Date(input.nextFollowUpAt) : null,
         ...(stage.type === 'WON' && { wonAt: new Date() }),
         ...(stage.type === 'LOST' && { lostAt: new Date() }),
@@ -430,9 +348,7 @@ export async function updateLead(
   }
   if (stage) {
     data.stage = { connect: { id: stage.id } };
-    data.wonAt = stage.type === 'WON' ? new Date() : null;
-    data.lostAt = stage.type === 'LOST' ? new Date() : null;
-    data.lostReason = stage.type === 'LOST' ? (input.lostReason ?? null) : null;
+    Object.assign(data, stageTransitionData(stage, input.lostReason));
   } else if (input.lostReason !== undefined) {
     data.lostReason = input.lostReason ?? null;
   }
@@ -518,7 +434,7 @@ export async function assignLead(
  * removing it from the team's pipeline is not the same kind of act.
  */
 export async function archiveLead(actor: Actor, leadId: string): Promise<void> {
-  if (!MANAGER_ROLES.includes(actor.role as (typeof MANAGER_ROLES)[number])) {
+  if (!isManager(actor)) {
     throw forbidden('Only an owner or admin can archive a lead');
   }
 
@@ -537,7 +453,7 @@ export async function archiveLead(actor: Actor, leadId: string): Promise<void> {
 
 /** Puts an archived lead back into the active pipeline. */
 export async function restoreLead(actor: Actor, leadId: string): Promise<LeadDetailDto> {
-  if (!MANAGER_ROLES.includes(actor.role as (typeof MANAGER_ROLES)[number])) {
+  if (!isManager(actor)) {
     throw forbidden('Only an owner or admin can restore a lead');
   }
 
@@ -557,3 +473,4 @@ export async function restoreLead(actor: Actor, leadId: string): Promise<LeadDet
 }
 
 export { syncNextFollowUp };
+export { assertAssigneeInOrg, resolveStage };

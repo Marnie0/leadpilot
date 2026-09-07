@@ -1,0 +1,35 @@
+import { MANAGER_ROLES, type UserRole } from '@leadpilot/shared';
+
+/** The minimum a permission check needs to know about the caller. */
+export interface Viewer {
+  userId: string;
+  role: string;
+}
+
+/** True for OWNER and ADMIN — the roles that administer the workspace. */
+export function isManager(viewer: Pick<Viewer, 'role'>): boolean {
+  return MANAGER_ROLES.includes(viewer.role as UserRole);
+}
+
+/**
+ * Write authorisation for a single lead.
+ *
+ * Owners and admins may change any lead in the workspace; a rep may only change
+ * the leads they own — assigned to them, or created by them. Reads are
+ * deliberately unrestricted within the organisation: a shared pipeline is the
+ * point of the product.
+ *
+ * This lives here rather than inside the leads service because two callers need
+ * the identical answer: the service, which enforces it, and the serializer,
+ * which reports it to the client as `canEdit` so the UI can grey out an action
+ * instead of letting the user discover a 403 by trying. Two copies of this rule
+ * would eventually disagree, and the disagreement would look like a bug in
+ * whichever half the user noticed second.
+ */
+export function canMutateLead(
+  viewer: Viewer,
+  lead: { assignedToId: string | null; createdById?: string | null },
+): boolean {
+  if (isManager(viewer)) return true;
+  return lead.assignedToId === viewer.userId || lead.createdById === viewer.userId;
+}
