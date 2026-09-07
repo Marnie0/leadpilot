@@ -155,11 +155,20 @@ npm run db:seed        # ~62 leads with full activity history
 npm run dev            # API on :4000, web on :5173
 ```
 
-Open <http://localhost:5173> and sign in with:
+Open <http://localhost:5173> and click **Start a demo** — that clones the seeded template into a
+working workspace with all 62 leads, exactly as a visitor gets. The sandbox and your session both
+persist, so this is a perfectly good way to develop against realistic data.
+
+Nobody can sign into the template directly, in any environment, so there is no back door to keep
+track of. If you want a *stable* account for testing sign-in itself, the seed also creates a second
+ordinary workspace:
 
 ```
-demo@leadpilot.app / DemoPass2026
+owner@northwind.test / DemoPass2026
 ```
+
+It holds 6 leads and exists mainly to prove tenant isolation — sign in there and none of the
+template's 62 leads are reachable.
 
 ### Useful scripts
 
@@ -444,7 +453,7 @@ that would have got it to its current stage, plus open and completed follow-ups 
 open leads is deliberately overdue, so the urgency states have something to show.
 
 A second tenant, **Northwind Consulting**, is seeded specifically so cross-organisation isolation
-can be demonstrated: sign in as `owner@northwind.test` (same password) and Meridian's 62 leads are
-completely invisible.
+can be demonstrated: sign in as `owner@northwind.test` / `DemoPass2026` and the template's 62 leads
+are completely invisible — every list, every aggregate, and a 404 on any direct id.
 
 The seed uses a fixed PRNG, so re-running it produces identical data.
