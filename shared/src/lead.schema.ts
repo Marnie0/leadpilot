@@ -1,0 +1,214 @@
+import { z } from 'zod';
+import {
+  LEAD_PRIORITIES,
+  LEAD_SOURCES,
+  STAGE_KEYS,
+  STAGE_TYPES,
+} from './enums.js';
+import {
+  csvArray,
+  idSchema,
+  isoDateTime,
+  optionalTrimmed,
+  paginationSchema,
+  requiredTrimmed,
+  sortDirectionSchema,
+} from './common.js';
+
+/** Loose international phone check — we normalise, we do not gatekeep. */
+export const phoneSchema = z
+  .string()
+  .trim()
+  .max(32, { message: 'Phone number is too long' })
+  .refine((value) => value.length === 0 || /^[+()\d][\d\s().-]{5,}$/.test(value), {
+    message: 'Enter a valid phone number',
+  })
+  // Empty becomes null, not undefined, so an emptied field is a real clear.
+  .transform((value) => (value.length === 0 ? null : value))
+  .nullable()
+  .optional();
+
+export const leadEmailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(254)
+  .refine((value) => value.length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
+    message: 'Enter a valid email address',
+  })
+  .transform((value) => (value.length === 0 ? null : value))
+  .nullable()
+  .optional();
+
+/** Money is stored as Prisma `Decimal` and travels over JSON as a number. */
+export const estimatedValueSchema = z.coerce
+  .number({ message: 'Enter a number' })
+  .min(0, { message: 'Value cannot be negative' })
+  .max(1_000_000_000, { message: 'Value is unrealistically large' });
+
+export const createLeadSchema = z.object({
+  customerName: requiredTrimmed('Customer name', 120, 2),
+  company: optionalTrimmed(120),
+  email: leadEmailSchema,
+  phone: phoneSchema,
+  source: z.enum(LEAD_SOURCES).default('OTHER'),
+  requestedService: requiredTrimmed('Requested service', 160, 2),
+  estimatedValue: estimatedValueSchema.default(0),
+  // Currency is deliberately NOT accepted from the client. Every lead inherits
+  // the workspace currency, because the pipeline aggregates sum estimatedValue
+  // directly — a per-lead currency made "total pipeline value" arithmetic
+  // between different units and rendered the result in one of them.
+  priority: z.enum(LEAD_PRIORITIES).default('MEDIUM'),
+  stageKey: z.enum(STAGE_KEYS).default('NEW'),
+  assignedToId: idSchema.nullish(),
+  description: optionalTrimmed(2000),
+  tags: z.array(requiredTrimmed('Tag', 32)).max(12, { message: 'Up to 12 tags' }).optional(),
+  nextFollowUpAt: isoDateTime.nullish(),
+});
+export type CreateLeadInput = z.infer<typeof createLeadSchema>;
+/**
+ * The *input* side of the schema: fields carrying `.default()` are optional
+ * before parsing and required after. React Hook Form must be typed with this,
+ * and `handleSubmit` then hands the resolved `CreateLeadInput` to the callback.
+ */
+export type CreateLeadFormValues = z.input<typeof createLeadSchema>;
+
+/**
+ * Every field optional so a detail-view inline edit can PATCH a single key.
+ * `lostReason` is only meaningful when moving into the LOST stage.
+ */
+export const updateLeadSchema = createLeadSchema
+  .partial()
+  .extend({ lostReason: optionalTrimmed(280) })
+  .refine((values) => Object.keys(values).length > 0, {
+    message: 'No changes supplied',
+  });
+export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
+
+/** Dedicated endpoint so a stage move is always audited, never a silent PATCH. */
+export const moveLeadStageSchema = z.object({
+  stageKey: z.enum(STAGE_KEYS),
+  lostReason: optionalTrimmed(280),
+});
+export type MoveLeadStageInput = z.infer<typeof moveLeadStageSchema>;
+
+export const assignLeadSchema = z.object({
+  assignedToId: idSchema.nullable(),
+});
+export type AssignLeadInput = z.infer<typeof assignLeadSchema>;
+
+export const LEAD_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'customerName',
+  'company',
+  'estimatedValue',
+  'nextFollowUpAt',
+  'lastActivityAt',
+  'stage',
+  'priority',
+] as const;
+export type LeadSortField = (typeof LEAD_SORT_FIELDS)[number];
+
+/** Preset windows for the "next follow-up" filter chip. */
+export const FOLLOW_UP_FILTERS = ['any', 'overdue', 'today', 'week', 'none'] as const;
+export type FollowUpFilter = (typeof FOLLOW_UP_FILTERS)[number];
+
+export const UNASSIGNED = '__unassigned__';
+
+export const leadQuerySchema = paginationSchema.extend({
+  /** Free-text search across name, company, email, phone and service. */
+  q: z.string().trim().max(120).optional(),
+  stage: csvArray(z.enum(STAGE_KEYS)),
+  source: csvArray(z.enum(LEAD_SOURCES)),
+  priority: csvArray(z.enum(LEAD_PRIORITIES)),
+  /** Accepts user ids plus the literal `__unassigned__`. */
+  assignedToId: csvArray(z.string().min(1).max(64)),
+  tag: csvArray(z.string().min(1).max(32)),
+  minValue: z.coerce.number().min(0).optional(),
+  maxValue: z.coerce.number().min(0).optional(),
+  createdFrom: isoDateTime.optional(),
+  createdTo: isoDateTime.optional(),
+  followUp: z.enum(FOLLOW_UP_FILTERS).default('any'),
+  /** `true` lists archived leads *instead of* active ones. */
+  archived: z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .transform((value) => value === true || value === 'true')
+    .optional(),
+  /** `true` hides leads sitting in a WON or LOST stage. */
+  openOnly: z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .transform((value) => value === true || value === 'true')
+    .optional(),
+  sortBy: z.enum(LEAD_SORT_FIELDS).default('updatedAt'),
+  sortDir: sortDirectionSchema.default('desc'),
+});
+export type LeadQueryInput = z.infer<typeof leadQuerySchema>;
+
+/* ------------------------------------------------------------------ *
+ * Response DTOs
+ * ------------------------------------------------------------------ */
+
+export interface PipelineStageDto {
+  id: string;
+  key: (typeof STAGE_KEYS)[number];
+  name: string;
+  nameAr: string;
+  color: string;
+  order: number;
+  type: (typeof STAGE_TYPES)[number];
+}
+
+export interface TeamMemberSummaryDto {
+  id: string;
+  name: string;
+  email: string;
+  role: 'OWNER' | 'ADMIN' | 'MEMBER';
+  avatarColor: string;
+  isActive: boolean;
+}
+
+/** Row shape for the leads table. Kept lean — the detail view fetches the rest. */
+export interface LeadListItemDto {
+  id: string;
+  customerName: string;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  source: (typeof LEAD_SOURCES)[number];
+  requestedService: string;
+  estimatedValue: number;
+  currency: string;
+  priority: (typeof LEAD_PRIORITIES)[number];
+  stage: PipelineStageDto;
+  assignedTo: TeamMemberSummaryDto | null;
+  tags: string[];
+  nextFollowUpAt: string | null;
+  lastActivityAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LeadDetailDto extends LeadListItemDto {
+  description: string | null;
+  archivedAt: string | null;
+  lostReason: string | null;
+  wonAt: string | null;
+  lostAt: string | null;
+  lastContactedAt: string | null;
+  createdBy: TeamMemberSummaryDto | null;
+  /** Total of open + completed follow-ups, for the detail header counters. */
+  counts: { activities: number; followUps: number; openFollowUps: number };
+}
+
+/** Aggregate returned alongside a filtered list, so the header reflects filters. */
+export interface LeadStatsDto {
+  totalLeads: number;
+  openLeads: number;
+  wonLeads: number;
+  lostLeads: number;
+  totalPipelineValue: number;
+  wonValue: number;
+  overdueFollowUps: number;
+  byStage: Array<{ key: (typeof STAGE_KEYS)[number]; count: number; value: number }>;
+}
