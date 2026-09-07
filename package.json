@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "description": "LeadPilot \u2014 bilingual lead management for small and medium service businesses",
+  "description": "LeadPilot — bilingual lead management for small and medium service businesses",
   "type": "module",
   "engines": {
     "node": ">=20.0.0"
@@ -34,6 +34,7 @@
   "devDependencies": {
     "concurrently": "^9.1.2",
     "prettier": "3.9.6",
+    "prettier-plugin-tailwindcss": "0.8.1",
     "typescript": "^5.9.2"
   },
   "dependencies": {
