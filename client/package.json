@@ -1,9 +1,10 @@
 {
   "name": "@leadpilot/client",
   "version": "0.1.0",
+  "license": "UNLICENSED",
   "private": true,
   "type": "module",
-  "description": "LeadPilot web client — React 19 + Vite + Tailwind + shadcn/ui",
+  "description": "LeadPilot web client \u2014 React 19 + Vite + Tailwind + shadcn/ui",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b --noEmit && vite build",

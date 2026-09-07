@@ -1,6 +1,7 @@
 {
   "name": "@leadpilot/shared",
   "version": "0.1.0",
+  "license": "UNLICENSED",
   "private": true,
   "type": "module",
   "description": "Zod schemas, enums and DTO types shared by the LeadPilot API and web client",

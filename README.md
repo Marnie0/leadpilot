@@ -277,8 +277,15 @@ would need to close, listed so nothing is hidden:
 
 ## License
 
-All rights reserved. This repository is public so the code can be read and reviewed; it is not
-licensed for reuse. Open an issue if you want to talk about it.
+**All rights reserved.** Copyright © 2026 Ibrahim.
+
+This repository is public so the code can be read and reviewed as a portfolio piece. No licence is
+granted: it may not be copied, modified, redistributed, or used commercially, in whole or in part,
+without written permission. The absence of a `LICENSE` file is deliberate, not an oversight —
+default copyright applies.
+
+Reviewing the code, and referring to it when assessing my work, is of course welcome. If you want
+to use any of it, open an issue and ask.
 
 ---
 
