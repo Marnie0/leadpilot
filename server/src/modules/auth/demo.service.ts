@@ -96,10 +96,11 @@ export async function createDemoSandbox(): Promise<DemoSandbox> {
 
       await tx.$executeRaw`
         INSERT INTO "pipeline_stages"
-          (id, "organizationId", "key", name, "nameAr", color, "order", type, "createdAt", "updatedAt")
+          (id, "organizationId", "key", name, "nameAr", color, "order", type, "winProbability",
+           "createdAt", "updatedAt")
         SELECT 'd' || substr(md5(s.id || ${token}), 1, 24),
                ${organizationId}, s."key", s.name, s."nameAr", s.color, s."order", s.type,
-               s."createdAt", s."updatedAt"
+               s."winProbability", s."createdAt", s."updatedAt"
         FROM "pipeline_stages" s
         WHERE s."organizationId" = ${template.id}
       `;

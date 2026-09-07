@@ -14,15 +14,25 @@ export interface StagePreset {
   color: string;
   order: number;
   type: StageType;
+  /**
+   * Starting odds (0-100) that a lead in this stage eventually closes.
+   *
+   * These are the conventional CRM defaults — a proposal is worth far more to a
+   * forecast than an untouched enquiry — and every workspace gets its own rows,
+   * so they can be tuned per tenant later without touching this file.
+   */
+  winProbability: number;
 }
 
 export const DEFAULT_STAGE_PRESETS: readonly StagePreset[] = [
-  { key: 'NEW', name: 'New', nameAr: 'جديد', color: '#64748b', order: 0, type: 'OPEN' },
-  { key: 'CONTACTED', name: 'Contacted', nameAr: 'تم التواصل', color: '#0ea5e9', order: 1, type: 'OPEN' },
-  { key: 'QUALIFIED', name: 'Qualified', nameAr: 'مؤهل', color: '#8b5cf6', order: 2, type: 'OPEN' },
-  { key: 'PROPOSAL', name: 'Proposal', nameAr: 'عرض سعر', color: '#f59e0b', order: 3, type: 'OPEN' },
-  { key: 'WON', name: 'Won', nameAr: 'تم الفوز', color: '#10b981', order: 4, type: 'WON' },
-  { key: 'LOST', name: 'Lost', nameAr: 'خسارة', color: '#ef4444', order: 5, type: 'LOST' },
+  { key: 'NEW', name: 'New', nameAr: 'جديد', color: '#64748b', order: 0, type: 'OPEN', winProbability: 10 },
+  { key: 'CONTACTED', name: 'Contacted', nameAr: 'تم التواصل', color: '#0ea5e9', order: 1, type: 'OPEN', winProbability: 25 },
+  { key: 'QUALIFIED', name: 'Qualified', nameAr: 'مؤهل', color: '#8b5cf6', order: 2, type: 'OPEN', winProbability: 50 },
+  { key: 'PROPOSAL', name: 'Proposal', nameAr: 'عرض سعر', color: '#f59e0b', order: 3, type: 'OPEN', winProbability: 75 },
+  // Closed stages are excluded from the forecast entirely, so their probability
+  // is definitional rather than predictive.
+  { key: 'WON', name: 'Won', nameAr: 'تم الفوز', color: '#10b981', order: 4, type: 'WON', winProbability: 100 },
+  { key: 'LOST', name: 'Lost', nameAr: 'خسارة', color: '#ef4444', order: 5, type: 'LOST', winProbability: 0 },
 ] as const;
 
 /** Palette assigned round-robin to new users for their avatar fallback. */

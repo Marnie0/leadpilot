@@ -198,6 +198,12 @@ model PipelineStage {
   color          String
   order          Int
   type           StageType @default(OPEN)
+  /// Percentage of leads in this stage that are expected to close (0-100).
+  /// Drives the dashboard's weighted revenue forecast. Stored per tenant rather
+  /// than hard-coded in the UI so a workspace can tune it against its own
+  /// history — which is what makes the forecast a real number and not a guess
+  /// baked into a chart component.
+  winProbability Int       @default(0)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

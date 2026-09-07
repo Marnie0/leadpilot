@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import { canMutateLead, type Viewer } from './permissions.js';
 import type {
   ActivityDto,
   ActivityMetadata,
@@ -42,6 +43,7 @@ export const STAGE_SELECT = {
   color: true,
   order: true,
   type: true,
+  winProbability: true,
 } satisfies Prisma.PipelineStageSelect;
 
 type TeamMemberRow = Prisma.UserGetPayload<{ select: typeof TEAM_MEMBER_SELECT }>;
@@ -68,11 +70,16 @@ export function toStageDto(stage: StageRow): PipelineStageDto {
     color: stage.color,
     order: stage.order,
     type: stage.type,
+    winProbability: stage.winProbability,
   };
 }
 
 export const LEAD_LIST_SELECT = {
   id: true,
+  // Both owner columns are selected purely to compute `canEdit`; neither is
+  // serialised, so the wire format still exposes only the assignee object.
+  assignedToId: true,
+  createdById: true,
   customerName: true,
   company: true,
   email: true,
@@ -105,7 +112,13 @@ export const LEAD_DETAIL_SELECT = {
 type LeadListRow = Prisma.LeadGetPayload<{ select: typeof LEAD_LIST_SELECT }>;
 type LeadDetailRow = Prisma.LeadGetPayload<{ select: typeof LEAD_DETAIL_SELECT }>;
 
-export function toLeadListItemDto(lead: LeadListRow): LeadListItemDto {
+/**
+ * @param viewer used to compute `canEdit`. Required rather than optional: an
+ * omitted viewer would have to default to something, and either default is
+ * wrong somewhere — `true` over-promises in the UI, `false` disables actions a
+ * manager is entitled to.
+ */
+export function toLeadListItemDto(lead: LeadListRow, viewer: Viewer): LeadListItemDto {
   return {
     id: lead.id,
     customerName: lead.customerName,
@@ -124,15 +137,17 @@ export function toLeadListItemDto(lead: LeadListRow): LeadListItemDto {
     lastActivityAt: iso(lead.lastActivityAt),
     createdAt: lead.createdAt.toISOString(),
     updatedAt: lead.updatedAt.toISOString(),
+    canEdit: canMutateLead(viewer, lead),
   };
 }
 
 export function toLeadDetailDto(
   lead: LeadDetailRow,
   counts: { activities: number; followUps: number; openFollowUps: number },
+  viewer: Viewer,
 ): LeadDetailDto {
   return {
-    ...toLeadListItemDto(lead),
+    ...toLeadListItemDto(lead, viewer),
     description: lead.description,
     archivedAt: iso(lead.archivedAt),
     lostReason: lead.lostReason,

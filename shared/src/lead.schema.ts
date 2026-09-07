@@ -145,6 +145,14 @@ export const leadQuerySchema = paginationSchema.extend({
 });
 export type LeadQueryInput = z.infer<typeof leadQuerySchema>;
 
+/**
+ * The filtering half of a lead query, with pagination and sorting dropped.
+ * The board and the dashboard narrow the same set of leads as the table, so
+ * they share one `where` builder and every filter behaves identically across
+ * all three views.
+ */
+export type LeadFilterInput = Partial<LeadQueryInput>;
+
 /* ------------------------------------------------------------------ *
  * Response DTOs
  * ------------------------------------------------------------------ */
@@ -157,6 +165,8 @@ export interface PipelineStageDto {
   color: string;
   order: number;
   type: (typeof STAGE_TYPES)[number];
+  /** 0-100. The odds a lead here eventually closes; drives the revenue forecast. */
+  winProbability: number;
 }
 
 export interface TeamMemberSummaryDto {
@@ -187,6 +197,13 @@ export interface LeadListItemDto {
   lastActivityAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Whether the *current viewer* may change this lead — owners and admins can
+   * touch anything, a rep only the leads they own. Computed server-side and
+   * sent per row so the UI can disable an affordance up front (a card that
+   * cannot be dragged, say) instead of letting the action fail with a 403.
+   */
+  canEdit: boolean;
 }
 
 export interface LeadDetailDto extends LeadListItemDto {
