@@ -162,6 +162,56 @@ export const en = {
   'auth.brandPoint3': 'Works in English and Arabic, right-to-left included',
 
   /* -------------------------------------------------------------- *
+   * Landing page
+   * -------------------------------------------------------------- */
+  'landing.skipToContent': 'Skip to content',
+  'landing.signIn': 'Sign in',
+  'landing.startDemo': 'Start a demo',
+  'landing.openWorkspace': 'Open your workspace',
+
+  'landing.heroEyebrow': 'Lead management for service businesses',
+  'landing.heroTitle': 'Every enquiry, followed up.',
+  'landing.heroSubtitle':
+    'LeadPilot gives a small sales team one shared place to capture enquiries, assign them, chase them and close them — in English or Arabic, on any device.',
+  'landing.heroNote': 'No card, no signup. The demo opens a private workspace with real data.',
+
+  'landing.previewLabel': 'A pipeline board, one column per stage',
+
+  'landing.featuresTitle': 'What it does',
+  'landing.featuresSubtitle': 'Four things, done properly, instead of forty half-built ones.',
+
+  'landing.featurePipelineTitle': 'A pipeline everyone can see',
+  'landing.featurePipelineBody':
+    'Drag a deal between stages and it moves everywhere at once — the table, the detail view and the activity trail. Stages are per workspace, so you can name them the way your team already talks.',
+  'landing.featureDashboardTitle': 'Numbers you can act on',
+  'landing.featureDashboardBody':
+    'Conversion, expected revenue, lead sources and stage occupancy, aggregated in the database rather than guessed at. Every figure links back to the leads behind it.',
+  'landing.featureFollowUpsTitle': 'Nothing goes quiet',
+  'landing.featureFollowUpsBody':
+    'Book the next touchpoint on a lead and it shows up as overdue, due today or due this week — so the deals that need a call are the ones you see first.',
+  'landing.featureBilingualTitle': 'Genuinely bilingual',
+  'landing.featureBilingualBody':
+    'Not translated strings in a left-to-right frame. Arabic mirrors the whole interface — navigation, tables, charts and drag-and-drop — with the dates, numbers and currency to match.',
+
+  'landing.howTitle': 'How it works',
+  'landing.howStep1Title': 'Capture the enquiry',
+  'landing.howStep1Body':
+    'Name, service, value and source in one short form. It lands at the top of the New column.',
+  'landing.howStep2Title': 'Assign and chase',
+  'landing.howStep2Body':
+    'Give it to a rep, log the call, book the follow-up. Every change is on the record.',
+  'landing.howStep3Title': 'Close and learn',
+  'landing.howStep3Body':
+    'Move it to Won, or to Lost with a reason. The dashboard turns both into something you can use.',
+
+  'landing.ctaTitle': 'Have a look around first.',
+  'landing.ctaBody':
+    'The demo opens a workspace that is yours alone — {count} leads and a year of history to change however you like. Nobody else sees it, and it is removed after a day.',
+
+  'landing.footerTagline': 'Bilingual lead management for small and medium service businesses.',
+  'landing.footerBuilt': 'A portfolio project, built to production standards.',
+
+  /* -------------------------------------------------------------- *
    * Leads list
    * -------------------------------------------------------------- */
   'leads.title': 'Leads',

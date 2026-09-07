@@ -13,9 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useT } from '@/lib/i18n';
 import { useLocalizedResolver } from '@/lib/i18n/zod-resolver';
-
-/** How many leads the demo sandbox is seeded with, for the copy on this page. */
-const DEMO_LEAD_COUNT = 96;
+import { DEMO_LEAD_COUNT } from '@/lib/constants';
 
 export function LoginPage() {
   const t = useT();

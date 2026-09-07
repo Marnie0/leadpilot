@@ -200,6 +200,18 @@
 
 @layer base {
   /*
+   * Arabic is cursive: its letters join, and letter-spacing prises those joins
+   * apart into a row of disconnected glyphs. Tracking is a Latin typographic
+   * device — decorative on `uppercase` eyebrows, tightening on large headings
+   * — and on Arabic it is simply damage, so it is reset wherever a utility
+   * applies one. The `[class*=]` match is what gives this enough specificity to
+   * beat the utility it is undoing.
+   */
+  [dir='rtl'] [class*='tracking-'] {
+    letter-spacing: normal;
+  }
+
+  /*
    * Charts stay left-to-right internally, even in Arabic.
    *
    * SVG resolves `text-anchor: start` and `end` against the *inline base

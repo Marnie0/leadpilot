@@ -1,7 +1,8 @@
 import { Suspense, lazy } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { AppShell } from '@/components/layout/app-shell';
 import { ProtectedRoute, PublicOnlyRoute } from '@/features/auth/protected-route';
+import { LandingPage } from '@/pages/landing-page';
 import { LoginPage } from '@/pages/login-page';
 import { SignupPage } from '@/pages/signup-page';
 import { LeadsPage } from '@/pages/leads-page';
@@ -28,13 +29,19 @@ const DashboardPage = lazy(() =>
  * Route table.
  *
  * Phase 1 shipped the leads list, the lead detail view and the team roster;
- * Phase 2 adds the pipeline board and the dashboard. `/follow-ups` is reserved
- * for a later phase and shows as a disabled sidebar entry rather than a dead
- * link.
+ * Phase 2 added the pipeline board and the dashboard; phase 3 the public
+ * landing page. `/follow-ups` is reserved for a later phase and shows as a
+ * disabled sidebar entry rather than a dead link.
+ *
+ * `/` is public and stays that way for signed-in visitors too: a front page
+ * that redirects you the moment you have an account is one you can never send
+ * anybody a link to.
  */
 export function App() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
+
       <Route element={<PublicOnlyRoute />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
@@ -42,7 +49,6 @@ export function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
-          <Route index element={<Navigate to="/leads" replace />} />
           <Route path="/leads" element={<LeadsPage />} />
           <Route
             path="/pipeline"

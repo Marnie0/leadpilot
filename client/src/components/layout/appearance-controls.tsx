@@ -93,7 +93,12 @@ export function AppearanceControls({ className }: { className?: string }) {
         aria-label={t('language.switch')}
       >
         <Languages className="size-4" aria-hidden />
-        {t(`language.${other}`)}
+        {/*
+          The label is dropped on the narrowest screens. "ابدأ العرض التجريبي"
+          is half again as wide as "Start a demo", and with the language name
+          spelled out too the landing header ran off the side of a phone.
+        */}
+        <span className="hidden sm:inline">{t(`language.${other}`)}</span>
       </Button>
 
       <DropdownMenu>
