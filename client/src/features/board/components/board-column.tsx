@@ -6,6 +6,7 @@ import { ArrowUpRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { stageName } from '@/lib/labels';
 import { useFormat, useI18n } from '@/lib/i18n';
+import { useMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { BOARD_PAGE_SIZE } from '../api';
 import { BoardCard, BoardCardSkeleton } from './board-card';
@@ -40,6 +41,7 @@ export function BoardColumn({
 }) {
   const { t, locale } = useI18n();
   const format = useFormat();
+  const money = useMoney();
   const { setNodeRef, isOver } = useDroppable({
     id: column.stage.key,
     data: { type: 'column', stageKey: column.stage.key },
@@ -65,7 +67,7 @@ export function BoardColumn({
           {format.number(column.total)}
         </span>
         <span className="ms-auto shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
-          {format.currency(column.value, currency)}
+          {money.format(column.value, currency)}
         </span>
       </header>
 

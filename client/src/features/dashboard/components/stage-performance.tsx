@@ -3,6 +3,7 @@ import { Bar, BarChart, Cell, Tooltip, XAxis, YAxis } from 'recharts';
 import type { DashboardStageDto } from '@leadpilot/shared';
 import { stageName } from '@/lib/labels';
 import { useFormat, useI18n } from '@/lib/i18n';
+import { useMoney } from '@/lib/money';
 import { AXIS_PROPS, ChartFrame, ChartTooltip, useChartDirection } from './chart-frame';
 
 /**
@@ -23,6 +24,7 @@ export function StagePerformance({
 }) {
   const { t, locale } = useI18n();
   const format = useFormat();
+  const money = useMoney();
   const direction = useChartDirection();
 
   // Closed stages carry no forecast, and including them would dwarf the open
@@ -49,7 +51,7 @@ export function StagePerformance({
             // Three ticks: currency labels are wide, and five of them collide
             // into an unreadable smear at phone widths.
             tickCount={3}
-            tickFormatter={(value: number) => format.currency(value, currency)}
+            tickFormatter={(value: number) => money.format(value, currency)}
           />
           <YAxis
             type="category"
@@ -70,12 +72,12 @@ export function StagePerformance({
                     { label: t('dashboard.tableLeads'), value: format.number(stage.count) },
                     {
                       label: t('dashboard.pipelineValue'),
-                      value: format.currency(stage.value, currency),
+                      value: money.format(stage.value, currency),
                       color: stage.color,
                     },
                     {
                       label: t('dashboard.weightedAt', { percent: stage.winProbability }),
-                      value: format.currency(stage.weightedValue, currency),
+                      value: money.format(stage.weightedValue, currency),
                       color: stage.color,
                     },
                     {
@@ -155,7 +157,7 @@ export function StagePerformance({
                 </td>
                 <td className="px-2 py-2 text-end tabular-nums">{format.number(stage.count)}</td>
                 <td className="px-2 py-2 text-end tabular-nums">
-                  {format.currency(stage.value, currency)}
+                  {money.format(stage.value, currency)}
                 </td>
                 <td className="px-2 py-2 text-end text-muted-foreground tabular-nums">
                   {/*

@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { canMutateLead, type Viewer } from './permissions.js';
+import { canMutateFollowUp, canMutateLead, type Viewer } from './permissions.js';
 import type {
   ActivityDto,
   ActivityMetadata,
@@ -197,6 +197,13 @@ export function toActivityDto(
   };
 }
 
+/**
+ * Always carries the owning lead's assignment, because `canEdit` cannot be
+ * decided without it — a rep may act on a follow-up for a lead of theirs even
+ * when the task itself is somebody else's. Selecting it here rather than at
+ * each call site is what stops one of them forgetting and quietly reporting
+ * everything as editable.
+ */
 export const FOLLOW_UP_SELECT = {
   id: true,
   leadId: true,
@@ -207,19 +214,28 @@ export const FOLLOW_UP_SELECT = {
   status: true,
   completedAt: true,
   createdAt: true,
+  assignedToId: true,
   assignedTo: { select: TEAM_MEMBER_SELECT },
+  lead: { select: { assignedToId: true, createdById: true } },
 } satisfies Prisma.FollowUpSelect;
 
+/** Adds the fields a follow-up needs to name and link its lead. */
 export const FOLLOW_UP_WITH_LEAD_SELECT = {
   ...FOLLOW_UP_SELECT,
-  lead: { select: { id: true, customerName: true, company: true } },
+  lead: {
+    select: { id: true, customerName: true, company: true, assignedToId: true, createdById: true },
+  },
 } satisfies Prisma.FollowUpSelect;
 
 type FollowUpRow = Prisma.FollowUpGetPayload<{ select: typeof FOLLOW_UP_SELECT }> & {
-  lead?: { id: string; customerName: string; company: string | null };
+  lead: { id?: string; customerName?: string; company?: string | null } & {
+    assignedToId: string | null;
+    createdById: string | null;
+  };
 };
 
-export function toFollowUpDto(followUp: FollowUpRow): FollowUpDto {
+export function toFollowUpDto(followUp: FollowUpRow, viewer: Viewer): FollowUpDto {
+  const { lead } = followUp;
   return {
     id: followUp.id,
     leadId: followUp.leadId,
@@ -231,6 +247,12 @@ export function toFollowUpDto(followUp: FollowUpRow): FollowUpDto {
     completedAt: iso(followUp.completedAt),
     createdAt: followUp.createdAt.toISOString(),
     assignedTo: toTeamMemberDto(followUp.assignedTo),
-    ...(followUp.lead && { lead: followUp.lead }),
+    // `lead` is only echoed back when the caller asked for the display fields;
+    // the assignment columns are an implementation detail of `canEdit` and have
+    // no business crossing the wire.
+    ...(lead.id !== undefined && {
+      lead: { id: lead.id, customerName: lead.customerName!, company: lead.company ?? null },
+    }),
+    canEdit: canMutateFollowUp(viewer, followUp),
   };
 }

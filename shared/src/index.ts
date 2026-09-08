@@ -2,6 +2,8 @@ export * from './enums.js';
 export * from './common.js';
 export * from './message.js';
 export * from './auth.schema.js';
+export * from './currency.schema.js';
+export * from './settings.schema.js';
 export * from './lead.schema.js';
 export * from './board.schema.js';
 export * from './dashboard.schema.js';

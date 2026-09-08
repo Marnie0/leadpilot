@@ -33,3 +33,25 @@ export function canMutateLead(
   if (isManager(viewer)) return true;
   return lead.assignedToId === viewer.userId || lead.createdById === viewer.userId;
 }
+
+/**
+ * Write authorisation for a single follow-up.
+ *
+ * Wider than the task's own assignment on purpose. A follow-up is a note about
+ * a lead, and the person working that lead is the person who finds out whether
+ * it happened — so a rep may complete or reschedule a task on a lead of theirs
+ * even when it was booked for a colleague, and a task booked *for* them on
+ * somebody else's lead. Anything narrower produces the situation where the only
+ * person who knows the call was made cannot say so.
+ */
+export function canMutateFollowUp(
+  viewer: Viewer,
+  followUp: {
+    assignedToId: string | null;
+    lead: { assignedToId: string | null; createdById?: string | null };
+  },
+): boolean {
+  if (isManager(viewer)) return true;
+  if (followUp.assignedToId === viewer.userId) return true;
+  return canMutateLead(viewer, followUp.lead);
+}

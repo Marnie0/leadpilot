@@ -2,6 +2,7 @@ import { DASHBOARD_RANGES, type DashboardRange } from '@leadpilot/shared';
 import { useSearchParams } from 'react-router-dom';
 import { CalendarClock, CircleDollarSign, Target, TrendingUp, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { ConversionNote } from '@/components/common/conversion-note';
 import { Card } from '@/components/ui/card';
 import {
   Select,
@@ -13,6 +14,7 @@ import {
 import { ErrorState } from '@/components/common/error-state';
 import { readOne } from '@/lib/search-params';
 import { useFormat, useT } from '@/lib/i18n';
+import { useMoney } from '@/lib/money';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useDashboard } from '@/features/dashboard/api';
 import { KpiCard, KpiCardSkeleton } from '@/features/dashboard/components/kpi-card';
@@ -40,6 +42,7 @@ import { FollowUpSummary } from '@/features/dashboard/components/follow-up-summa
 export function DashboardPage() {
   const t = useT();
   const format = useFormat();
+  const money = useMoney();
   const user = useCurrentUser();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -121,6 +124,8 @@ export function DashboardPage() {
         actions={rangeSelect}
       />
 
+      <ConversionNote />
+
       {/* --- Headline figures ------------------------------------------- */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {isLoading || !summary ? (
@@ -166,17 +171,17 @@ export function DashboardPage() {
             />
             <KpiCard
               label={t('dashboard.expectedRevenue')}
-              value={format.currency(summary.weightedPipelineValue, currency)}
+              value={money.format(summary.weightedPipelineValue, currency)}
               icon={TrendingUp}
               tone="success"
               hint={t('dashboard.expectedRevenueHint', {
-                value: format.currency(summary.pipelineValue, currency),
+                value: money.format(summary.pipelineValue, currency),
               })}
               explainer={t('dashboard.expectedRevenueExplainer')}
             />
             <KpiCard
               label={t('dashboard.wonRevenue')}
-              value={format.currency(summary.wonValue.current, currency)}
+              value={money.format(summary.wonValue.current, currency)}
               icon={CircleDollarSign}
               delta={summary.wonValue}
               tone="success"
@@ -187,7 +192,7 @@ export function DashboardPage() {
                     })
                   : t('dashboard.wonRevenueHintAvg', {
                       count: format.number(summary.wonLeads.current),
-                      average: format.currency(summary.avgDealSize, currency),
+                      average: money.format(summary.avgDealSize, currency),
                     })
               }
               explainer={t('dashboard.wonRevenueExplainer', { range: rangeInline })}

@@ -11,6 +11,8 @@ export const queryKeys = {
   session: ['session'] as const,
   stages: ['stages'] as const,
   team: ['team'] as const,
+  fxRates: ['fx-rates'] as const,
+  settings: { organization: ['settings', 'organization'] as const },
   leads: {
     all: ['leads'] as const,
     lists: () => [...queryKeys.leads.all, 'list'] as const,
@@ -33,6 +35,7 @@ export const queryKeys = {
   followUps: {
     all: ['follow-ups'] as const,
     list: (filters: unknown) => ['follow-ups', 'list', filters] as const,
+    counts: (filters: unknown) => ['follow-ups', 'counts', filters] as const,
   },
 } as const;
 

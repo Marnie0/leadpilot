@@ -5,7 +5,8 @@ import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { useFormat, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
+import { useMoney } from '@/lib/money';
 import { StageBadge } from './stage-badge';
 import { PriorityBadge } from './priority-badge';
 import { AssigneeAvatar } from './assignee-avatar';
@@ -31,7 +32,7 @@ export function LeadCard({
   onToggleSelected?: () => void;
 }) {
   const t = useT();
-  const format = useFormat();
+  const money = useMoney();
 
   return (
     <Card
@@ -102,7 +103,7 @@ export function LeadCard({
           <StageBadge stage={lead.stage} size="sm" />
           <PriorityBadge priority={lead.priority} />
           <span className="ms-auto text-sm font-semibold text-foreground tabular-nums">
-            {format.currency(lead.estimatedValue, lead.currency)}
+            {money.format(lead.estimatedValue, lead.currency)}
           </span>
         </div>
 

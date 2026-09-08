@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ChevronsUpDown, LogOut } from 'lucide-react';
+import { ChevronsUpDown, LogOut, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/features/auth/auth-context';
 import { initials } from '@/lib/format';
@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { CurrencyMenuItems } from '@/features/settings/components/currency-menu-items';
 import { LanguageMenuItems, ThemeMenuItems } from './appearance-controls';
 
 export function UserMenu({ compact = false }: { compact?: boolean }) {
@@ -68,7 +69,14 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
 
+        <DropdownMenuItem onSelect={() => navigate('/settings')}>
+          <Settings className="size-4" aria-hidden /> {t('nav.settings')}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+
         <LanguageMenuItems />
+        <DropdownMenuSeparator />
+        <CurrencyMenuItems />
         <DropdownMenuSeparator />
         <ThemeMenuItems />
 

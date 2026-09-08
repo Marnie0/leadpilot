@@ -266,11 +266,17 @@ export function useLeadFollowUps(leadId: string) {
   });
 }
 
-/** Any follow-up write also changes the lead's `nextFollowUpAt`, so both refresh. */
-function useInvalidateFollowUps(leadId: string) {
+/**
+ * Any follow-up write also changes the lead's `nextFollowUpAt`, so both refresh.
+ *
+ * `leadId` is optional because the follow-ups inbox acts on tasks across many
+ * leads at once and has no single detail view to refresh — it invalidates every
+ * lead list instead, which it needs to do regardless.
+ */
+export function useInvalidateFollowUps(leadId?: string) {
   const queryClient = useQueryClient();
   return () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.leads.detail(leadId) });
+    if (leadId) void queryClient.invalidateQueries({ queryKey: queryKeys.leads.detail(leadId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.leads.lists() });
     void queryClient.invalidateQueries({ queryKey: queryKeys.followUps.all });
     // The board shows each card's next follow-up, and the dashboard counts them.

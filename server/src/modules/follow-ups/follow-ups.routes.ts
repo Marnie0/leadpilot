@@ -5,6 +5,7 @@ import {
   createFollowUpSchema,
   followUpQuerySchema,
   idSchema,
+  rescheduleFollowUpSchema,
   updateFollowUpSchema,
 } from '@leadpilot/shared';
 import { asyncHandler, getAuth, requireAuth } from '../../middleware/auth.js';
@@ -62,6 +63,34 @@ followUpsRouter.get(
     const query = validatedQuery<z.infer<typeof followUpQuerySchema>>(req);
     const result = await followUpsService.listFollowUps(actorFrom(req), query);
     res.json(result);
+  }),
+);
+
+/**
+ * Bucket counts for the inbox's tab strip, under the same filters as the list.
+ * Declared before `/:id` so `counts` is not read as an id.
+ */
+followUpsRouter.get(
+  '/counts',
+  validate(followUpQuerySchema, 'query'),
+  asyncHandler(async (req, res) => {
+    const query = validatedQuery<z.infer<typeof followUpQuerySchema>>(req);
+    res.json({ counts: await followUpsService.countFollowUps(actorFrom(req), query) });
+  }),
+);
+
+/** Rescheduling is the one field the inbox changes on its own, so it gets its
+ *  own verb rather than making the caller assemble a PATCH body. */
+followUpsRouter.post(
+  '/:id/reschedule',
+  validate(followUpParams, 'params'),
+  validate(rescheduleFollowUpSchema),
+  asyncHandler(async (req, res) => {
+    const { dueAt } = req.body as z.infer<typeof rescheduleFollowUpSchema>;
+    const followUp = await followUpsService.updateFollowUp(actorFrom(req), param(req, 'id'), {
+      dueAt,
+    });
+    res.json({ followUp });
   }),
 );
 

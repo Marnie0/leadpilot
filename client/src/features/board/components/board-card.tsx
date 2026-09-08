@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { stageName } from '@/lib/labels';
-import { useFormat, useI18n } from '@/lib/i18n';
+import { useI18n } from '@/lib/i18n';
+import { useMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { AssigneeAvatar } from '@/features/leads/components/assignee-avatar';
 import { FollowUpCell } from '@/features/leads/components/follow-up-cell';
@@ -30,7 +31,7 @@ import { PriorityBadge } from '@/features/leads/components/priority-badge';
  * the placeholder it left behind.
  */
 function BoardCardBody({ lead, currency }: { lead: LeadListItemDto; currency: string }) {
-  const format = useFormat();
+  const money = useMoney();
 
   return (
     <>
@@ -51,7 +52,7 @@ function BoardCardBody({ lead, currency }: { lead: LeadListItemDto; currency: st
       <div className="flex items-center gap-2">
         <PriorityBadge priority={lead.priority} />
         <span className="ms-auto text-sm font-semibold text-foreground tabular-nums">
-          {format.currency(lead.estimatedValue, currency)}
+          {money.format(lead.estimatedValue, currency)}
         </span>
       </div>
 

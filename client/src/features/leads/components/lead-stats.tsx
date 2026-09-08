@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat, useT } from '@/lib/i18n';
+import { useMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
 
 interface StatDefinition {
@@ -75,6 +76,7 @@ export function LeadStats({
 }) {
   const t = useT();
   const format = useFormat();
+  const money = useMoney();
 
   if (isLoading && !stats) {
     return (
@@ -104,14 +106,14 @@ export function LeadStats({
     {
       key: 'pipeline',
       label: t('leads.stat.pipelineValue'),
-      value: format.currency(stats.totalPipelineValue, currency),
+      value: money.format(stats.totalPipelineValue, currency),
       hint: t('leads.stat.pipelineValueHint'),
       icon: CircleDollarSign,
     },
     {
       key: 'won',
       label: t('leads.stat.won'),
-      value: format.currency(stats.wonValue, currency),
+      value: money.format(stats.wonValue, currency),
       hint:
         winRate === null
           ? t('leads.stat.wonHintNoRate', { count: format.number(stats.wonLeads) })

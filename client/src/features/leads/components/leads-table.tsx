@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { LeadSelection } from '../hooks/use-lead-selection';
 import { useFormat, useT, type StaticKey, type Translator } from '@/lib/i18n';
+import { useMoney } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { StageBadge } from './stage-badge';
 import { PriorityBadge } from './priority-badge';
@@ -119,6 +120,7 @@ export function LeadsTable({
   const navigate = useNavigate();
   const t = useT();
   const format = useFormat();
+  const money = useMoney();
 
   /**
    * What a click on a row means.
@@ -305,7 +307,7 @@ export function LeadsTable({
               </TableCell>
 
               <TableCell className="text-end font-medium whitespace-nowrap tabular-nums">
-                {format.currency(lead.estimatedValue, lead.currency)}
+                {money.format(lead.estimatedValue, lead.currency)}
               </TableCell>
 
               <TableCell className={HIDE_CLASSES['2xl']}>

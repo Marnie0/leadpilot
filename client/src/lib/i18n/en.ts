@@ -49,8 +49,6 @@ export const en = {
   'common.percent': '{value}%',
   'common.somethingWentWrong': 'Something went wrong. Check your connection and try again.',
   'common.couldNotLoad': 'Could not load this',
-  'common.soon': 'Soon',
-  'common.comingLater': 'Coming in a later release',
 
   /* -------------------------------------------------------------- *
    * Application chrome
@@ -90,7 +88,7 @@ export const en = {
   'error.reload': 'Reload the page',
   'error.notFoundTitle': 'Page not found',
   'error.notFoundEmbedded':
-    'That page does not exist yet. Follow-up management arrives in a later release.',
+    'That page does not exist. Check the address, or head back to your leads.',
   'error.notFoundStandalone':
     'That link does not lead anywhere. It may have been moved, or the record was deleted.',
   'error.backToLeads': 'Back to your leads',
@@ -644,6 +642,158 @@ export const en = {
   'followUpFilter.today': 'Due today',
   'followUpFilter.week': 'Due this week',
   'followUpFilter.none': 'No follow-up set',
+
+  /* -------------------------------------------------------------- *
+   * Currency
+   * -------------------------------------------------------------- */
+  'currency.USD': 'US dollar',
+  'currency.EUR': 'Euro',
+  'currency.GBP': 'British pound',
+  'currency.SAR': 'Saudi riyal',
+  'currency.AED': 'UAE dirham',
+  'currency.EGP': 'Egyptian pound',
+  'currency.QAR': 'Qatari riyal',
+  'currency.KWD': 'Kuwaiti dinar',
+
+  'currency.display': 'Display currency',
+  'currency.displayHint':
+    'Figures are stored in the workspace currency and converted for you. Nothing you see here changes what anyone else sees.',
+  'currency.followWorkspace': 'Workspace currency',
+  'currency.followWorkspaceWith': 'Workspace currency ({code})',
+  'currency.convertedFrom': 'Converted from {from}',
+  'currency.ratesAsOf': 'Rates as of {date}',
+  'currency.ratesIndicative': 'Live rates are unavailable — these are indicative.',
+  'currency.attribution': 'Exchange rates from exchangerate-api.com',
+  'currency.original': 'Originally {amount}',
+  'currency.converting': 'Loading rates…',
+
+  /* -------------------------------------------------------------- *
+   * Follow-up inbox
+   * -------------------------------------------------------------- */
+  'followUp.inboxTitle': 'Follow-ups',
+  'followUp.inboxDescription': 'Everything owed to a lead, soonest first.',
+  'followUp.searchPlaceholder': 'Search follow-ups or customers…',
+  'followUp.assigneeAll': 'Everyone',
+  'followUp.assigneeMine': 'Assigned to me',
+  'followUp.countLabel_one': '{count} follow-up',
+  'followUp.countLabel_other': '{count} follow-ups',
+
+  'bucket.overdue': 'Overdue',
+  'bucket.today': 'Today',
+  'bucket.week': 'Next 7 days',
+  'bucket.later': 'Later',
+  'bucket.done': 'Done',
+
+  'followUp.emptyOverdue': 'Nothing overdue',
+  'followUp.emptyOverdueBody': 'Every promise you have made is still in the future.',
+  'followUp.emptyToday': 'Nothing due today',
+  'followUp.emptyTodayBody': 'Check the next seven days to see what is coming.',
+  'followUp.emptyWeek': 'Nothing due this week',
+  'followUp.emptyWeekBody': 'Open a lead and book the next touchpoint.',
+  'followUp.emptyLater': 'Nothing booked further out',
+  'followUp.emptyLaterBody': 'Long-horizon follow-ups will appear here.',
+  'followUp.emptyDone': 'Nothing completed yet',
+  'followUp.emptyDoneBody': 'Completed and cancelled follow-ups are kept here.',
+  'followUp.emptyFiltered': 'No follow-ups match those filters',
+  'followUp.emptyFilteredBody': 'Try a different bucket, or clear the search.',
+
+  'followUp.reschedule': 'Reschedule',
+  'followUp.rescheduleTitle': 'Reschedule “{title}”',
+  'followUp.rescheduleBody': 'Pick a new date and time. The lead keeps its history.',
+  'followUp.rescheduled': 'Follow-up rescheduled',
+  'followUp.couldNotReschedule': 'Could not reschedule that follow-up',
+  'followUp.snoozeTomorrow': 'Tomorrow',
+  'followUp.snoozeWeek': 'Next week',
+
+  'followUp.completeTitle': 'Complete “{title}”',
+  'followUp.completeBody':
+    'Add what happened, if it is worth recording. It goes on the lead’s timeline.',
+  'followUp.outcome': 'Outcome (optional)',
+  'followUp.outcomePlaceholder': 'Spoke to Layla — sending the revised quote on Monday.',
+  'followUp.completeAction': 'Mark complete',
+  'followUp.cancelTitle': 'Cancel “{title}”?',
+  'followUp.cancelBody': 'It stays on the lead’s record as cancelled rather than disappearing.',
+  'followUp.cancelAction': 'Cancel follow-up',
+  'followUp.keepIt': 'Keep it',
+
+  'followUp.locked': 'Only the lead’s owner or a manager can change this',
+  'followUp.openLead': 'Open lead',
+  'followUp.forLead': 'For {name}',
+  'followUp.assignedToLabel': 'Assigned to {name}',
+  'followUp.dueLabel': 'Due {when}',
+  'followUp.wasCompletedBy': 'Completed {when}',
+  'followUp.wasCancelledOn': 'Cancelled',
+  'followUp.actions': 'Follow-up actions',
+
+  /* -------------------------------------------------------------- *
+   * Settings
+   * -------------------------------------------------------------- */
+  'nav.settings': 'Settings',
+  'settings.title': 'Settings',
+  'settings.description': 'Your account, and how this workspace behaves.',
+  'settings.tabProfile': 'Profile',
+  'settings.tabWorkspace': 'Workspace',
+
+  'settings.profileTitle': 'Your profile',
+  'settings.profileBody': 'How you appear to the rest of the team.',
+  'settings.fieldName': 'Name',
+  'settings.fieldEmail': 'Email',
+  'settings.emailHint': 'Sign-in email. Changing it is not supported yet.',
+  'settings.fieldRole': 'Role',
+  'settings.roleHint': 'Only a workspace owner can change roles, on the Team screen.',
+  'settings.preferencesTitle': 'Preferences',
+  'settings.preferencesBody': 'These follow your account, not this browser.',
+  'settings.save': 'Save changes',
+  'settings.saved': 'Saved',
+  'settings.noChanges': 'Nothing to save',
+  'settings.couldNotSave': 'Could not save your changes',
+
+  'settings.passwordTitle': 'Password',
+  'settings.passwordBody':
+    'Changing your password ends every session, including this one. You will be asked to sign in again.',
+  'settings.currentPassword': 'Current password',
+  'settings.newPassword': 'New password',
+  'settings.changePassword': 'Change password',
+  'settings.passwordChanged': 'Password changed. Sign in again with your new one.',
+  'settings.couldNotChangePassword': 'Could not change your password',
+
+  'settings.workspaceTitle': 'Workspace',
+  'settings.workspaceBody': 'Settings everyone in {organization} shares.',
+  'settings.fieldWorkspaceName': 'Workspace name',
+  'settings.fieldSlug': 'Workspace address',
+  'settings.slugHint': 'Set when the workspace was created, and fixed after that.',
+  'settings.defaultLocale': 'Default language',
+  'settings.defaultLocaleHint':
+    'The language a new team member starts in, before they choose their own.',
+  'settings.createdOn': 'Created {date}',
+  'settings.statMembers_one': '{count} member',
+  'settings.statMembers_other': '{count} members',
+  'settings.statLeads_one': '{count} lead',
+  'settings.statLeads_other': '{count} leads',
+  'settings.statArchived_one': '{count} archived',
+  'settings.statArchived_other': '{count} archived',
+  'settings.readOnly': 'Only an owner or admin can change these.',
+  'settings.couldNotLoad': 'Could not load your settings',
+
+  'settings.baseCurrencyTitle': 'Base currency',
+  'settings.baseCurrencyBody':
+    'Every lead in this workspace is recorded in this currency. Changing it converts the amounts already stored.',
+  'settings.baseCurrencyOwnerOnly': 'Only the workspace owner can change the base currency.',
+  'settings.changeCurrency': 'Change base currency',
+  'settings.currencyDialogTitle': 'Convert this workspace to {code}?',
+  'settings.currencyDialogLead':
+    'This restates the stored value of every lead, including archived ones. It cannot be undone automatically — converting back would round a second time.',
+  'settings.currencyRate': 'Rate applied',
+  'settings.currencyAffected': 'Leads affected',
+  'settings.currencyTotalBefore': 'Pipeline now',
+  'settings.currencyTotalAfter': 'Pipeline after',
+  'settings.currencyConfirm': 'I understand — convert them',
+  'settings.currencyChanged_one': 'Workspace currency changed. {count} lead converted.',
+  'settings.currencyChanged_other': 'Workspace currency changed. {count} leads converted.',
+  'settings.couldNotChangeCurrency': 'Could not change the workspace currency',
+  'settings.currencyUnchanged': 'That is already the workspace currency',
+  'settings.demoNotice':
+    'This is a demo workspace. Change anything you like — it is yours alone, and it disappears when the sandbox does.',
 
   /* -------------------------------------------------------------- *
    * Dates

@@ -392,7 +392,7 @@ export async function getDashboard(
       today: todayCount,
       thisWeek: weekCount,
       later: laterCount,
-      upcoming: upcoming.map(toFollowUpDto),
+      upcoming: upcoming.map((row) => toFollowUpDto(row, actor)),
     },
   };
 }

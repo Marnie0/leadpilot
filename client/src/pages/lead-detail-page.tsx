@@ -42,6 +42,7 @@ import { useCurrentUser } from '@/features/auth/auth-context';
 import { ApiError } from '@/lib/api-client';
 import { telHref } from '@/lib/format';
 import { useFormat, useT } from '@/lib/i18n';
+import { useMoney } from '@/lib/money';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import {
   ACTIVITY_PAGE_SIZE,
@@ -95,6 +96,7 @@ export function LeadDetailPage() {
   const user = useCurrentUser();
   const t = useT();
   const format = useFormat();
+  const money = useMoney();
   const describeError = useApiErrorMessage();
 
   const [isEditOpen, setEditOpen] = useState(false);
@@ -396,9 +398,22 @@ export function LeadDetailPage() {
 
               <dl className="divide-y">
                 <DetailRow label={t('lead.estimatedValue')}>
-                  <span className="inline-flex items-center gap-1.5 tabular-nums">
-                    <TrendingUp className="size-3.5 text-muted-foreground" aria-hidden />
-                    {format.currency(lead.estimatedValue, lead.currency, { precise: true })}
+                  <span className="inline-flex flex-col items-end gap-0.5 tabular-nums">
+                    <span className="inline-flex items-center gap-1.5">
+                      <TrendingUp className="size-3.5 text-muted-foreground" aria-hidden />
+                      {money.format(lead.estimatedValue, lead.currency, { precise: true })}
+                    </span>
+                    {/* One figure, so the original is worth showing outright
+                        rather than as a footnote about the whole screen. */}
+                    {money.isConverted && (
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {t('currency.original', {
+                          amount: format.currency(lead.estimatedValue, lead.currency, {
+                            precise: true,
+                          }),
+                        })}
+                      </span>
+                    )}
                   </span>
                 </DetailRow>
                 <DetailRow label={t('lead.requestedService')}>{lead.requestedService}</DetailRow>

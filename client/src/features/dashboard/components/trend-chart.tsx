@@ -3,6 +3,7 @@ import type { DashboardTrendPointDto } from '@leadpilot/shared';
 import { EmptyState } from '@/components/common/empty-state';
 import { LineChart } from 'lucide-react';
 import { useFormat, useT } from '@/lib/i18n';
+import { useMoney } from '@/lib/money';
 import { AXIS_PROPS, ChartFrame, ChartTooltip, SERIES, useChartDirection } from './chart-frame';
 
 /**
@@ -24,6 +25,7 @@ export function TrendChart({
 }) {
   const t = useT();
   const format = useFormat();
+  const money = useMoney();
   const direction = useChartDirection();
 
   const hasData = points.some((point) => point.created > 0 || point.won > 0);
@@ -94,7 +96,7 @@ export function TrendChart({
                   },
                   {
                     label: t('dashboard.wonValue'),
-                    value: format.currency(point.wonValue, currency),
+                    value: money.format(point.wonValue, currency),
                     color: SERIES.won,
                   },
                 ]}

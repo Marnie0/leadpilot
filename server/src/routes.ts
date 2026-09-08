@@ -9,6 +9,8 @@ import { stagesRouter } from './modules/stages/stages.routes.js';
 import { boardRouter } from './modules/board/board.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
+import { settingsRouter } from './modules/settings/settings.routes.js';
+import { fxRouter } from './modules/fx/fx.routes.js';
 import { asyncHandler } from './middleware/auth.js';
 
 export const apiRouter = Router();
@@ -34,6 +36,8 @@ apiRouter.use('/stages', stagesRouter);
 apiRouter.use('/team', teamRouter);
 apiRouter.use('/board', boardRouter);
 apiRouter.use('/dashboard', dashboardRouter);
+apiRouter.use('/settings', settingsRouter);
+apiRouter.use('/fx', fxRouter);
 
 // Nested resources are declared before the bare /leads router so that
 // /leads/:leadId/activities is not swallowed by /leads/:id.

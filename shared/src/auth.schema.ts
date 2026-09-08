@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { msg } from './message.js';
 import { LOCALES, USER_ROLES } from './enums.js';
 import { idSchema, requiredTrimmed } from './common.js';
+import { displayCurrencySchema } from './currency.schema.js';
 
 export const PASSWORD_MIN_LENGTH = 10;
 
@@ -55,10 +56,18 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
-export const updateProfileSchema = z.object({
-  name: requiredTrimmed('field.name', 80, 2).optional(),
-  locale: z.enum(LOCALES).optional(),
-});
+export const updateProfileSchema = z
+  .object({
+    name: requiredTrimmed('field.name', 80, 2).optional(),
+    locale: z.enum(LOCALES).optional(),
+    /**
+     * What currency this person reads figures in. `null` restores "follow the
+     * workspace", which is why it is nullish rather than merely optional —
+     * `undefined` means "leave it alone" and `null` means "clear it".
+     */
+    displayCurrency: displayCurrencySchema.optional(),
+  })
+  .refine((values) => Object.keys(values).length > 0, { message: msg('validation.noChanges') });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
 export const changePasswordSchema = z.object({
@@ -74,6 +83,8 @@ export interface AuthUser {
   name: string;
   role: (typeof USER_ROLES)[number];
   locale: 'en' | 'ar';
+  /** Display-only currency override. `null` means the workspace's own. */
+  displayCurrency: string | null;
   avatarColor: string;
   createdAt: string;
   organization: {

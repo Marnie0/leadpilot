@@ -117,9 +117,12 @@ export const VALIDATION_EN = {
   'validation.tagsMax': 'Up to {count} tags',
   'validation.noChanges': 'No changes supplied',
   'validation.requiredShort': 'Required',
+  'validation.currency': 'Choose a supported currency',
+  'validation.confirmRequired': 'Please confirm before continuing',
 
   'field.name': 'Your name',
   'field.companyName': 'Company name',
+  'field.workspaceName': 'Workspace name',
   'field.customerName': 'Customer name',
   'field.requestedService': 'Requested service',
   'field.title': 'Title',

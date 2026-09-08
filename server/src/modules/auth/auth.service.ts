@@ -53,6 +53,7 @@ function toAuthUser(user: AuthUserRow): AuthUser {
     name: user.name,
     role: user.role,
     locale: user.locale,
+    displayCurrency: user.displayCurrency,
     avatarColor: user.avatarColor,
     createdAt: user.createdAt.toISOString(),
     organization: {
@@ -300,6 +301,10 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
     data: {
       ...(input.name !== undefined && { name: input.name }),
       ...(input.locale !== undefined && { locale: input.locale }),
+      // `null` is a real value here — it clears the override and puts the user
+      // back on the workspace currency — so this tests for `undefined`, not
+      // truthiness. See `updateProfileSchema`.
+      ...(input.displayCurrency !== undefined && { displayCurrency: input.displayCurrency }),
     },
     include: AUTH_USER_INCLUDE,
   });

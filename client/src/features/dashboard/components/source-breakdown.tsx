@@ -4,6 +4,7 @@ import type { DashboardSourceDto } from '@leadpilot/shared';
 import { PieChart as PieChartIcon } from 'lucide-react';
 import { EmptyState } from '@/components/common/empty-state';
 import { useFormat, useT } from '@/lib/i18n';
+import { useMoney } from '@/lib/money';
 import { ChartFrame, ChartTooltip } from './chart-frame';
 
 /**
@@ -37,6 +38,7 @@ export function SourceBreakdown({
 }) {
   const t = useT();
   const format = useFormat();
+  const money = useMoney();
 
   if (sources.length === 0) {
     return (
@@ -117,7 +119,7 @@ export function SourceBreakdown({
                     },
                     {
                       label: t('dashboard.tableValue'),
-                      value: format.currency(slice.value, currency),
+                      value: money.format(slice.value, currency),
                     },
                     ...(slice.conversionRate === null
                       ? []

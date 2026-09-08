@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { LeadSortField } from '@leadpilot/shared';
 import { Plus, SearchX, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+import { ConversionNote } from '@/components/common/conversion-note';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/common/empty-state';
@@ -74,6 +75,8 @@ export function LeadsPage() {
         currency={user.organization.defaultCurrency}
         isLoading={statsQuery.isLoading}
       />
+
+      <ConversionNote className="-mt-3" />
 
       <LeadFilterBar
         filters={filters}

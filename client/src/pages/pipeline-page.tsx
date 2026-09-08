@@ -17,10 +17,12 @@ import { BOARD_MAX_LIMIT, type BoardDto, type StageKey } from '@leadpilot/shared
 import { Plus, SearchX } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
+import { ConversionNote } from '@/components/common/conversion-note';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ErrorState } from '@/components/common/error-state';
 import { useFormat, useT } from '@/lib/i18n';
+import { useMoney } from '@/lib/money';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useTeamMembers } from '@/features/leads/api';
@@ -63,6 +65,7 @@ export function PipelinePage() {
   const user = useCurrentUser();
   const t = useT();
   const format = useFormat();
+  const money = useMoney();
   const describeError = useApiErrorMessage();
   const { filters, setFilters, resetFilters, hasActiveFilters } = useBoardFilters();
 
@@ -232,7 +235,7 @@ export function PipelinePage() {
           totals
             ? t('board.description', {
                 leads: format.number(totals.leads),
-                value: format.currency(
+                value: money.format(
                   totals.openValue,
                   board?.currency ?? user.organization.defaultCurrency,
                 ),
@@ -245,6 +248,8 @@ export function PipelinePage() {
           </Button>
         }
       />
+
+      <ConversionNote className="-mt-3" />
 
       <BoardToolbar
         filters={filters}
