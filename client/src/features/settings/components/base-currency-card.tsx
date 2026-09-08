@@ -169,10 +169,20 @@ export function BaseCurrencyCard({
                   </div>
                 ))}
               </dl>
-              <p className="text-xs text-muted-foreground">
-                {t('currency.ratesAsOf', { date: format.date(preview.data.asOf) })} ·{' '}
-                {t('currency.attribution')}
-              </p>
+              {/* An irreversible rewrite priced off compiled-in figures is worth
+                  saying out loud, rather than showing a date that implies the
+                  rate is today's. */}
+              {preview.data.source === 'fallback' ? (
+                <Alert variant="destructive">
+                  <AlertTriangle className="size-4" />
+                  <AlertDescription>{t('settings.currencyIndicative')}</AlertDescription>
+                </Alert>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {t('currency.ratesAsOf', { date: format.date(preview.data.asOf) })} ·{' '}
+                  {t('currency.attribution')}
+                </p>
+              )}
             </>
           )}
 

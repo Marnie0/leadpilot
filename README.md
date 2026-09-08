@@ -377,11 +377,19 @@ point of the prompt: this is the one moment somebody knows the answer, and "left
 trying again Thursday" written nowhere means the next person to open that lead starts from scratch.
 
 Write access is `canMutateFollowUp`, which is deliberately **wider** than the task's own
-assignment. A rep may act on a follow-up booked for a colleague when the lead is theirs, and on one
-booked for them when the lead is not — because the person working the lead is the person who finds
-out whether the call happened. Anything narrower produces the case where the only person who knows
-cannot say so. `canEdit` ships on the DTO so the UI disables the buttons rather than letting
-somebody discover the rule by being refused.
+assignment: the assignee, the lead's owner, the person who booked it, and any manager. A rep may
+act on a follow-up booked for a colleague when the lead is theirs, and on one booked for them when
+the lead is not — because the person working the lead is the person who finds out whether the call
+happened. The creator is in that list for the same reason a lead's creator is in `canMutateLead`:
+booking a follow-up is open to any member, the same as leaving a note, so without it a rep could
+schedule a call on a colleague's lead and then be unable to cancel the thing they had just created.
+`canEdit` ships on the DTO so the UI disables the buttons rather than letting somebody discover the
+rule by being refused.
+
+State transitions are guarded too. Only a pending follow-up can be completed, rescheduled or
+cancelled — including through the generic `PATCH`, which was otherwise a way around the verb
+endpoints. Moving the due date of something already finished left a task with a future date and a
+terminal status, which no screen in the app knows how to describe.
 
 ## The dashboard
 
@@ -509,10 +517,17 @@ refresh lazily on the first request after they go stale, which on serverless is 
 schedule that actually runs.
 
 The one place the two layers meet is an owner changing the base currency. That genuinely restates
-every stored amount, in one statement, inside a transaction, and the confirmation quotes the lead
-count, the rate and what the pipeline total becomes before it will proceed. The alternatives are
-worse: relabelling turns 250,000 AED into 250,000 USD, and converting only new leads leaves two
-currencies in one column — the same broken sum with a longer fuse.
+every stored amount, and the confirmation quotes the lead count, the rate and what the pipeline
+total becomes before it will proceed — plus a warning if the live feed is down and the rate is an
+indicative one. The alternatives are worse: relabelling turns 250,000 AED into 250,000 USD, and
+converting only new leads leaves two currencies in one column — the same broken sum with a longer
+fuse.
+
+Inside the transaction it is a compare-and-swap, not a read-then-write: the workspace row is
+claimed only if it is still in the currency the conversion was priced from, and the lead update is
+scoped to that same currency. Two requests arriving together used to both read AED and both
+multiply, turning a 625,000 AED lead into 120,148,024 EGP — the rate applied squared, on a write
+with no undo. The loser now matches zero rows and changes nothing.
 
 ### Arabic is not in the main bundle
 

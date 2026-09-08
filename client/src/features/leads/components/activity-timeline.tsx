@@ -128,9 +128,23 @@ function ActivityRow({
 
       case 'FIELD_UPDATED': {
         const field = leadFieldLabel(t, meta.field);
-        return meta.to
-          ? rich('activity.fieldUpdatedTo', { actor, field, value: <Strong>{meta.to}</Strong> })
-          : rich('activity.fieldUpdated', { actor, field });
+        if (!meta.to) return rich('activity.fieldUpdated', { actor, field });
+
+        /*
+         * A money figure is shown in the currency it was *entered* in, taken
+         * from the entry itself, and deliberately not converted into the
+         * reader's display currency. This is a record of what somebody typed;
+         * restating it would make the history disagree with itself the moment
+         * two people read it in different currencies. Entries written before
+         * the currency was stamped have none, and render as the bare number
+         * they always did.
+         */
+        const money =
+          meta.field === 'estimatedValue' && meta.currency && Number.isFinite(Number(meta.to))
+            ? format.currency(Number(meta.to), meta.currency, { precise: true })
+            : meta.to;
+
+        return rich('activity.fieldUpdatedTo', { actor, field, value: <Strong>{money}</Strong> });
       }
 
       case 'FOLLOW_UP_SCHEDULED': {

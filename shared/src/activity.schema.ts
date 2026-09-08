@@ -34,6 +34,14 @@ export interface ActivityMetadata {
   field?: string;
   from?: string | null;
   to?: string | null;
+  /**
+   * The currency `from` and `to` were recorded in, on a value change.
+   *
+   * Present only on entries written after the workspace started stamping it.
+   * A money figure outlives the unit it was quoted in — an owner can convert
+   * the workspace — so the entry carries its own.
+   */
+  currency?: string;
   followUpTitle?: string;
   dueAt?: string;
 }

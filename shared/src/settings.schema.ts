@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { msg } from './message.js';
 import { LOCALES } from './enums.js';
 import { requiredTrimmed } from './common.js';
-import { currencySchema } from './currency.schema.js';
+import { currencySchema, type FxRatesDto } from './currency.schema.js';
 
 /**
  * Workspace settings.
@@ -49,4 +49,14 @@ export interface CurrencyPreviewDto {
   totalBefore: number;
   totalAfter: number;
   asOf: string;
+  /**
+   * Which tier of `getRates()` answered.
+   *
+   * Carried because this preview is the body of a confirmation for an
+   * irreversible rewrite, and `fallback` means the figures are compiled into
+   * the build rather than current. Quoting a stale rate as though it were
+   * today's, on the one screen that permanently restates somebody's money, is
+   * the version of this feature worth being careful about.
+   */
+  source: FxRatesDto['source'];
 }

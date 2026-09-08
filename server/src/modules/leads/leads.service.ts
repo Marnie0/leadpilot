@@ -308,6 +308,7 @@ export async function updateLead(
       phone: true,
       requestedService: true,
       estimatedValue: true,
+      currency: true,
       priority: true,
       source: true,
       assignedToId: true,
@@ -369,7 +370,17 @@ export async function updateLead(
         leadId,
         userId: actor.userId,
         type: 'FIELD_UPDATED',
-        metadata: { field, from: beforeText, to: afterText },
+        metadata: {
+          field,
+          from: beforeText,
+          to: afterText,
+          // A money figure is meaningless without its unit, and the workspace's
+          // unit can change underneath it: an owner converting AED to EGP
+          // leaves every historical "625000" quoted in a currency the workspace
+          // no longer uses. Stamping it here makes the entry true forever,
+          // which is the whole job of an audit trail.
+          ...(field === 'estimatedValue' && { currency: existing.currency }),
+        },
       });
     }
 

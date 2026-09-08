@@ -159,6 +159,9 @@ export const ar: Dictionary = {
   'apiError.CURRENT_PASSWORD_INCORRECT': 'كلمة المرور الحالية غير صحيحة',
   'apiError.EMAIL_TAKEN': 'يوجد حساب مسجَّل بهذا البريد الإلكتروني',
   'apiError.OWNER_ONLY': 'لا يغيّر حساب المالك إلا مالك مساحة العمل',
+  'apiError.OWNER_GRANT_ONLY': 'لا يمنح دور المالك إلا مالك مساحة العمل',
+  'apiError.FOLLOW_UP_ALREADY_COMPLETED': 'أنهى شخص آخر هذه المتابعة بالفعل',
+  'apiError.FOLLOW_UP_NOT_PENDING': 'لم تعد هذه المتابعة مفتوحة',
   'apiError.LAST_OWNER': 'لا بد أن يكون لمساحة العمل مالك دائمًا',
   'apiError.CANNOT_DEACTIVATE_SELF': 'لا يمكنك إلغاء تنشيط حسابك',
   'apiError.FOLLOW_UP_NOT_YOURS': 'لا تستطيع تغيير إلا متابعات عملائك',
@@ -166,6 +169,7 @@ export const ar: Dictionary = {
   'apiError.NOT_FOUND': 'لم يعد هذا السجل موجودًا',
   'apiError.VALIDATION_ERROR': 'بعض الحقول بحاجة إلى مراجعة',
   'apiError.RATE_LIMITED': 'عدد كبير من الطلبات. يرجى المحاولة بعد قليل.',
+  'apiError.DEMO_UNAVAILABLE': 'العرض التجريبي غير متاح حاليًا. يرجى المحاولة بعد قليل.',
   'apiError.DATABASE_UNAVAILABLE': 'الخدمة غير متاحة مؤقتًا. يرجى إعادة المحاولة.',
   'apiError.INTERNAL_ERROR': 'حدث خطأ لدينا. يرجى إعادة المحاولة.',
 
@@ -308,7 +312,7 @@ export const ar: Dictionary = {
     'الواجهة كلها معكوسة — التنقّل والجداول والرسوم والسحب والإفلات — بتواريخ عربية وبصيغ الجمع الست. بدّل اللغة من الزاوية العليا واحكم بنفسك قبل أن تسجّل في أي شيء.',
   'landing.faq4Q': 'هل يمكن للفريق كله استخدامه معًا؟',
   'landing.faq4A':
-    'هذا هو المقصود. لكل عميل محتمل مسؤول واحد، وكل تغيير موثَّق، ويرى المندوب المسار المشترك بينما يعدّل ما يخصّه وحده.',
+    'هذا هو المقصود. يمكن إسناد كل عميل محتمل إلى شخص واحد، وكل تغيير موثَّق، ويرى المندوب المسار المشترك بينما يعدّل ما يخصّه وحده.',
 
   'landing.ctaTitle': 'ألقِ نظرة أولًا.',
   'landing.ctaBody':
@@ -931,6 +935,8 @@ export const ar: Dictionary = {
   'settings.currencyAffected': 'العملاء المتأثرون',
   'settings.currencyTotalBefore': 'المسار الآن',
   'settings.currencyTotalAfter': 'المسار بعد التحويل',
+  'settings.currencyIndicative':
+    'تعذّر الوصول إلى مصدر الأسعار المباشر، لذا يستخدم هذا التحويل الأسعار الاسترشادية المضمّنة في التطبيق. ولا يمكن التراجع عن التحويل — يُفضَّل الانتظار حتى تعود الأسعار المباشرة.',
   'settings.currencyConfirm': 'أفهم ذلك — حوّلها',
   'settings.currencyChanged_zero': 'تم تغيير عملة مساحة العمل دون تحويل أي عميل.',
   'settings.currencyChanged_one': 'تم تغيير عملة مساحة العمل، وحُوِّل عميل محتمل واحد.',

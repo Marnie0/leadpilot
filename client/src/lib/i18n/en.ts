@@ -104,12 +104,16 @@ export const en = {
   'apiError.EMAIL_TAKEN': 'An account with that email already exists',
   'apiError.FORBIDDEN': 'You do not have permission to do that',
   'apiError.OWNER_ONLY': 'Only the workspace owner can change the owner account',
+  'apiError.OWNER_GRANT_ONLY': 'Only the workspace owner can grant the owner role',
+  'apiError.FOLLOW_UP_ALREADY_COMPLETED': 'Somebody has already completed that follow-up',
+  'apiError.FOLLOW_UP_NOT_PENDING': 'That follow-up is no longer open',
   'apiError.LAST_OWNER': 'A workspace must always have an owner',
   'apiError.CANNOT_DEACTIVATE_SELF': 'You cannot deactivate your own account',
   'apiError.FOLLOW_UP_NOT_YOURS': 'You can only change follow-ups on your own leads',
   'apiError.NOT_FOUND': 'That record no longer exists',
   'apiError.VALIDATION_ERROR': 'Some fields need your attention',
   'apiError.RATE_LIMITED': 'Too many requests. Please try again shortly.',
+  'apiError.DEMO_UNAVAILABLE': 'The demo is not available right now. Please try again shortly.',
   'apiError.DATABASE_UNAVAILABLE': 'The service is temporarily unavailable. Please try again.',
   'apiError.INTERNAL_ERROR': 'Something failed on our side. Please try again.',
 
@@ -252,7 +256,7 @@ export const en = {
     'The entire interface mirrors — navigation, tables, charts, drag-and-drop — with Arabic dates and its six plural forms. Switch it in the top corner and judge for yourself before signing up for anything.',
   'landing.faq4Q': 'Can the whole team use it at once?',
   'landing.faq4A':
-    'That is the point. Every lead has one owner, every change is on the record, and a rep sees the shared pipeline while editing only what is theirs.',
+    'That is the point. A lead can be assigned to one person, every change is on the record, and a rep sees the shared pipeline while editing only what is theirs.',
 
   'landing.ctaTitle': 'Have a look around first.',
   'landing.ctaBody':
@@ -847,6 +851,8 @@ export const en = {
   'settings.currencyAffected': 'Leads affected',
   'settings.currencyTotalBefore': 'Pipeline now',
   'settings.currencyTotalAfter': 'Pipeline after',
+  'settings.currencyIndicative':
+    'The live rate feed is unavailable, so this uses the indicative rates built into the app. The conversion cannot be undone — consider waiting until live rates are back.',
   'settings.currencyConfirm': 'I understand — convert them',
   'settings.currencyChanged_one': 'Workspace currency changed. {count} lead converted.',
   'settings.currencyChanged_other': 'Workspace currency changed. {count} leads converted.',

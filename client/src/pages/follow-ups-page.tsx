@@ -123,7 +123,7 @@ export function FollowUpsPage() {
           the "one line, in time order" reading that makes it useful. */}
       <div
         className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0"
-        role="tablist"
+        role="group"
         aria-label={t('followUp.inboxTitle')}
       >
         <div className="inline-flex min-w-full gap-1 rounded-lg bg-muted p-1">
@@ -134,8 +134,15 @@ export function FollowUpsPage() {
               <button
                 key={bucket}
                 type="button"
-                role="tab"
-                aria-selected={active}
+                /*
+                 * `aria-pressed`, not `role="tab"`. These look like a segmented
+                 * control but behave like filter chips: they narrow a paginated
+                 * list and write to the URL. Claiming the tab role would promise
+                 * a `tabpanel` and arrow-key roving focus that are not there,
+                 * and half-implemented ARIA reads worse to a screen reader than
+                 * plain buttons that say whether they are on.
+                 */
+                aria-pressed={active}
                 onClick={() => setFilters({ bucket })}
                 className={cn(
                   'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
