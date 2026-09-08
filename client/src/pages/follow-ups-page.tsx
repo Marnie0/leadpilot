@@ -53,10 +53,17 @@ export function FollowUpsPage() {
 
   useEffect(() => {
     if (debouncedSearch !== filters.q) setFilters({ q: debouncedSearch });
-  }, [debouncedSearch, filters.q, setFilters]);
+    // `filters.q` is intentionally omitted, matching the leads filter bar.
+    // Reacting to it here makes the two effects fight: clearing the box wrote
+    // the URL, the URL wrote the box back from a debounce that had not caught
+    // up, and "Clear filters" landed exactly where it started.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
 
-  // A back/forward navigation changes the URL without touching the input.
-  useEffect(() => setSearch(filters.q), [filters.q]);
+  // Keep the box in step when the URL changes from outside (reset, back button).
+  useEffect(() => {
+    setSearch((draft) => (draft === filters.q ? draft : filters.q));
+  }, [filters.q]);
 
   const params = {
     bucket: filters.bucket,
