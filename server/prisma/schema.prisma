@@ -114,6 +114,23 @@ enum AiUrgency {
 /// rather than a redesign.
 enum WorkspaceEventType {
   CURRENCY_CHANGED
+  OWNERSHIP_TRANSFERRED
+  MEMBER_INVITED
+  INVITE_ACCEPTED
+  INVITE_REVOKED
+  MEMBER_ROLE_CHANGED
+  MEMBER_REMOVED
+}
+
+/// What a one-time emailed token is for.
+///
+/// One table rather than two, because verification and reset are the same
+/// mechanism — a hashed secret with an expiry that can be spent once — and two
+/// implementations of that would eventually disagree about the interesting
+/// parts, which are the expiry and the single-use guarantee.
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
 }
 
 /* ------------------------------------------------------------------ *
@@ -149,7 +166,8 @@ model Organization {
   leads      Lead[]
   activities Activity[]
   followUps  FollowUp[]
-  events     WorkspaceEvent[]
+  events      WorkspaceEvent[]
+  invitations Invitation[]
   insights   LeadInsight[]
   aiUsage    AiUsageEvent[]
   summary    WorkspaceSummary?
@@ -174,6 +192,22 @@ model User {
   /// Tailwind-friendly hex used for the avatar fallback, assigned at signup.
   avatarColor    String   @default("#2563eb")
   isActive       Boolean  @default(true)
+  /// When this address was confirmed by clicking an emailed link.
+  ///
+  /// Null means unconfirmed, which is *not* a restriction: an unverified user
+  /// signs in and works normally, and sees a banner offering to resend. Gating
+  /// the product on delivery would mean a mail outage locks people out of
+  /// their own workspace, which is a worse failure than an unconfirmed address.
+  emailVerifiedAt DateTime?
+  /// Access tokens issued before this instant are rejected.
+  ///
+  /// Revoking refresh tokens is not enough on its own: an access token is a
+  /// stateless JWT that stays valid until it expires, so a password reset left
+  /// whoever held one with up to fifteen more minutes of access — which is
+  /// precisely the window the reset was meant to close. `requireAuth` compares
+  /// the token's `iat` against this, so a credential change takes effect on the
+  /// very next request.
+  sessionsValidFrom DateTime?
   lastLoginAt    DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -186,6 +220,9 @@ model User {
   followUps     FollowUp[]     @relation("FollowUpAssignee")
   createdFollowUps FollowUp[]  @relation("FollowUpCreator")
   workspaceEvents  WorkspaceEvent[]
+  authTokens       AuthToken[]
+  sentInvitations  Invitation[]  @relation("InvitationCreator")
+  acceptedInvitation Invitation?  @relation("InvitationAcceptor")
   generatedInsights LeadInsight[]
   generatedSummaries WorkspaceSummary[]
 
@@ -211,6 +248,69 @@ model RefreshToken {
 
   @@index([userId, expiresAt])
   @@map("refresh_tokens")
+}
+
+/// A one-time secret emailed to somebody, for verifying an address or resetting
+/// a password.
+///
+/// Only the SHA-256 of the token is stored: the raw value exists in the email
+/// and nowhere else, so a database read cannot be turned into an account
+/// takeover. `usedAt` makes it single-use — a reset link forwarded, logged by a
+/// mail scanner or sitting in a browser history is spent the moment it works
+/// once.
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  type      AuthTokenType
+  /// SHA-256 of the raw token. Unique so a collision is a write error, not a
+  /// silent cross-account match.
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Drives "invalidate this user's other tokens of the same kind" on issue.
+  @@index([userId, type])
+  // Drives the housekeeping sweep for expired rows.
+  @@index([expiresAt])
+  @@map("auth_tokens")
+}
+
+/// An invitation to join a workspace, addressed by a link.
+///
+/// Single-use and expiring on purpose. A permanent reusable join link is a
+/// credential that outlives the conversation it was pasted into — it sits in
+/// chat history and inboxes forever, and nothing about it says who used it.
+/// This one names the role it grants, records who issued it, and stops working
+/// the moment somebody accepts.
+model Invitation {
+  id             String    @id @default(cuid())
+  organizationId String
+  /// Optional. When set, only this address may accept — which is what makes an
+  /// invite forwarded to the wrong person fail closed rather than silently
+  /// admitting a stranger.
+  email          String?
+  /// The role the invitee lands on. An admin may only issue MEMBER invites;
+  /// otherwise "only the owner grants admin" is bypassed by sending a link.
+  role           UserRole  @default(MEMBER)
+  /// SHA-256 of the raw token, exactly as `AuthToken`.
+  tokenHash      String    @unique
+  invitedById    String?
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  acceptedById   String?   @unique
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User?        @relation("InvitationCreator", fields: [invitedById], references: [id], onDelete: SetNull)
+  acceptedBy   User?        @relation("InvitationAcceptor", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([expiresAt])
+  @@map("invitations")
 }
 
 /// Daily FX reference rates, cached so the app is not making a third-party

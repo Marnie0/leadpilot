@@ -24,7 +24,7 @@ move opportunities through a shared pipeline: **New → Contacted → Qualified 
 
 ## Status
 
-**Phases 1 to 5 — complete.** Auth, the full data model, the leads table with bulk actions, the
+**Phases 1 to 7 — complete.** Auth, the full data model, the leads table with bulk actions, the
 lead detail view with activity timeline and follow-ups, a drag-and-drop pipeline board, a business
 dashboard built on real aggregates, a follow-up inbox, per-reader currency display with FX
 conversion, an opt-in AI assistant that reads an enquiry and drafts the reply, profile and
@@ -38,6 +38,8 @@ mirrored right-to-left layout and a light/dark theme.
 | 3     | Landing page · EN/AR with full RTL · light and dark themes · bulk actions | ✅ Done |
 | 4     | Follow-up inbox · display currency · settings · marketing page            | ✅ Done |
 | 5     | AI lead assistant — summary, scoring, next action, drafted reply          | ✅ Done |
+| 6     | Multi-currency leads and totals · whole-workspace AI briefing             | ✅ Done |
+| 7     | Team invitations · roles and ownership · email verification and reset     | ✅ Done |
 
 ---
 
@@ -581,6 +583,114 @@ budget and the per-minute ceiling are imported from the per-lead service rather 
 there is one answer to "may this workspace spend a call right now" and both features draw on the
 same ledger. Generating is open to any member — unlike a lead analysis, which takes the lead's write
 rule, this replaces a shared briefing about data every member can already see in full.
+
+---
+
+## Team, roles and getting in
+
+### One owner, transferred rather than granted
+
+Three roles: **owner**, **admin**, **member**. An admin may change anyone's role and remove anyone;
+only the owner can make somebody an admin; nobody can touch the owner at all.
+
+There is exactly **one** owner, and the database enforces it with a partial unique index rather than
+the application promising to be careful:
+
+```sql
+CREATE UNIQUE INDEX "users_one_owner_per_organization"
+  ON "users" ("organizationId") WHERE "role" = 'OWNER';
+```
+
+The app had always talked about "the owner" while the schema allowed any number, and the guards
+counted _other_ owners to decide whether a demotion was safe. That ambiguity was not theoretical:
+two demo sandboxes in the dev database had already drifted to two owners through ordinary role
+changes, so the migration demotes the extras — earliest account keeps it — before adding the
+constraint.
+
+Ownership therefore **transfers** rather than being granted: the recipient is promoted and the giver
+demoted in one transaction, so there is no instant with two owners and none with zero. It asks for
+the recipient's name to be typed, the same friction as a permanent delete, because from the giver's
+side it cannot be undone.
+
+Only the owner can grant admin — and that rule is enforced on the invitation path too, in
+`assertMayGrantRole`. Without that, "admins cannot make admins" would be a rule about which button
+you press: an admin would simply send a link instead.
+
+### Invitations
+
+A 32-byte secret that exists in the email and the URL and nowhere else — only its SHA-256 is stored,
+so the link cannot be recovered from the database or shown twice. Single-use, seven-day expiry,
+revocable, and it carries the role it grants.
+
+Shown once, on creation, and never again. That is the point rather than an inconvenience: a link
+retrievable from a list would be a standing credential any admin could pick up at any time, and a
+leak would be indistinguishable from a legitimate re-read. Losing one costs a revoke and a re-issue,
+both of which leave a trail.
+
+An invitation may be **bound** to an address, in which case only that address can redeem it and a
+forwarded link fails closed. An unbound one is a link the sender passes on themselves, redeemable
+once by whoever arrives first. Accepting is a compare-and-swap on `acceptedAt` inside the
+transaction that creates the account, so two people opening the same link cannot both end up with
+one.
+
+### Email verification, and the enumeration gap it closes
+
+Sign-up used to answer `EMAIL_TAKEN` for an address that already had an account — a free membership
+oracle for anyone with a list of addresses. It also signed you straight in, and those two cannot
+coexist: issuing a session _only_ for new addresses is the same oracle wearing a different hat,
+because a `Set-Cookie` is as readable as an error code.
+
+So sign-up now returns the same neutral acknowledgement either way and issues no session. The
+difference moves to the one place only the address's owner can look — a new address gets "confirm
+your email", an existing one gets "somebody tried to sign up with your address, you already have an
+account", and nothing is created. Password reset works the same way, and answers identically for an
+address that does not exist.
+
+The cost is one extra step: you sign in afterwards with the password you just chose. Note that this
+keeps working on a deployment that cannot deliver mail at all — the account is created either way,
+so the password works immediately and the address simply stays unconfirmed.
+
+**Verification is never a gate.** An unverified user signs in and works normally, with a dismissible
+banner offering to resend. The sender in use (`onboarding@resend.dev`) only delivers to the Resend
+account holder, so gating on delivery would mean a mail configuration locking somebody out of a
+workspace they own. An unconfirmed address is a recoverability problem for that person, not a
+permission problem for the product.
+
+### Sending mail never fails the thing that triggered it
+
+`email.provider.ts` reports success or failure and throws nothing. Every flow behind an email has a
+path that does not need it, so a provider outage must not become "you cannot create an account".
+With no API key the message is logged instead of sent, which is also how the local tests read a
+verification link without an inbox.
+
+This is not theory: in the end-to-end suite every single invitation email was refused by Resend —
+unverified sending domain, `example.com` recipients — and all 43 API checks still passed.
+
+### Two rate limits that were quietly wrong
+
+Both found by testing, both the same shape: a budget keyed on something coarser than the thing it
+was protecting.
+
+**Accepting an invitation** shared the sign-up budget of five per hour per IP. A company onboarding
+six people from one office NAT would have had the sixth told to try again later. Accepting already
+requires a single-use token an admin deliberately issued, which is stronger anti-abuse than any IP
+counter, so it has its own larger budget now.
+
+**Confirming an email** shared `authLimiter`, which keys on IP _plus the email in the body_ — and
+that endpoint carries no email, so the key silently collapsed to the IP alone. Ten attempts per
+quarter hour then had to cover everyone behind one address. Token-bearing endpoints now have their
+own generous budget; the 32 bytes of entropy are what actually stops guessing.
+
+### A password reset now actually ends the other sessions
+
+Revoking the refresh tokens was not enough. The access token is a stateless JWT, so whoever held one
+— which is the entire threat a reset exists for — kept working until it expired, up to fifteen more
+minutes. The same hole was in change-password, which only _cleared the caller's cookie_: no help
+against somebody holding the token rather than the browser.
+
+`User.sessionsValidFrom` is an epoch checked in `requireAuth`, so a credential change takes effect on
+the very next request. It is compared in whole seconds because `iat` is, and comparing milliseconds
+would reject a token minted in the same second as the change.
 
 ---
 

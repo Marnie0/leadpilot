@@ -11,6 +11,7 @@ export const queryKeys = {
   session: ['session'] as const,
   stages: ['stages'] as const,
   team: ['team'] as const,
+  invitations: ['team', 'invitations'] as const,
   fxRates: ['fx-rates'] as const,
   aiSettings: ['ai', 'settings'] as const,
   aiSummary: ['ai', 'summary'] as const,

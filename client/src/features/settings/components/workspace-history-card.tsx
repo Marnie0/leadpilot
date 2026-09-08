@@ -72,13 +72,43 @@ function EventRow({
   t: ReturnType<typeof useT>;
 }) {
   const change = event.currencyChange;
+  const membership = event.membership;
+
+  /*
+   * One sentence per event type.
+   *
+   * The raw type used to fall through as the fallback, which was fine while
+   * CURRENCY_CHANGED was the only member of the enum and would have started
+   * printing `MEMBER_INVITED` at people the moment it was not.
+   */
+  const describe = (): string => {
+    if (change) {
+      return t('settings.eventCurrencyChanged', { from: change.from, to: change.to });
+    }
+    const name = membership?.subject ?? t('team.someone');
+    const role = membership?.role ? t(`role.${membership.role}` as 'role.MEMBER') : '';
+    switch (event.type) {
+      case 'OWNERSHIP_TRANSFERRED':
+        return t('settings.eventOwnershipTransferred', { name });
+      case 'MEMBER_INVITED':
+        return t('settings.eventMemberInvited', { name, role });
+      case 'INVITE_ACCEPTED':
+        return t('settings.eventInviteAccepted', { name, role });
+      case 'INVITE_REVOKED':
+        return t('settings.eventInviteRevoked', { name });
+      case 'MEMBER_ROLE_CHANGED':
+        return t('settings.eventRoleChanged', { name, role });
+      case 'MEMBER_REMOVED':
+        return t('settings.eventMemberRemoved', { name });
+      default:
+        return t('settings.eventUnknown');
+    }
+  };
 
   return (
     <li className="flex flex-col gap-1 px-6 py-4">
       <p className="text-sm text-foreground" dir="auto">
-        {change
-          ? t('settings.eventCurrencyChanged', { from: change.from, to: change.to })
-          : event.type}
+        {describe()}
       </p>
       {change && (
         <p className="text-xs text-muted-foreground tabular-nums">

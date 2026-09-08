@@ -17,9 +17,17 @@ export function AuthLayout({
   footer,
 }: {
   title: string;
-  subtitle: string;
+  /*
+   * Optional, both of them.
+   *
+   * The screens that arrive from an emailed link — verification, reset,
+   * accepting an invitation — are terminal: they say one thing and offer one
+   * action. Forcing an empty subtitle and an empty footer onto them left a
+   * blank line above and a blank block below every one of them.
+   */
+  subtitle?: string;
   children: React.ReactNode;
-  footer: React.ReactNode;
+  footer?: React.ReactNode;
 }) {
   const t = useT();
 
@@ -42,10 +50,12 @@ export function AuthLayout({
           <div className="w-full max-w-sm">
             <div className="mb-8 space-y-2">
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
-              <p className="text-sm text-muted-foreground">{subtitle}</p>
+              {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
             </div>
             {children}
-            <div className="mt-6 text-center text-sm text-muted-foreground">{footer}</div>
+            {footer && (
+              <div className="mt-6 text-center text-sm text-muted-foreground">{footer}</div>
+            )}
           </div>
         </div>
       </div>

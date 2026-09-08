@@ -58,12 +58,35 @@ export const requireAuth: RequestHandler = async (
         role: true,
         isActive: true,
         organizationId: true,
+        sessionsValidFrom: true,
       },
     });
 
     if (!user || !user.isActive) {
       next(unauthorized('Your account is no longer active', 'ACCOUNT_INACTIVE'));
       return;
+    }
+
+    /*
+     * A credential change invalidates tokens issued before it.
+     *
+     * Revoking the refresh tokens alone was not enough: the access token is a
+     * stateless JWT and keeps working until it expires, so a password reset
+     * left whoever held one with up to fifteen more minutes — exactly the
+     * window the reset exists to close.
+     *
+     * `iat` is whole seconds, so the epoch is floored to seconds too.
+     * Comparing against the millisecond value would reject a token minted in
+     * the same second as the change — including the fresh one handed back by
+     * `changePassword`, which would sign the user out of the request they just
+     * made.
+     */
+    if (user.sessionsValidFrom) {
+      const issuedAt = typeof claims.iat === 'number' ? claims.iat : 0;
+      if (issuedAt < Math.floor(user.sessionsValidFrom.getTime() / 1000)) {
+        next(unauthorized('Your session has expired. Please sign in again.', 'SESSION_EXPIRED'));
+        return;
+      }
     }
 
     // Defence in depth: if a token were ever minted for the wrong tenant, the

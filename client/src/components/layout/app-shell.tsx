@@ -8,6 +8,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import { useI18n } from '@/lib/i18n';
 import { SidebarNav } from './sidebar-nav';
 import { UserMenu } from './user-menu';
+import { VerifyEmailBanner } from './verify-email-banner';
 import { DemoBanner } from './demo-banner';
 
 /**
@@ -91,6 +92,10 @@ export function AppShell() {
         </header>
 
         <DemoBanner />
+
+        {/* Above the content rather than inside it, so it appears on every
+            screen without each page having to remember to render it. */}
+        <VerifyEmailBanner />
 
         <main className="min-w-0 flex-1">
           <Outlet />

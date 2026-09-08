@@ -1,13 +1,7 @@
 import { z } from 'zod';
 import { msg } from './message.js';
 import { currencySchema, type MoneyTotalDto } from './currency.schema.js';
-import {
-  LEAD_PRIORITIES,
-  LEAD_SOURCES,
-  STAGE_KEYS,
-  STAGE_TYPES,
-  type Currency,
-} from './enums.js';
+import { LEAD_PRIORITIES, LEAD_SOURCES, STAGE_KEYS, STAGE_TYPES, type Currency } from './enums.js';
 import {
   csvArray,
   idSchema,

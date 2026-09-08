@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AuthUser, LoginInput, SignupInput } from '@leadpilot/shared';
+import type { AuthAcknowledgementDto, AuthUser, LoginInput, SignupInput } from '@leadpilot/shared';
 import { api, ApiError, onSessionExpired } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
 
@@ -12,7 +12,15 @@ interface AuthContextValue {
   login: (input: LoginInput) => Promise<AuthUser>;
   /** Clones the demo template into a private sandbox and signs into it. */
   startDemo: () => Promise<AuthUser>;
-  signup: (input: SignupInput) => Promise<AuthUser>;
+  /**
+   * Creates the workspace and returns an acknowledgement — **not** a session.
+   *
+   * The API deliberately issues no cookie here, because doing so only for
+   * addresses that did not already have an account would make the presence of
+   * `Set-Cookie` an enumeration oracle. The caller signs in afterwards with the
+   * password they just chose.
+   */
+  signup: (input: SignupInput) => Promise<AuthAcknowledgementDto>;
   logout: () => Promise<void>;
 }
 
@@ -61,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const signupMutation = useMutation({
-    mutationFn: (input: SignupInput) => api.post<SessionResponse>('/auth/signup', input),
+    mutationFn: (input: SignupInput) => api.post<AuthAcknowledgementDto>('/auth/signup', input),
   });
 
   const demoMutation = useMutation({
@@ -82,12 +90,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signup = useCallback(
-    async (input: SignupInput) => {
-      const { user } = await signupMutation.mutateAsync(input);
-      queryClient.setQueryData(queryKeys.session, user);
-      return user;
-    },
-    [signupMutation, queryClient],
+    async (input: SignupInput) => signupMutation.mutateAsync(input),
+    [signupMutation],
   );
 
   const startDemo = useCallback(async () => {

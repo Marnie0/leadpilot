@@ -127,7 +127,7 @@ export function PipelinePage() {
 
   const totals = useMemo(() => {
     if (!board) return null;
-      return {
+    return {
       leads: board.columns.reduce((sum, column) => sum + column.total, 0),
       // Taken from the payload rather than re-added here. Summing the columns
       // client-side would need FX rates the browser may not have fetched — the

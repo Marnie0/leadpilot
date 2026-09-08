@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginInput } from '@leadpilot/shared';
-import { AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Loader2, MailCheck } from 'lucide-react';
 import { AuthLayout } from '@/features/auth/auth-layout';
 import { useAuth } from '@/features/auth/auth-context';
 import { useFormError } from '@/features/auth/use-form-error';
@@ -22,9 +22,20 @@ export function LoginPage() {
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
 
+  /*
+   * Signing up sends you here rather than straight into the app — see the note
+   * in `signup-page`. The address comes with you so the only thing left to do
+   * is the password that was just chosen.
+   */
+  const arrival = location.state as {
+    justSignedUp?: boolean;
+    email?: string;
+    emailSent?: boolean;
+  } | null;
+
   const form = useForm<LoginInput>({
     resolver: useLocalizedResolver(zodResolver(loginSchema)),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: arrival?.email ?? '', password: '' },
   });
 
   const { formError, handleError, clearFormError } = useFormError(form.setError);
@@ -72,6 +83,15 @@ export function LoginPage() {
         </>
       }
     >
+      {arrival?.justSignedUp && (
+        <Alert className="mb-5">
+          <MailCheck className="size-4" />
+          <AlertDescription>
+            {arrival.emailSent ? t('auth.signedUpCheckEmail') : t('auth.signedUpNoEmail')}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5" noValidate>
         {formError && (
           <Alert variant="destructive">
@@ -102,7 +122,15 @@ export function LoginPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="password">{t('auth.password')}</Label>
+          <div className="flex items-baseline justify-between gap-2">
+            <Label htmlFor="password">{t('auth.password')}</Label>
+            <Link
+              to="/forgot-password"
+              className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              {t('auth.forgotPassword')}
+            </Link>
+          </div>
           <div className="relative">
             <Input
               id="password"

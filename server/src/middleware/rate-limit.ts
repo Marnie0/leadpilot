@@ -34,7 +34,45 @@ export const authLimiter = rateLimit({
 export const signupLimiter = rateLimit({
   ...shared,
   windowMs: 60 * 60 * 1000,
-  limit: 5,
+  limit: env.SIGNUP_RATE_LIMIT,
+});
+
+/**
+ * Accepting an invitation — creating an account too, but not open signup.
+ *
+ * It gets its own, much larger budget because the two are not the same risk.
+ * Open signup is reachable by anyone; accepting requires a single-use secret
+ * that an owner or admin deliberately issued, which is stronger anti-abuse than
+ * any IP counter.
+ *
+ * Sharing the signup budget was actively wrong: a company onboarding its team
+ * from one office address is a single IP, and the sixth person to click their
+ * invitation would have been told to try again later.
+ */
+export const inviteLimiter = rateLimit({
+  ...shared,
+  windowMs: 60 * 60 * 1000,
+  limit: env.INVITE_RATE_LIMIT,
+});
+
+/**
+ * Endpoints whose authorisation *is* an unguessable token: confirming an
+ * address, resetting a password.
+ *
+ * They used to share `authLimiter`, which is keyed on IP **plus the email in
+ * the body** — and these carry no email, so the key silently collapsed to the
+ * IP alone. Ten attempts per quarter hour then had to cover everybody behind
+ * one address: an office NAT, a mobile carrier, a school. The eleventh person
+ * to confirm their email that afternoon would have been told to try later.
+ *
+ * A generous IP budget is the right shape here because the token is doing the
+ * real work: 32 random bytes is not something anybody guesses, whatever the
+ * request rate. This exists to bound noise, not to stop an attack.
+ */
+export const tokenLimiter = rateLimit({
+  ...shared,
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
 });
 
 /**

@@ -95,6 +95,14 @@ export interface AuthUser {
   /** Display-only currency override. `null` means the workspace's own. */
   displayCurrency: string | null;
   avatarColor: string;
+  /**
+   * Whether this address has been confirmed.
+   *
+   * Purely informational — nothing in the product is gated on it. The client
+   * uses it for one banner offering to resend, because an unconfirmed address
+   * is a recoverability problem for the user rather than a permission problem.
+   */
+  emailVerified: boolean;
   createdAt: string;
   organization: {
     id: string;
@@ -118,3 +126,60 @@ export interface AuthUser {
 }
 
 export const teamMemberIdSchema = z.object({ id: idSchema });
+
+/* ------------------------------------------------------------------ *
+ * Email verification and password reset
+ *
+ * Every endpoint below answers identically whether or not the address it was
+ * given has an account. That is the whole point: an API that says "no such
+ * user" is a free membership oracle, and the only place the difference can
+ * safely appear is the recipient's own inbox.
+ * ------------------------------------------------------------------ */
+
+/** How long a verification or reset link stays usable. */
+export const AUTH_LINK_LIFETIME_HOURS = 24;
+
+export const verifyEmailSchema = z.object({
+  token: z.string().min(16).max(200),
+});
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+  /** The language to write the email in. A courtesy, not a credential. */
+  locale: z.enum(LOCALES).optional(),
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(16).max(200),
+  password: passwordSchema,
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export const resetPasswordFormSchema = resetPasswordSchema
+  .extend({ confirmPassword: z.string().min(1, { message: msg('validation.passwordConfirm') }) })
+  .refine((values) => values.password === values.confirmPassword, {
+    message: msg('validation.passwordMismatch'),
+    path: ['confirmPassword'],
+  });
+export type ResetPasswordFormValues = z.input<typeof resetPasswordFormSchema>;
+
+/**
+ * The response to signing up, asking for a reset, or resending a verification.
+ *
+ * Deliberately carries nothing but an acknowledgement. No id, no session, no
+ * hint about whether anything was created — see the note above.
+ */
+export interface AuthAcknowledgementDto {
+  /** Always true. Present so the body is not an empty object. */
+  ok: true;
+  /**
+   * Whether the deployment can actually send mail.
+   *
+   * Not a leak — it is a property of the server, identical for every caller —
+   * and the sign-up screen needs it to avoid telling somebody to check an inbox
+   * that will never receive anything.
+   */
+  emailConfigured: boolean;
+}

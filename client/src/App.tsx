@@ -5,6 +5,10 @@ import { ProtectedRoute, PublicOnlyRoute } from '@/features/auth/protected-route
 import { LandingPage } from '@/pages/landing-page';
 import { LoginPage } from '@/pages/login-page';
 import { SignupPage } from '@/pages/signup-page';
+import { ForgotPasswordPage } from '@/pages/forgot-password-page';
+import { ResetPasswordPage } from '@/pages/reset-password-page';
+import { VerifyEmailPage } from '@/pages/verify-email-page';
+import { AcceptInvitePage } from '@/pages/accept-invite-page';
 import { LeadsPage } from '@/pages/leads-page';
 import { LeadDetailPage } from '@/pages/lead-detail-page';
 import { NotFoundPage } from '@/pages/not-found-page';
@@ -63,7 +67,20 @@ export function App() {
       <Route element={<PublicOnlyRoute />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       </Route>
+
+      {/*
+        Deliberately outside PublicOnlyRoute.
+        
+        Somebody who is already signed in can still legitimately land on these:
+        an invitation forwarded to a colleague who happens to have another
+        workspace open, or a verification link clicked from a phone that is
+        signed in. Redirecting them away would leave the link looking broken.
+      */}
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/invite/:token" element={<AcceptInvitePage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>

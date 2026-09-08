@@ -1,13 +1,24 @@
 import type { Prisma, User } from '@prisma/client';
 import type {
+  AuthAcknowledgementDto,
   AuthUser,
   ChangePasswordInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
   LoginInput,
   SignupInput,
   UpdateProfileInput,
 } from '@leadpilot/shared';
+import { env } from '../../env.js';
 import { prisma } from '../../db.js';
-import { conflict, forbidden, unauthorized } from '../../lib/errors.js';
+import {
+  hashedForLog,
+  sendExistingAccountNotice,
+  sendPasswordReset,
+  sendVerificationEmail,
+} from './auth-email.service.js';
+import { consumeAuthToken } from './auth-tokens.service.js';
+import { badRequest, forbidden, unauthorized } from '../../lib/errors.js';
 import { hashPassword, simulatePasswordVerification, verifyPassword } from '../../lib/password.js';
 import {
   hashToken,
@@ -72,6 +83,7 @@ async function toAuthUser(user: AuthUserRow): Promise<AuthUser> {
     locale: user.locale,
     displayCurrency: user.displayCurrency,
     avatarColor: user.avatarColor,
+    emailVerified: user.emailVerifiedAt !== null,
     createdAt: user.createdAt.toISOString(),
     organization: {
       id: user.organization.id,
@@ -136,13 +148,43 @@ async function createSession(user: User, context: SessionContext) {
  * single transaction — a half-built tenant (an org with no stages) would break
  * every lead query, so it must be all or nothing.
  */
-export async function signup(input: SignupInput, context: SessionContext): Promise<AuthResult> {
+/**
+ * Creating a workspace.
+ *
+ * ## Why this no longer signs you in, and no longer says "email taken"
+ *
+ * It used to do both, and the two cannot coexist with an endpoint that keeps
+ * quiet about which addresses have accounts. Returning `EMAIL_TAKEN` is an
+ * obvious oracle; returning a *session* only for new addresses is the same
+ * oracle wearing a different hat, because the presence of a `Set-Cookie` is as
+ * readable as an error code.
+ *
+ * So both cases now produce the identical acknowledgement, and the difference
+ * moves to the one place only the address's real owner can look: their inbox.
+ * A new address gets "confirm your email"; an existing one gets "somebody tried
+ * to sign up with your address, you already have an account" and nothing is
+ * created or changed.
+ *
+ * The cost is one extra step — you sign in afterwards with the password you
+ * just chose — and it is worth it. Note that the account is created either way,
+ * so this still works on a deployment where mail cannot be delivered: the
+ * password works immediately, and the address simply stays unconfirmed.
+ */
+export async function signup(
+  input: SignupInput,
+  _context: SessionContext,
+): Promise<AuthAcknowledgementDto> {
   const existing = await prisma.user.findUnique({
     where: { email: input.email },
-    select: { id: true },
+    select: { id: true, name: true, locale: true },
   });
+
   if (existing) {
-    throw conflict('An account with that email already exists', 'EMAIL_TAKEN');
+    // Nothing is created. The recipient is told, so a person whose address is
+    // being used learns about it; an attacker probing the API learns nothing.
+    await sendExistingAccountNotice(input.email, existing.name, input.locale ?? existing.locale);
+    logger.info({ email: hashedForLog(input.email) }, 'signup attempted on an existing address');
+    return { ok: true, emailConfigured: env.emailConfigured };
   }
 
   const passwordHash = await hashPassword(input.password);
@@ -178,16 +220,15 @@ export async function signup(input: SignupInput, context: SessionContext): Promi
         role: 'OWNER',
         ...(input.locale && { locale: input.locale }),
         avatarColor: pickAvatarColor(input.email),
-        lastLoginAt: new Date(),
       },
       include: AUTH_USER_INCLUDE,
     });
   });
 
-  const tokens = await createSession(user, context);
   logger.info({ userId: user.id, organizationId: user.organizationId }, 'organisation created');
+  await sendVerificationEmail(user.id, user.email, user.name, user.organization.name, user.locale);
 
-  return { user: await toAuthUser(user), ...tokens };
+  return { ok: true, emailConfigured: env.emailConfigured };
 }
 
 export async function login(input: LoginInput, context: SessionContext): Promise<AuthResult> {
@@ -338,24 +379,37 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
  * the control — a stolen cookie stops working the moment the owner reacts.
  */
 export async function changePassword(userId: string, input: ChangePasswordInput): Promise<void> {
-  const user = await prisma.user.findUnique({
+  const existing = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, passwordHash: true },
   });
-  if (!user) throw unauthorized();
+  if (!existing) throw unauthorized();
 
-  const valid = await verifyPassword(input.currentPassword, user.passwordHash);
+  const valid = await verifyPassword(input.currentPassword, existing.passwordHash);
   if (!valid)
     throw unauthorized('Your current password is incorrect', 'CURRENT_PASSWORD_INCORRECT');
 
   const passwordHash = await hashPassword(input.newPassword);
   await prisma.$transaction([
-    prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+    prisma.user.update({
+      where: { id: userId },
+      /*
+       * What actually ends the other sessions.
+       *
+       * The route already cleared this caller's cookies and the refresh tokens
+       * below were already revoked — but an access token is a stateless JWT,
+       * so anyone *holding* one (which is the threat this control exists for)
+       * kept working for up to fifteen minutes. Clearing a cookie only
+       * inconveniences the person who still has the browser.
+       */
+      data: { passwordHash, sessionsValidFrom: new Date() },
+    }),
     prisma.refreshToken.updateMany({
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     }),
   ]);
+
 }
 
 /**
@@ -386,4 +440,94 @@ export async function startDemoSession(context: SessionContext): Promise<AuthRes
 
   const tokens = await createSession(user, context);
   return { user: await toAuthUser(user), ...tokens };
+}
+
+/* ------------------------------------------------------------------ *
+ * Email verification and password reset
+ * ------------------------------------------------------------------ */
+
+/**
+ * Confirms an address.
+ *
+ * Idempotent-ish by design: the token is single-use, so a second click reports
+ * the link as spent rather than silently succeeding. That is the right answer —
+ * a link that keeps working after it has been used is a link worth stealing.
+ */
+export async function verifyEmail(token: string): Promise<void> {
+  const consumed = await consumeAuthToken(token, 'EMAIL_VERIFICATION');
+  if (!consumed) {
+    throw badRequest('This link is no longer valid', 'INVALID_OR_EXPIRED_TOKEN');
+  }
+
+  await prisma.user.update({
+    where: { id: consumed.userId },
+    data: { emailVerifiedAt: new Date() },
+    select: { id: true },
+  });
+  logger.info({ userId: consumed.userId }, 'email verified');
+}
+
+/** Re-sends the confirmation. No-ops quietly for an already verified address. */
+export async function resendVerification(userId: string): Promise<AuthAcknowledgementDto> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      locale: true,
+      emailVerifiedAt: true,
+      organization: { select: { name: true } },
+    },
+  });
+
+  if (user && !user.emailVerifiedAt) {
+    await sendVerificationEmail(
+      user.id,
+      user.email,
+      user.name,
+      user.organization.name,
+      user.locale,
+    );
+  }
+  return { ok: true, emailConfigured: env.emailConfigured };
+}
+
+export async function forgotPassword(input: ForgotPasswordInput): Promise<AuthAcknowledgementDto> {
+  await sendPasswordReset(input.email, input.locale ?? 'en');
+  return { ok: true, emailConfigured: env.emailConfigured };
+}
+
+/**
+ * Sets a new password from an emailed token.
+ *
+ * Every other session is revoked in the same transaction. Somebody resetting
+ * their password is, often enough, doing it because they think somebody else
+ * has it — leaving the attacker's refresh token alive would make the reset
+ * theatre. It also verifies the address as a side effect: clicking a link sent
+ * to it is exactly the proof `verifyEmail` asks for.
+ */
+export async function resetPassword(input: ResetPasswordInput): Promise<void> {
+  const consumed = await consumeAuthToken(input.token, 'PASSWORD_RESET');
+  if (!consumed) {
+    throw badRequest('This link is no longer valid', 'INVALID_OR_EXPIRED_TOKEN');
+  }
+
+  const passwordHash = await hashPassword(input.password);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: consumed.userId },
+      // `sessionsValidFrom` is what actually ends the other sessions —
+      // revoking refresh tokens alone leaves live access tokens working.
+      data: { passwordHash, emailVerifiedAt: new Date(), sessionsValidFrom: new Date() },
+      select: { id: true },
+    });
+    await tx.refreshToken.updateMany({
+      where: { userId: consumed.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  });
+
+  logger.info({ userId: consumed.userId }, 'password reset, all sessions revoked');
 }

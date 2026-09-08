@@ -65,7 +65,15 @@ export interface CurrencyPreviewDto {
  * Workspace audit
  * ------------------------------------------------------------------ */
 
-export const WORKSPACE_EVENT_TYPES = ['CURRENCY_CHANGED'] as const;
+export const WORKSPACE_EVENT_TYPES = [
+  'CURRENCY_CHANGED',
+  'OWNERSHIP_TRANSFERRED',
+  'MEMBER_INVITED',
+  'INVITE_ACCEPTED',
+  'INVITE_REVOKED',
+  'MEMBER_ROLE_CHANGED',
+  'MEMBER_REMOVED',
+] as const;
 export type WorkspaceEventType = (typeof WORKSPACE_EVENT_TYPES)[number];
 
 /**
@@ -85,4 +93,18 @@ export interface WorkspaceEventDto {
   actor: { id: string; name: string } | null;
   /** For CURRENCY_CHANGED: what it was, what it became, and at what rate. */
   currencyChange?: { from: string; to: string; rate: number; leads: number };
+  /**
+   * For the membership events: who it was about, and what changed.
+   *
+   * `subject` is a name rather than an id because the person may since have
+   * been removed, and "Ahmed was removed from the workspace" has to keep
+   * reading correctly once the row it pointed at is gone.
+   */
+  membership?: {
+    subject: string;
+    /** For a role change or an invite: the role involved. */
+    role?: string;
+    /** For a role change: what it was before. */
+    previousRole?: string;
+  };
 }

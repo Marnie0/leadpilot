@@ -1,4 +1,6 @@
-import { Users2 } from 'lucide-react';
+import { useState } from 'react';
+import { Loader2, UserPlus, Users2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { MANAGER_ROLES } from '@leadpilot/shared';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,7 +11,22 @@ import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useTeamMembers } from '@/features/leads/api';
-import { MemberActions } from '@/features/team/components/member-actions';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { MemberActions, type ManageableMember } from '@/features/team/components/member-actions';
+import { InviteDialog } from '@/features/team/components/invite-dialog';
+import { InvitationList } from '@/features/team/components/invitation-list';
+import { useRemoveTeamMember, useTransferOwnership } from '@/features/team/api';
+import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { initials } from '@/lib/format';
 import { useFormat, useT } from '@/lib/i18n';
 
@@ -26,12 +43,28 @@ export function TeamPage() {
   const teamQuery = useTeamMembers();
   const members = teamQuery.data ?? [];
   const isManager = MANAGER_ROLES.includes(user.role);
+  const describeError = useApiErrorMessage();
+
+  const [isInviteOpen, setInviteOpen] = useState(false);
+  const [removing, setRemoving] = useState<ManageableMember | null>(null);
+  const [transferring, setTransferring] = useState<ManageableMember | null>(null);
+  const [confirmName, setConfirmName] = useState('');
+
+  const removeMember = useRemoveTeamMember();
+  const transferOwnership = useTransferOwnership();
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <PageHeader
         title={t('team.title')}
         description={t('team.description', { organization: user.organization.name })}
+        actions={
+          isManager ? (
+            <Button onClick={() => setInviteOpen(true)}>
+              <UserPlus className="size-4" /> {t('team.invitePeople')}
+            </Button>
+          ) : undefined
+        }
       />
 
       <Card className="gap-0 p-0">
@@ -88,7 +121,16 @@ export function TeamPage() {
                 </p>
 
                 {isManager && (
-                  <MemberActions member={member} viewerId={user.id} viewerRole={user.role} />
+                  <MemberActions
+                    member={member}
+                    viewerId={user.id}
+                    viewerRole={user.role}
+                    onTransfer={(target) => {
+                      setConfirmName('');
+                      setTransferring(target);
+                    }}
+                    onRemove={(target) => setRemoving(target)}
+                  />
                 )}
               </li>
             ))}
@@ -96,7 +138,111 @@ export function TeamPage() {
         )}
       </Card>
 
-      <p className="text-sm text-muted-foreground">{t('team.footnote')}</p>
+      <InvitationList canManage={isManager} />
+
+      <p className="text-sm text-muted-foreground">
+        {isManager ? t('team.footnote') : t('team.footnoteMember')}
+      </p>
+
+      <InviteDialog
+        open={isInviteOpen}
+        onOpenChange={setInviteOpen}
+        canInviteAdmins={user.role === 'OWNER'}
+      />
+
+      <Dialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle dir="auto">
+              {t('team.removeTitle', { name: removing?.name ?? '' })}
+            </DialogTitle>
+            <DialogDescription>{t('team.removeBody')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemoving(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={removeMember.isPending}
+              onClick={() => {
+                if (!removing) return;
+                removeMember.mutate(removing.id, {
+                  onSuccess: () => {
+                    toast.success(t('team.removed', { name: removing.name }));
+                    setRemoving(null);
+                  },
+                  onError: (error) =>
+                    toast.error(t('team.couldNotRemove'), { description: describeError(error) }),
+                });
+              }}
+            >
+              {removeMember.isPending && <Loader2 className="size-4 animate-spin" />}
+              {t('team.remove')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/*
+        Ownership transfer asks for the recipient's name to be typed, the same
+        friction as a permanent delete — from the giver's side it cannot be
+        undone, and only the new owner can hand it back.
+      */}
+      <Dialog open={transferring !== null} onOpenChange={(open) => !open && setTransferring(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle dir="auto">
+              {t('team.transferTitle', { name: transferring?.name ?? '' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('team.transferBody', { name: transferring?.name ?? '' })}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="transfer-confirm">
+              {t('team.transferConfirmLabel', { name: transferring?.name ?? '' })}
+            </Label>
+            <Input
+              id="transfer-confirm"
+              value={confirmName}
+              onChange={(event) => setConfirmName(event.target.value)}
+              dir="auto"
+              autoComplete="off"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTransferring(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={transferOwnership.isPending || confirmName.trim().length === 0}
+              onClick={() => {
+                if (!transferring) return;
+                transferOwnership.mutate(
+                  { id: transferring.id, confirmName },
+                  {
+                    onSuccess: () => {
+                      toast.success(t('team.transferred', { name: transferring.name }));
+                      setTransferring(null);
+                    },
+                    onError: (error) =>
+                      toast.error(t('team.couldNotTransfer'), {
+                        description: describeError(error),
+                      }),
+                  },
+                );
+              }}
+            >
+              {transferOwnership.isPending && <Loader2 className="size-4 animate-spin" />}
+              {t('team.makeOwner')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

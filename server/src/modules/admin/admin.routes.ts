@@ -7,6 +7,8 @@ import { reapExpiredSandboxes } from '../auth/demo.service.js';
 import { purgeExpiredTrash } from '../follow-ups/follow-ups.service.js';
 import { purgeExpiredLeads } from '../leads/leads.service.js';
 import { purgeExpiredAiUsage } from '../ai/ai.service.js';
+import { purgeExpiredAuthTokens } from '../auth/auth-tokens.service.js';
+import { purgeExpiredInvitations } from '../invitations/invitations.service.js';
 
 export const adminRouter = Router();
 
@@ -33,16 +35,21 @@ const handler = asyncHandler(async (req, res) => {
   // Leads first: destroying one cascades to its follow-ups, so the follow-up
   // sweep afterwards has less to do and can never race the cascade.
   const purgedLeads = await purgeExpiredLeads();
-  const [removed, purgedFollowUps, purgedAiUsage] = await Promise.all([
-    reapExpiredSandboxes(),
-    purgeExpiredTrash(),
-    purgeExpiredAiUsage(),
-  ]);
+  const [removed, purgedFollowUps, purgedAiUsage, purgedAuthTokens, purgedInvitations] =
+    await Promise.all([
+      reapExpiredSandboxes(),
+      purgeExpiredTrash(),
+      purgeExpiredAiUsage(),
+      purgeExpiredAuthTokens(),
+      purgeExpiredInvitations(),
+    ]);
   res.json({
     removed,
     purgedLeads,
     purgedFollowUps,
     purgedAiUsage,
+    purgedAuthTokens,
+    purgedInvitations,
     at: new Date().toISOString(),
   });
 });

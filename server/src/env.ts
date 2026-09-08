@@ -105,6 +105,52 @@ const envSchema = z.object({
   AI_DEMO_DAILY_LIMIT: z.coerce.number().int().min(1).max(1000).default(5),
 
   /**
+   * New workspaces one IP may create per hour, and invitations it may accept.
+   *
+   * Configurable because the right number depends on the deployment — and
+   * because an end-to-end suite legitimately creates more accounts in a minute
+   * than a human would in a week.
+   */
+  SIGNUP_RATE_LIMIT: z.coerce.number().int().min(1).max(1000).default(5),
+  INVITE_RATE_LIMIT: z.coerce.number().int().min(1).max(1000).default(30),
+
+  /**
+   * Resend API key for verification, invite and password-reset email.
+   *
+   * Optional, exactly like `GEMINI_API_KEY`. Without it nothing is sent and the
+   * message is logged instead, so local development needs no third party and a
+   * deployment that has never had a key still signs people up — the flows that
+   * depend on email all degrade to "the account works, the address is
+   * unconfirmed" rather than to a dead end.
+   */
+  RESEND_API_KEY: z
+    .string()
+    .transform((value) => (value.trim().length > 0 ? value.trim() : undefined))
+    .optional(),
+
+  /**
+   * The From address.
+   *
+   * `onboarding@resend.dev` is Resend's shared sender: it needs no DNS and
+   * delivers **only to the address on the Resend account itself**. That is a
+   * real constraint rather than a detail — on a public deployment a visitor
+   * signing up with their own address receives nothing — and it is why none of
+   * the email flows are allowed to gate access to the product. Point this at a
+   * verified domain and every recipient starts working, with no code change.
+   */
+  EMAIL_FROM: z.string().min(3).default('LeadPilot <onboarding@resend.dev>'),
+
+  /**
+   * Public origin used to build the links inside emails.
+   *
+   * Explicit rather than derived from the request, because a link is built in
+   * places that have no request (a scheduled job) and because trusting the
+   * `Host` header would let an attacker mint a password-reset link pointing at
+   * their own domain.
+   */
+  APP_URL: z.string().url().default('http://localhost:5173'),
+
+  /**
    * Returns the real error message and stack to the client in production too.
    * Off by default: on a public deployment that is information disclosure.
    * Useful on a portfolio demo where you are the only one reading it.
@@ -139,6 +185,8 @@ export const env = {
   exposeErrorDetails: raw.EXPOSE_ERROR_DETAILS || raw.NODE_ENV !== 'production',
   /** True when a provider key is present — the assistant's on/off switch. */
   aiConfigured: Boolean(raw.GEMINI_API_KEY),
+  /** True when email can actually be sent rather than logged. */
+  emailConfigured: Boolean(raw.RESEND_API_KEY),
   corsOrigins: raw.CORS_ORIGINS.split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),

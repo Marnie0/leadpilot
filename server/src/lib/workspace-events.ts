@@ -57,5 +57,15 @@ export function toWorkspaceEventDto(event: WorkspaceEventRow): WorkspaceEventDto
         leads: number(meta.leads),
       },
     }),
+    // Everything else recorded here is about membership. The subject is stored
+    // as a name rather than an id on purpose: the row it referred to may be
+    // gone, and "Ahmed was removed" still has to read correctly afterwards.
+    ...(event.type !== 'CURRENCY_CHANGED' && {
+      membership: {
+        subject: text(meta.subject),
+        ...(meta.role !== undefined && { role: text(meta.role) }),
+        ...(meta.previousRole !== undefined && { previousRole: text(meta.previousRole) }),
+      },
+    }),
   };
 }

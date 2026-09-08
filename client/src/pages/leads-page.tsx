@@ -118,10 +118,7 @@ export function LeadsPage() {
 
       {filters.view === 'active' && (
         <>
-          <LeadStats
-            stats={statsQuery.data}
-            isLoading={statsQuery.isLoading}
-          />
+          <LeadStats stats={statsQuery.data} isLoading={statsQuery.isLoading} />
 
           <ConversionNote className="-mt-3" />
         </>

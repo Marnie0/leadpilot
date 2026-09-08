@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import {
+  verifyEmailSchema,
+  resetPasswordSchema,
+  forgotPasswordSchema,
   changePasswordSchema,
   loginSchema,
   signupSchema,
@@ -7,7 +10,12 @@ import {
 } from '@leadpilot/shared';
 import { asyncHandler, getAuth, requireAuth } from '../../middleware/auth.js';
 import { validate } from '../../middleware/validate.js';
-import { authLimiter, demoLimiter, signupLimiter } from '../../middleware/rate-limit.js';
+import {
+  authLimiter,
+  demoLimiter,
+  signupLimiter,
+  tokenLimiter,
+} from '../../middleware/rate-limit.js';
 import { clearAuthCookies, REFRESH_COOKIE, setAuthCookies } from '../../lib/cookies.js';
 import type { SessionContext } from './auth.service.js';
 import * as authService from './auth.service.js';
@@ -22,17 +30,63 @@ const sessionContext = (req: {
   ipAddress: req.ip,
 });
 
+/*
+ * Signing up answers 202 and sets no cookie.
+ *
+ * Not an oversight: issuing a session only for addresses that did not already
+ * have an account makes the presence of `Set-Cookie` an enumeration oracle, no
+ * matter how carefully the JSON body is worded. See `authService.signup`.
+ */
 authRouter.post(
   '/signup',
   signupLimiter,
   validate(signupSchema),
   asyncHandler(async (req, res) => {
-    const { user, accessToken, refreshToken } = await authService.signup(
-      req.body,
-      sessionContext(req),
-    );
-    setAuthCookies(res, { accessToken, refreshToken });
-    res.status(201).json({ user });
+    res.status(202).json(await authService.signup(req.body, sessionContext(req)));
+  }),
+);
+
+authRouter.post(
+  '/verify-email',
+  tokenLimiter,
+  validate(verifyEmailSchema),
+  asyncHandler(async (req, res) => {
+    await authService.verifyEmail(req.body.token);
+    res.status(204).end();
+  }),
+);
+
+/** Re-sends the confirmation to the signed-in user's own address. */
+authRouter.post(
+  '/resend-verification',
+  requireAuth,
+  signupLimiter,
+  asyncHandler(async (req, res) => {
+    res.json(await authService.resendVerification(getAuth(req).userId));
+  }),
+);
+
+/*
+ * Both password-reset endpoints answer the same way for every input, which is
+ * why neither returns anything about the account. `authLimiter` is keyed on
+ * IP + email, so the timing of a stream of guesses cannot be used either.
+ */
+authRouter.post(
+  '/forgot-password',
+  authLimiter,
+  validate(forgotPasswordSchema),
+  asyncHandler(async (req, res) => {
+    res.status(202).json(await authService.forgotPassword(req.body));
+  }),
+);
+
+authRouter.post(
+  '/reset-password',
+  tokenLimiter,
+  validate(resetPasswordSchema),
+  asyncHandler(async (req, res) => {
+    await authService.resetPassword(req.body);
+    res.status(204).end();
   }),
 );
 

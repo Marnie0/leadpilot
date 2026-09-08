@@ -12,6 +12,10 @@ import { adminRouter } from './modules/admin/admin.routes.js';
 import { settingsRouter } from './modules/settings/settings.routes.js';
 import { fxRouter } from './modules/fx/fx.routes.js';
 import { aiRouter, leadInsightRouter } from './modules/ai/ai.routes.js';
+import {
+  invitationsRouter,
+  publicInvitesRouter,
+} from './modules/invitations/invitations.routes.js';
 import { asyncHandler } from './middleware/auth.js';
 
 export const apiRouter = Router();
@@ -34,7 +38,10 @@ apiRouter.get(
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/internal', adminRouter);
 apiRouter.use('/stages', stagesRouter);
+// Declared before the bare /team router so /team/invitations is not read as an id.
+apiRouter.use('/team/invitations', invitationsRouter);
 apiRouter.use('/team', teamRouter);
+apiRouter.use('/invites', publicInvitesRouter);
 apiRouter.use('/board', boardRouter);
 apiRouter.use('/dashboard', dashboardRouter);
 apiRouter.use('/settings', settingsRouter);

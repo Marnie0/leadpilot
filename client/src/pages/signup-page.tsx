@@ -40,8 +40,21 @@ export function SignupPage() {
       const { confirmPassword: _confirmPassword, ...payload } = values;
       // The account is created in the language this form was filled in, so the
       // interface does not flip the moment the session loads.
-      await signup({ ...payload, locale });
-      navigate('/leads', { replace: true });
+      const result = await signup({ ...payload, locale });
+      /*
+       * Signing up no longer signs you in, so this lands on the sign-in screen
+       * with the address already filled in and the notice shown.
+       *
+       * The reason is in `auth-context`: issuing a session only for addresses
+       * that did not already have an account would make the cookie itself an
+       * enumeration oracle. The account *is* created, so the password just
+       * chosen works immediately — which is also why this still works on a
+       * deployment that cannot deliver mail.
+       */
+      navigate('/login', {
+        replace: true,
+        state: { justSignedUp: true, email: payload.email, emailSent: result.emailConfigured },
+      });
     } catch (error) {
       handleError(error);
     }
