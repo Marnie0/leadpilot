@@ -12,7 +12,7 @@ import {
 } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
 import { FOLLOW_UP_WITH_LEAD_SELECT, toFollowUpDto } from '../../lib/serializers.js';
-import { endOfToday, startOfToday } from '../leads/lead-filters.js';
+import { dayWindow, normaliseTimeZone } from '../../lib/day-window.js';
 import type { Actor } from '../leads/leads.service.js';
 
 /**
@@ -112,9 +112,11 @@ export async function getDashboard(
   const windowDays = DASHBOARD_RANGE_DAYS[query.range];
   const trendBucket: 'week' | 'month' = query.range === '12m' ? 'month' : 'week';
 
-  // Windows start at midnight so "last 30 days" means 30 whole days, not 30
-  // days and however many hours have elapsed today.
-  const from = subtractDays(startOfToday(), windowDays - 1);
+  // Windows start at midnight *in the reader's timezone* so "last 30 days"
+  // means 30 whole days of their calendar, not 30 days and however many hours
+  // have elapsed wherever this process happens to run.
+  const { startOfToday, endOfToday, weekEnd } = dayWindow(normaliseTimeZone(query.tz), now);
+  const from = subtractDays(startOfToday, windowDays - 1);
   const previousFrom = subtractDays(from, windowDays);
 
   const inWindow = { gte: from };
@@ -122,8 +124,12 @@ export async function getDashboard(
   /** Every non-archived lead in the workspace. The snapshot scope. */
   const live: Prisma.LeadWhereInput = { organizationId, archivedAt: null };
 
-  const weekEnd = new Date(endOfToday().getTime() + 7 * DAY_MS);
-  const pendingFollowUp = { organizationId, status: 'PENDING' } as const;
+  // Trashed follow-ups are gone as far as every count is concerned.
+  const pendingFollowUp = {
+    organizationId,
+    status: 'PENDING',
+    deletedAt: null,
+  } satisfies Prisma.FollowUpWhereInput;
 
   const trendFrom = truncateUtc(from, trendBucket);
 
@@ -235,12 +241,12 @@ export async function getDashboard(
     `,
 
       /* --- Snapshot: open follow-up workload ------------------------------ */
-      prisma.followUp.count({ where: { ...pendingFollowUp, dueAt: { lt: startOfToday() } } }),
+      prisma.followUp.count({ where: { ...pendingFollowUp, dueAt: { lt: startOfToday } } }),
       prisma.followUp.count({
-        where: { ...pendingFollowUp, dueAt: { gte: startOfToday(), lte: endOfToday() } },
+        where: { ...pendingFollowUp, dueAt: { gte: startOfToday, lte: endOfToday } },
       }),
       prisma.followUp.count({
-        where: { ...pendingFollowUp, dueAt: { gt: endOfToday(), lte: weekEnd } },
+        where: { ...pendingFollowUp, dueAt: { gt: endOfToday, lte: weekEnd } },
       }),
       prisma.followUp.count({ where: { ...pendingFollowUp, dueAt: { gt: weekEnd } } }),
       prisma.followUp.findMany({

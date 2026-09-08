@@ -33,6 +33,13 @@ settingsRouter.get(
   }),
 );
 
+settingsRouter.get(
+  '/events',
+  asyncHandler(async (req, res) => {
+    res.json({ events: await settingsService.listWorkspaceEvents(actorFrom(req)) });
+  }),
+);
+
 settingsRouter.patch(
   '/organization',
   requireRole('OWNER', 'ADMIN'),

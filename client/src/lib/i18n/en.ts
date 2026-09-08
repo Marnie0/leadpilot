@@ -107,6 +107,8 @@ export const en = {
   'apiError.OWNER_GRANT_ONLY': 'Only the workspace owner can grant the owner role',
   'apiError.FOLLOW_UP_ALREADY_COMPLETED': 'Somebody has already completed that follow-up',
   'apiError.FOLLOW_UP_NOT_PENDING': 'That follow-up is no longer open',
+  'apiError.ALREADY_TRASHED': 'That follow-up is already in the trash',
+  'apiError.NOT_TRASHED': 'Move it to the trash before deleting it permanently',
   'apiError.LAST_OWNER': 'A workspace must always have an owner',
   'apiError.CANNOT_DEACTIVATE_SELF': 'You cannot deactivate your own account',
   'apiError.FOLLOW_UP_NOT_YOURS': 'You can only change follow-ups on your own leads',
@@ -748,14 +750,20 @@ export const en = {
   'followUp.inboxDescription': 'Everything owed to a lead, soonest first.',
   'followUp.itemLabel': 'follow-ups',
   'followUp.searchPlaceholder': 'Search follow-ups or customers…',
-  'followUp.assigneeAll': 'Everyone',
-  'followUp.assigneeMine': 'Assigned to me',
 
   'bucket.overdue': 'Overdue',
   'bucket.today': 'Today',
   'bucket.week': 'Next 7 days',
   'bucket.later': 'Later',
-  'bucket.done': 'Done',
+  'bucket.done': 'Completed',
+  'bucket.cancelled': 'Cancelled',
+  'bucket.trash': 'Trash',
+
+  'followUpSort.dueAt': 'Due date',
+  'followUpSort.createdAt': 'Date added',
+  'followUpSort.title': 'Title',
+  'followUpSort.customerName': 'Customer',
+  'followUpSort.assignee': 'Assignee',
 
   'followUp.emptyWorkspace': 'No follow-ups yet',
   'followUp.emptyWorkspaceBody':
@@ -770,7 +778,12 @@ export const en = {
   'followUp.emptyLater': 'Nothing booked further out',
   'followUp.emptyLaterBody': 'Long-horizon follow-ups will appear here.',
   'followUp.emptyDone': 'Nothing completed yet',
-  'followUp.emptyDoneBody': 'Completed and cancelled follow-ups are kept here.',
+  'followUp.emptyDoneBody': 'Follow-ups you finish are kept here.',
+  'followUp.emptyCancelled': 'Nothing cancelled',
+  'followUp.emptyCancelledBody':
+    'A cancelled follow-up stays on its lead’s record rather than disappearing.',
+  'followUp.emptyTrash': 'The trash is empty',
+  'followUp.emptyTrashBody': 'Deleted follow-ups wait here before they are gone for good.',
   'followUp.emptyFiltered': 'No follow-ups match those filters',
   'followUp.emptyFilteredBody': 'Try a different bucket, or clear the search.',
 
@@ -791,6 +804,22 @@ export const en = {
   'followUp.cancelAction': 'Cancel follow-up',
 
   'followUp.locked': 'Only the lead’s owner or a manager can change this',
+  'followUp.more': 'More actions',
+  'followUp.delete': 'Delete',
+  'followUp.deleted': 'Moved to the trash',
+  'followUp.couldNotDelete': 'Could not delete that follow-up',
+  'followUp.restore': 'Restore',
+  'followUp.restored': 'Follow-up restored',
+  'followUp.couldNotRestore': 'Could not restore that follow-up',
+  'followUp.deleteForever': 'Delete permanently',
+  'followUp.deleteForeverTitle': 'Delete “{title}” for good?',
+  'followUp.deleteForeverBody':
+    'This removes the follow-up and its record of what was promised. It cannot be undone.',
+  'followUp.deletedForever': 'Follow-up deleted permanently',
+  'followUp.couldNotDeleteForever': 'Could not delete that follow-up',
+  'followUp.deletedWhen': 'Deleted {when}',
+  'followUp.trashNotice_one': 'Anything left here is deleted permanently after {count} day.',
+  'followUp.trashNotice_other': 'Anything left here is deleted permanently after {count} days.',
   'followUp.assignedToLabel': 'Assigned to {name}',
   'followUp.wasCompletedBy': 'Completed {when}',
   'followUp.wasCancelledOn': 'Cancelled',
@@ -838,6 +867,17 @@ export const en = {
   'settings.statArchived_other': '{count} archived',
   'settings.readOnly': 'Only an owner or admin can change these.',
   'settings.couldNotLoad': 'Could not load your settings',
+
+  'settings.historyTitle': 'Workspace history',
+  'settings.historyBody': 'Changes that affect everyone’s data, and who made them.',
+  'settings.historyEmpty': 'Nothing has changed yet',
+  'settings.historyEmptyBody':
+    'Workspace-wide changes — like converting the base currency — are recorded here.',
+  'settings.eventCurrencyChanged': 'Changed the base currency from {from} to {to}',
+  'settings.eventCurrencyDetail_one': '{count} lead restated at 1 {from} = {rate} {to}',
+  'settings.eventCurrencyDetail_other': '{count} leads restated at 1 {from} = {rate} {to}',
+  'settings.eventByRemovedMember': 'A former member',
+  'settings.couldNotLoadHistory': 'Could not load the workspace history',
 
   'settings.baseCurrencyTitle': 'Base currency',
   'settings.baseCurrencyBody':

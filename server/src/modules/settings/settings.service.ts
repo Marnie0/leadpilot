@@ -6,10 +6,16 @@ import {
   type CurrencyPreviewDto,
   type OrganizationSettingsDto,
   type UpdateOrganizationInput,
+  type WorkspaceEventDto,
 } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
 import { badRequest, notFound } from '../../lib/errors.js';
 import { getRates } from '../fx/fx.service.js';
+import {
+  WORKSPACE_EVENT_SELECT,
+  recordWorkspaceEvent,
+  toWorkspaceEventDto,
+} from '../../lib/workspace-events.js';
 import type { Actor } from '../leads/leads.service.js';
 
 const iso = (value: Date | null): string | null => value?.toISOString() ?? null;
@@ -153,14 +159,43 @@ export async function changeCurrency(
     // happens in the database, so a workspace with fifty thousand leads costs
     // the same round-trip as one with five. Scoped by the old currency as well
     // as the tenant, so it can only ever touch rows the claim above covers.
-    return tx.$executeRaw`
+    const affected = await tx.$executeRaw`
       UPDATE "leads"
       SET "estimatedValue" = ROUND("estimatedValue" * ${new Prisma.Decimal(rate)}::numeric, 2),
           "currency" = ${target},
           "updatedAt" = "updatedAt"
       WHERE "organizationId" = ${actor.organizationId} AND "currency" = ${from}
     `;
+
+    // Inside the transaction, so the record and the change it describes commit
+    // together. This is the only trace the operation leaves: it rewrites money
+    // across a whole workspace and cannot be undone, and "who did this, and
+    // when" should not be something anyone has to reconstruct from memory.
+    await recordWorkspaceEvent(tx, {
+      organizationId: actor.organizationId,
+      userId: actor.userId,
+      type: 'CURRENCY_CHANGED',
+      metadata: { from, to: target, rate, leads: affected },
+    });
+
+    return affected;
   });
 
   return { currency: target, converted, rate };
+}
+
+/**
+ * The workspace's audit trail.
+ *
+ * Readable by every member rather than owners only: the point of recording an
+ * irreversible change is that the people it affected can see it happened.
+ */
+export async function listWorkspaceEvents(actor: Actor): Promise<WorkspaceEventDto[]> {
+  const events = await prisma.workspaceEvent.findMany({
+    where: { organizationId: actor.organizationId },
+    select: WORKSPACE_EVENT_SELECT,
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
+  return events.map(toWorkspaceEventDto);
 }

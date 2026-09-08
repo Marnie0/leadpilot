@@ -1,6 +1,7 @@
 import type { Prisma, StageKey } from '@prisma/client';
 import type { LeadFilterInput } from '@leadpilot/shared';
 import { UNASSIGNED } from '@leadpilot/shared';
+import { dayWindow, normaliseTimeZone } from '../../lib/day-window.js';
 
 /**
  * The one place a lead list is narrowed.
@@ -11,18 +12,6 @@ import { UNASSIGNED } from '@leadpilot/shared';
  * in the whole service, and there is still exactly *one* line applying
  * `organizationId` to audit for cross-tenant leakage.
  */
-
-export const startOfToday = (): Date => {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
-};
-
-export const endOfToday = (): Date => {
-  const date = new Date();
-  date.setHours(23, 59, 59, 999);
-  return date;
-};
 
 export function buildLeadWhere(
   organizationId: string,
@@ -82,19 +71,20 @@ export function buildLeadWhere(
     });
   }
 
+  // Drawn in the reader's day, not the server's, so "overdue today" means the
+  // same thing on this screen as it does in the follow-up inbox.
+  const { startOfToday, endOfToday, weekEnd } = dayWindow(normaliseTimeZone(query.tz));
+
   switch (query.followUp) {
     case 'overdue':
-      and.push({ nextFollowUpAt: { lt: startOfToday() } });
+      and.push({ nextFollowUpAt: { lt: startOfToday } });
       break;
     case 'today':
-      and.push({ nextFollowUpAt: { gte: startOfToday(), lte: endOfToday() } });
+      and.push({ nextFollowUpAt: { gte: startOfToday, lte: endOfToday } });
       break;
-    case 'week': {
-      const weekEnd = new Date(endOfToday());
-      weekEnd.setDate(weekEnd.getDate() + 7);
-      and.push({ nextFollowUpAt: { gte: startOfToday(), lte: weekEnd } });
+    case 'week':
+      and.push({ nextFollowUpAt: { gte: startOfToday, lte: weekEnd } });
       break;
-    }
     case 'none':
       and.push({ nextFollowUpAt: null });
       break;

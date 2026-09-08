@@ -213,6 +213,7 @@ export const FOLLOW_UP_SELECT = {
   channel: true,
   status: true,
   completedAt: true,
+  deletedAt: true,
   createdAt: true,
   assignedToId: true,
   createdById: true,
@@ -246,6 +247,7 @@ export function toFollowUpDto(followUp: FollowUpRow, viewer: Viewer): FollowUpDt
     channel: followUp.channel,
     status: followUp.status,
     completedAt: iso(followUp.completedAt),
+    deletedAt: iso(followUp.deletedAt),
     createdAt: followUp.createdAt.toISOString(),
     assignedTo: toTeamMemberDto(followUp.assignedTo),
     // `lead` is only echoed back when the caller asked for the display fields;

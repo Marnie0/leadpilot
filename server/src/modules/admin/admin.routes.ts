@@ -4,6 +4,7 @@ import { asyncHandler } from '../../middleware/auth.js';
 import { unauthorized } from '../../lib/errors.js';
 import { env } from '../../env.js';
 import { reapExpiredSandboxes } from '../auth/demo.service.js';
+import { purgeExpiredTrash } from '../follow-ups/follow-ups.service.js';
 
 export const adminRouter = Router();
 
@@ -17,16 +18,18 @@ function isAuthorised(header: string | undefined): boolean {
 }
 
 /**
- * Removes expired demo sandboxes.
+ * The daily housekeeping run: expired demo sandboxes, and follow-ups that have
+ * sat in the trash past their retention.
  *
- * Invoked daily by Vercel Cron, which sends `Authorization: Bearer $CRON_SECRET`
- * as a GET. An unset secret closes the endpoint rather than opening it, so a
- * misconfigured deploy fails safe.
+ * One scheduled job rather than two, because a second cron is a second thing to
+ * misconfigure and forget. Invoked by Vercel Cron, which sends
+ * `Authorization: Bearer $CRON_SECRET`. An unset secret closes the endpoint
+ * rather than opening it, so a misconfigured deploy fails safe.
  */
 const handler = asyncHandler(async (req, res) => {
   if (!isAuthorised(req.headers.authorization)) throw unauthorized();
-  const removed = await reapExpiredSandboxes();
-  res.json({ removed, at: new Date().toISOString() });
+  const [removed, purged] = await Promise.all([reapExpiredSandboxes(), purgeExpiredTrash()]);
+  res.json({ removed, purgedFollowUps: purged, at: new Date().toISOString() });
 });
 
 adminRouter.get('/reap-demo-sandboxes', handler);

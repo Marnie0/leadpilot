@@ -12,6 +12,7 @@ import { BaseCurrencyCard } from '@/features/settings/components/base-currency-c
 import { PasswordCard } from '@/features/settings/components/password-card';
 import { ProfileCard } from '@/features/settings/components/profile-card';
 import { WorkspaceCard } from '@/features/settings/components/workspace-card';
+import { WorkspaceHistoryCard } from '@/features/settings/components/workspace-history-card';
 import { useT } from '@/lib/i18n';
 
 /** Placeholder shaped like the cards it stands in for, so the layout does not
@@ -89,6 +90,7 @@ export function SettingsPage() {
             <>
               <WorkspaceCard organization={settingsQuery.data} canEdit={isManager} />
               <BaseCurrencyCard organization={settingsQuery.data} isOwner={isOwner} />
+              <WorkspaceHistoryCard />
             </>
           )}
         </TabsContent>

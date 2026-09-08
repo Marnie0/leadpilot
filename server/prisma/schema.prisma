@@ -101,6 +101,13 @@ enum FollowUpStatus {
   CANCELLED
 }
 
+/// Workspace-level events, distinct from a lead's activity trail.
+/// Currently one member; the enum exists so adding the next is a migration
+/// rather than a redesign.
+enum WorkspaceEventType {
+  CURRENCY_CHANGED
+}
+
 /* ------------------------------------------------------------------ *
  * Tenancy
  * ------------------------------------------------------------------ */
@@ -127,6 +134,7 @@ model Organization {
   leads      Lead[]
   activities Activity[]
   followUps  FollowUp[]
+  events     WorkspaceEvent[]
 
   // Drives the daily reaper, which scans for sandboxes past their expiry.
   @@index([expiresAt])
@@ -159,6 +167,7 @@ model User {
   activities    Activity[]
   followUps     FollowUp[]     @relation("FollowUpAssignee")
   createdFollowUps FollowUp[]  @relation("FollowUpCreator")
+  workspaceEvents  WorkspaceEvent[]
 
   @@index([organizationId, isActive])
   @@map("users")
@@ -324,6 +333,27 @@ model Activity {
   @@map("activities")
 }
 
+/// Records something that happened to the workspace itself rather than to one
+/// lead — which is why it cannot live in `Activity`, whose every row needs a
+/// `leadId`. Written for changes that are consequential and irreversible, so
+/// that "who converted our currency, and when" has an answer.
+model WorkspaceEvent {
+  id             String             @id @default(cuid())
+  organizationId String
+  /// Null once the person who did it has been removed from the workspace.
+  userId         String?
+  type           WorkspaceEventType
+  /// Shape depends on `type`; for CURRENCY_CHANGED: from, to, rate, leads.
+  metadata       Json?
+  createdAt      DateTime           @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("workspace_events")
+}
+
 model FollowUp {
   id             String          @id @default(cuid())
   organizationId String
@@ -336,6 +366,11 @@ model FollowUp {
   channel        FollowUpChannel @default(CALL)
   status         FollowUpStatus  @default(PENDING)
   completedAt    DateTime?
+  /// Trash, not deletion. A deleted follow-up leaves every view but stays
+  /// restorable until the daily reaper purges it — see TRASH_RETENTION_DAYS.
+  /// Deliberately *not* the same idea as `Lead.archivedAt`: archiving a lead is
+  /// filing something you want to keep, and is never purged.
+  deletedAt      DateTime?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -344,8 +379,11 @@ model FollowUp {
   assignedTo   User?        @relation("FollowUpAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   createdBy    User?        @relation("FollowUpCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
-  @@index([organizationId, status, dueAt])
-  @@index([leadId, status, dueAt])
-  @@index([assignedToId, status, dueAt])
+  // `deletedAt` leads the list indexes because every view filters the trash out.
+  @@index([organizationId, deletedAt, status, dueAt])
+  @@index([leadId, deletedAt, status, dueAt])
+  @@index([assignedToId, deletedAt, status, dueAt])
+  // Drives the purge, which scans for rows trashed long enough ago.
+  @@index([deletedAt])
   @@map("follow_ups")
 }

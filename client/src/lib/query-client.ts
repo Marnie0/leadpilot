@@ -12,7 +12,10 @@ export const queryKeys = {
   stages: ['stages'] as const,
   team: ['team'] as const,
   fxRates: ['fx-rates'] as const,
-  settings: { organization: ['settings', 'organization'] as const },
+  settings: {
+    organization: ['settings', 'organization'] as const,
+    events: ['settings', 'events'] as const,
+  },
   leads: {
     all: ['leads'] as const,
     lists: () => [...queryKeys.leads.all, 'list'] as const,

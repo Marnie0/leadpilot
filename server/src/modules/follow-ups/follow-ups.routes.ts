@@ -133,11 +133,35 @@ followUpsRouter.post(
   }),
 );
 
+/*
+ * Three verbs, because they are three different intentions: move it out of the
+ * way, put it back, and destroy it. `DELETE` is the everyday one and does the
+ * safe thing; the destructive one is a separate route you can only reach from
+ * the trash.
+ */
 followUpsRouter.delete(
   '/:id',
   validate(followUpParams, 'params'),
   asyncHandler(async (req, res) => {
-    await followUpsService.deleteFollowUp(actorFrom(req), param(req, 'id'));
+    const followUp = await followUpsService.trashFollowUp(actorFrom(req), param(req, 'id'));
+    res.json({ followUp });
+  }),
+);
+
+followUpsRouter.post(
+  '/:id/restore',
+  validate(followUpParams, 'params'),
+  asyncHandler(async (req, res) => {
+    const followUp = await followUpsService.restoreFollowUp(actorFrom(req), param(req, 'id'));
+    res.json({ followUp });
+  }),
+);
+
+followUpsRouter.delete(
+  '/:id/permanent',
+  validate(followUpParams, 'params'),
+  asyncHandler(async (req, res) => {
+    await followUpsService.purgeFollowUp(actorFrom(req), param(req, 'id'));
     res.status(204).end();
   }),
 );

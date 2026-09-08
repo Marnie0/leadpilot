@@ -9,6 +9,7 @@ import {
   paginationSchema,
   requiredTrimmed,
   sortDirectionSchema,
+  timeZoneSchema,
 } from './common.js';
 import type { TeamMemberSummaryDto } from './lead.schema.js';
 
@@ -36,7 +37,25 @@ export const completeFollowUpSchema = z.object({
 });
 export type CompleteFollowUpInput = z.infer<typeof completeFollowUpSchema>;
 
-export const FOLLOW_UP_SORT_FIELDS = ['dueAt', 'createdAt', 'status'] as const;
+/**
+ * What the inbox can be ordered by.
+ *
+ * Sorting rather than drag-to-reorder, and the choice is deliberate. A manual
+ * order needs a stored position per row, which fights everything this screen
+ * is: the list is paginated (you cannot drag to page three), it is filtered
+ * into buckets a task leaves the moment its date passes, and the ordering that
+ * matters — soonest first — is derived from data that keeps moving. A sort
+ * control gives the same "not always by date" freedom, works across pages, and
+ * matches how the leads table already behaves.
+ */
+export const FOLLOW_UP_SORT_FIELDS = [
+  'dueAt',
+  'createdAt',
+  'title',
+  'customerName',
+  'assignee',
+] as const;
+export type FollowUpSortField = (typeof FOLLOW_UP_SORT_FIELDS)[number];
 
 /**
  * The buckets the inbox is organised into.
@@ -46,8 +65,27 @@ export const FOLLOW_UP_SORT_FIELDS = ['dueAt', 'createdAt', 'status'] as const;
  * anyone writing to it. Storing it as a column would need a job to keep it
  * true, and would be wrong for exactly as long as that job was late.
  */
-export const FOLLOW_UP_BUCKETS = ['overdue', 'today', 'week', 'later', 'done'] as const;
+export const FOLLOW_UP_BUCKETS = [
+  'overdue',
+  'today',
+  'week',
+  'later',
+  'done',
+  'cancelled',
+  'trash',
+] as const;
 export type FollowUpBucket = (typeof FOLLOW_UP_BUCKETS)[number];
+
+/**
+ * How long a trashed follow-up stays restorable.
+ *
+ * Trash is not the same idea as archiving a lead, and the two are deliberately
+ * not unified. Archiving files something you mean to keep — it preserves the
+ * activity trail a hard delete would destroy, and is never purged. Trash is
+ * for a mistake: it disappears from every view immediately, can be undone, and
+ * stops existing after the grace period rather than accumulating forever.
+ */
+export const TRASH_RETENTION_DAYS = 30;
 
 export const followUpQuerySchema = paginationSchema.extend({
   status: csvArray(z.enum(FOLLOW_UP_STATUSES)),
@@ -66,6 +104,15 @@ export const followUpQuerySchema = paginationSchema.extend({
   bucket: z.enum(FOLLOW_UP_BUCKETS).optional(),
   /** Free-text over the follow-up title and its lead's customer or company. */
   q: optionalTrimmed(120),
+  /**
+   * The reader's IANA timezone, from the browser.
+   *
+   * Every bucket is a question about somebody's calendar — "is this overdue
+   * *today*" — so the boundary has to be drawn in their day, not the server's.
+   * Optional, and anything unrecognised falls back to UTC rather than failing
+   * the request: a wrong-looking bucket is better than a broken screen.
+   */
+  tz: timeZoneSchema,
 });
 export type FollowUpQueryInput = z.infer<typeof followUpQuerySchema>;
 
@@ -81,6 +128,8 @@ export interface FollowUpDto {
   channel: (typeof FOLLOW_UP_CHANNELS)[number];
   status: (typeof FOLLOW_UP_STATUSES)[number];
   completedAt: string | null;
+  /** Set while the follow-up is in the trash. Null for everything else. */
+  deletedAt: string | null;
   createdAt: string;
   assignedTo: TeamMemberSummaryDto | null;
   /** Denormalised so the follow-ups list can link out without a second query. */

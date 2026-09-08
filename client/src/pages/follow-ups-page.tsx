@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarCheck, Search, X } from 'lucide-react';
-import { FOLLOW_UP_BUCKETS, type FollowUpBucket } from '@leadpilot/shared';
+import { CalendarCheck, Trash2 } from 'lucide-react';
+import { FOLLOW_UP_BUCKETS, TRASH_RETENTION_DAYS, type FollowUpBucket } from '@leadpilot/shared';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
 import { PaginationBar } from '@/components/common/pagination-bar';
 import { useCurrentUser } from '@/features/auth/auth-context';
+import { useTeamMembers } from '@/features/leads/api';
 import { useFollowUpCounts, useFollowUps } from '@/features/follow-ups/api';
 import { FollowUpRow } from '@/features/follow-ups/components/follow-up-row';
+import { FollowUpToolbar } from '@/features/follow-ups/components/follow-up-toolbar';
 import { useFollowUpFilters } from '@/features/follow-ups/hooks/use-follow-up-filters';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useFormat, useT } from '@/lib/i18n';
@@ -27,6 +28,8 @@ const EMPTY_COPY: Record<FollowUpBucket, { title: StaticKey; body: StaticKey }> 
   week: { title: 'followUp.emptyWeek', body: 'followUp.emptyWeekBody' },
   later: { title: 'followUp.emptyLater', body: 'followUp.emptyLaterBody' },
   done: { title: 'followUp.emptyDone', body: 'followUp.emptyDoneBody' },
+  cancelled: { title: 'followUp.emptyCancelled', body: 'followUp.emptyCancelledBody' },
+  trash: { title: 'followUp.emptyTrash', body: 'followUp.emptyTrashBody' },
 };
 
 /**
@@ -40,7 +43,8 @@ export function FollowUpsPage() {
   const t = useT();
   const format = useFormat();
   const user = useCurrentUser();
-  const { filters, setFilters } = useFollowUpFilters();
+  const { filters, setFilters, resetFilters, hasActiveFilters } = useFollowUpFilters();
+  const teamQuery = useTeamMembers();
 
   // The input is local so typing stays responsive, and the URL — which drives
   // the query — catches up once the user pauses.
@@ -57,7 +61,9 @@ export function FollowUpsPage() {
   const params = {
     bucket: filters.bucket,
     ...(filters.q && { q: filters.q }),
-    ...(filters.mineOnly && { assignedToId: [user.id] }),
+    ...(filters.assignedToId.length > 0 && { assignedToId: filters.assignedToId }),
+    sortBy: filters.sortBy,
+    sortDir: filters.sortDir,
     page: filters.page,
     pageSize: filters.pageSize,
   };
@@ -68,57 +74,29 @@ export function FollowUpsPage() {
   const counts = countsQuery.data;
 
   const empty = EMPTY_COPY[filters.bucket];
-  const isFiltered = filters.q.length > 0 || filters.mineOnly;
   // A workspace that has never booked one is a different situation from a
   // bucket that happens to be clear. "Nothing overdue — every promise you have
   // made is still in the future" is true of somebody who has made none, and
   // reads as smug rather than helpful.
   const isFirstRun =
-    !isFiltered && counts !== undefined && Object.values(counts).every((count) => count === 0);
+    !hasActiveFilters && counts !== undefined && Object.values(counts).every((n) => n === 0);
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <PageHeader
-        title={t('followUp.inboxTitle')}
-        description={t('followUp.inboxDescription')}
-        actions={
-          <Button
-            variant={filters.mineOnly ? 'default' : 'outline'}
-            size="sm"
-            aria-pressed={filters.mineOnly}
-            onClick={() => setFilters({ mineOnly: !filters.mineOnly })}
-          >
-            {filters.mineOnly ? t('followUp.assigneeMine') : t('followUp.assigneeAll')}
-          </Button>
-        }
+      <PageHeader title={t('followUp.inboxTitle')} description={t('followUp.inboxDescription')} />
+
+      <FollowUpToolbar
+        filters={filters}
+        onChange={setFilters}
+        onReset={resetFilters}
+        hasActiveFilters={hasActiveFilters}
+        members={teamQuery.data ?? []}
+        currentUserId={user.id}
+        search={search}
+        onSearchChange={setSearch}
       />
 
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden
-        />
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={t('followUp.searchPlaceholder')}
-          aria-label={t('followUp.searchPlaceholder')}
-          className="ps-9 pe-9"
-        />
-        {search.length > 0 && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute end-1 top-1/2 size-7 -translate-y-1/2 text-muted-foreground"
-            aria-label={t('common.clearSearch')}
-            onClick={() => setSearch('')}
-          >
-            <X className="size-4" />
-          </Button>
-        )}
-      </div>
-
-      {/* Horizontally scrollable rather than wrapping: five buckets in Arabic
+      {/* Horizontally scrollable rather than wrapping: seven buckets in Arabic
           are wider than a phone, and a strip that reflows into two rows loses
           the "one line, in time order" reading that makes it useful. */}
       <div
@@ -152,6 +130,7 @@ export function FollowUpsPage() {
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
+                {bucket === 'trash' && <Trash2 className="size-3.5" aria-hidden />}
                 {t(`bucket.${bucket}`)}
                 {count !== undefined && count > 0 && (
                   <span
@@ -172,6 +151,15 @@ export function FollowUpsPage() {
           })}
         </div>
       </div>
+
+      {/* The retention is stated where the trash is, not buried in a help page:
+          "it disappears eventually" is only reassuring if you know when. */}
+      {filters.bucket === 'trash' && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Trash2 className="size-3.5 shrink-0" aria-hidden />
+          {t('followUp.trashNotice', { count: TRASH_RETENTION_DAYS })}
+        </p>
+      )}
 
       <Card className="gap-0 overflow-hidden p-0">
         {listQuery.isError ? (
@@ -194,29 +182,25 @@ export function FollowUpsPage() {
           </div>
         ) : followUps.length === 0 ? (
           <EmptyState
-            icon={CalendarCheck}
+            icon={filters.bucket === 'trash' ? Trash2 : CalendarCheck}
             title={
-              isFiltered
+              hasActiveFilters
                 ? t('followUp.emptyFiltered')
                 : isFirstRun
                   ? t('followUp.emptyWorkspace')
                   : t(empty.title)
             }
             description={
-              isFiltered
+              hasActiveFilters
                 ? t('followUp.emptyFilteredBody')
                 : isFirstRun
                   ? t('followUp.emptyWorkspaceBody')
                   : t(empty.body)
             }
-            {...(isFiltered
+            {...(hasActiveFilters
               ? {
                   action: (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFilters({ q: '', mineOnly: false })}
-                    >
+                    <Button variant="outline" size="sm" onClick={resetFilters}>
                       {t('common.clearFilters')}
                     </Button>
                   ),

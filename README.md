@@ -366,11 +366,39 @@ selectable and then quietly dropped server-side.
 somebody today", and that cuts across the pipeline. Grouping by lead would rebuild the leads table
 with worse sorting.
 
-Five buckets — overdue, today, next 7 days, later, done — are computed **on the server**, in
-`bucketWhere()`. The client could do the date arithmetic itself, but then the tab reading "3
-overdue" and the list it opens would be drawn by two different clocks, and they disagree for
-anybody whose machine is a few minutes out. The counts for all five come back in one batched
-transaction so the strip always adds up.
+Seven buckets — overdue, today, next 7 days, later, completed, cancelled and trash — are computed
+**on the server**, in `bucketWhere()`. The client could do the date arithmetic itself, but then the
+chip reading "3 overdue" and the list it opens would be drawn by two different clocks, and they
+disagree for anybody whose machine is a few minutes out. The counts for all seven come back in one
+batched transaction so the strip always adds up.
+
+The day those buckets are drawn in is the **reader's**, not the server's. `dayWindow()` takes an
+IANA zone the browser sends on every request and answers "when did today start" in it, measuring
+the UTC offset at the instant in question so daylight saving falls out for free. Before that, a rep
+in Dubai opening the app at 01:00 was shown the previous day's buckets until 04:00 — not visibly
+broken, just quietly holding the wrong things. An unrecognised zone falls back to UTC rather than
+failing the request. The leads table's follow-up filter and the dashboard's workload counts use the
+same helper, so "overdue" means one thing across all three screens.
+
+Ordering is a **sort control**, not drag-to-reorder, and that is a deliberate choice. A manual
+order needs a stored position per row, which fights everything this screen is: the list is
+paginated (you cannot drag to page three), it is bucketed into views a task leaves the moment its
+date passes, and the ordering that matters is derived from data that keeps moving. Sorting by due
+date, date added, title, customer or assignee gives the same freedom, works across pages, and uses
+the same controls as the leads table. The assignee filter is that table's `MultiSelectFilter`, for
+the same reason — including the shared `__unassigned__` sentinel.
+
+**Deleting is a trash, not a delete.** A follow-up carries the only record of a promise somebody
+made, and the button that removes it sits one click from the button that completes it, so `DELETE`
+sets `deletedAt`: the row leaves every view immediately and stays restorable. Destroying it is a
+separate route you can only reach from the trash, and the daily cron that reaps demo sandboxes also
+purges anything left there past `TRASH_RETENTION_DAYS`.
+
+Trash is deliberately **not** the same idea as archiving a lead, and the two are not unified.
+Archiving files something you mean to keep — it exists to preserve the activity trail a cascading
+delete destroyed, and is never purged. Trash is for a mistake: it disappears immediately, can be
+undone, and stops existing after the grace period instead of accumulating forever. Leads already
+never hard-delete, so nothing there is at risk from leaving it alone.
 
 Completing a follow-up asks what happened and writes it to the lead's timeline. That is the whole
 point of the prompt: this is the one moment somebody knows the answer, and "left a voicemail,
@@ -515,6 +543,12 @@ compiled into the build behind that. The response says which tier answered — `
 `fallback` — and the UI labels a fallback as indicative. There is no scheduled refresh job: rates
 refresh lazily on the first request after they go stale, which on serverless is the only kind of
 schedule that actually runs.
+
+Converting is recorded. `WorkspaceEvent` holds things that happen to the workspace rather than to
+one lead — which `Activity` cannot express, since every row of it needs a `leadId` — and the
+settings screen shows who converted, when, between which currencies, at what rate and across how
+many leads. An irreversible change with no record of who made it is one a team reconstructs from
+memory a month later.
 
 The one place the two layers meet is an owner changing the base currency. That genuinely restates
 every stored amount, and the confirmation quotes the lead count, the rate and what the pipeline

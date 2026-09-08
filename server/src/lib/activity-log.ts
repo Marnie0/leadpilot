@@ -102,7 +102,9 @@ const CONTACT_ACTIVITY_TYPES = new Set<ActivityType>(['CALL', 'EMAIL', 'MEETING'
  */
 export async function syncNextFollowUp(tx: TxClient, leadId: string): Promise<Date | null> {
   const next = await tx.followUp.findFirst({
-    where: { leadId, status: 'PENDING' },
+    // Trashed follow-ups are invisible everywhere else, so a lead must not go
+    // on advertising one as its next touchpoint.
+    where: { leadId, status: 'PENDING', deletedAt: null },
     orderBy: { dueAt: 'asc' },
     select: { dueAt: true },
   });

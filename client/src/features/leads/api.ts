@@ -23,6 +23,7 @@ import type {
 } from '@leadpilot/shared';
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
+import { timeZoneParam } from '@/lib/time-zone';
 
 /* ------------------------------------------------------------------ *
  * Reference data — stages and team members change rarely, so they are
@@ -59,7 +60,11 @@ export type LeadFilters = Partial<LeadQueryInput>;
 export function useLeads(filters: LeadFilters) {
   return useQuery({
     queryKey: queryKeys.leads.list(filters),
-    queryFn: () => api.get<Paginated<LeadListItemDto>>('/leads', { params: filters }),
+    queryFn: () =>
+      api.get<Paginated<LeadListItemDto>>('/leads', {
+        // The follow-up filter's "overdue today" is drawn in the reader's day.
+        params: { ...filters, ...timeZoneParam },
+      }),
     // Keeps the previous page on screen while the next one loads, so paging and
     // filtering never flash an empty table.
     placeholderData: (previous) => previous,
@@ -70,7 +75,11 @@ export function useLeadStats(filters: LeadFilters) {
   return useQuery({
     queryKey: queryKeys.leads.stats(filters),
     queryFn: async () =>
-      (await api.get<{ stats: LeadStatsDto }>('/leads/stats', { params: filters })).stats,
+      (
+        await api.get<{ stats: LeadStatsDto }>('/leads/stats', {
+          params: { ...filters, ...timeZoneParam },
+        })
+      ).stats,
     placeholderData: (previous) => previous,
   });
 }

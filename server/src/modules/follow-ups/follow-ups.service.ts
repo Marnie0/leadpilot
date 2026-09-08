@@ -6,10 +6,11 @@ import type {
   FollowUpCountsDto,
   FollowUpDto,
   FollowUpQueryInput,
+  FollowUpSortField,
   Paginated,
   UpdateFollowUpInput,
 } from '@leadpilot/shared';
-import { FOLLOW_UP_BUCKETS } from '@leadpilot/shared';
+import { FOLLOW_UP_BUCKETS, TRASH_RETENTION_DAYS, UNASSIGNED } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
 import { badRequest, forbidden, notFound } from '../../lib/errors.js';
 import { paginate, toPrismaPagination } from '../../lib/pagination.js';
@@ -20,22 +21,22 @@ import {
 } from '../../lib/serializers.js';
 import { recordActivity, syncNextFollowUp } from '../../lib/activity-log.js';
 import { canMutateFollowUp } from '../../lib/permissions.js';
-import { endOfToday, startOfToday } from '../leads/lead-filters.js';
+import { dayWindow, normaliseTimeZone, type DayWindow } from '../../lib/day-window.js';
 import type { Actor } from '../leads/leads.service.js';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Turns a bucket name into the dates that define it.
  *
- * Computed here, against the server clock, for the same reason the counts are:
- * the tab labelled "3 overdue" and the list it opens have to agree, and they
+ * The window is passed in rather than computed here so that a list and its
+ * counts are drawn from one set of boundaries, in one timezone — the reader's.
+ * The tab labelled "3 overdue" and the list it opens have to agree, and they
  * only do if one clock decided both.
+ *
+ * `trash` is the one bucket that is not about time at all, which is why it is
+ * also the one that overrides the `deletedAt: null` every other view applies.
  */
-function bucketWhere(bucket: FollowUpBucket): Prisma.FollowUpWhereInput {
-  const dayStart = startOfToday();
-  const dayEnd = endOfToday();
-  const weekEnd = new Date(dayEnd.getTime() + 7 * DAY_MS);
+function bucketWhere(bucket: FollowUpBucket, window: DayWindow): Prisma.FollowUpWhereInput {
+  const { startOfToday: dayStart, endOfToday: dayEnd, weekEnd } = window;
 
   switch (bucket) {
     case 'overdue':
@@ -47,7 +48,37 @@ function bucketWhere(bucket: FollowUpBucket): Prisma.FollowUpWhereInput {
     case 'later':
       return { status: 'PENDING', dueAt: { gt: weekEnd } };
     case 'done':
-      return { status: { in: ['COMPLETED', 'CANCELLED'] } };
+      return { status: 'COMPLETED' };
+    case 'cancelled':
+      return { status: 'CANCELLED' };
+    case 'trash':
+      return { deletedAt: { not: null } };
+  }
+}
+
+/**
+ * Ordering, from the sort field the client asked for.
+ *
+ * Two of them reach through the relation — a follow-up has no customer name of
+ * its own — and every one falls back to `dueAt` so rows that tie do not shuffle
+ * between pages.
+ */
+function orderFor(
+  sortBy: FollowUpSortField,
+  sortDir: 'asc' | 'desc',
+): Prisma.FollowUpOrderByWithRelationInput[] {
+  switch (sortBy) {
+    case 'customerName':
+      return [{ lead: { customerName: sortDir } }, { dueAt: 'asc' }];
+    case 'assignee':
+      // Nulls last in Prisma, so unassigned tasks sink rather than leading.
+      return [{ assignedTo: { name: sortDir } }, { dueAt: 'asc' }];
+    case 'title':
+      return [{ title: sortDir }, { dueAt: 'asc' }];
+    case 'createdAt':
+      return [{ createdAt: sortDir }, { dueAt: 'asc' }];
+    case 'dueAt':
+      return [{ dueAt: sortDir }, { createdAt: 'desc' }];
   }
 }
 
@@ -76,14 +107,14 @@ export async function listFollowUps(
   actor: Actor,
   query: FollowUpQueryInput,
 ): Promise<Paginated<FollowUpDto>> {
-  const where = buildWhere(actor, query);
+  const where = buildWhere(actor, query, dayWindow(normaliseTimeZone(query.tz)));
 
   const { skip, take } = toPrismaPagination(query);
   const [rows, total] = await prisma.$transaction([
     prisma.followUp.findMany({
       where,
       select: FOLLOW_UP_WITH_LEAD_SELECT,
-      orderBy: [{ [query.sortBy]: query.sortDir }, { createdAt: 'desc' }],
+      orderBy: orderFor(query.sortBy, query.sortDir),
       skip,
       take,
     }),
@@ -110,12 +141,16 @@ export async function countFollowUps(
   actor: Actor,
   query: FollowUpQueryInput,
 ): Promise<FollowUpCountsDto> {
+  const window = dayWindow(normaliseTimeZone(query.tz));
   // The bucket is what each count varies by, so the caller's own bucket choice
   // is dropped: a strip that only counted the open tab would read "0, 0, 4, 0".
-  const base = buildWhere(actor, { ...query, bucket: undefined });
   const counts = await prisma.$transaction(
     FOLLOW_UP_BUCKETS.map((bucket) =>
-      prisma.followUp.count({ where: { ...base, ...bucketWhere(bucket) } }),
+      prisma.followUp.count({
+        // Rebuilt per bucket rather than merged onto one base, because `trash`
+        // has to override the `deletedAt: null` the others depend on.
+        where: buildWhere(actor, { ...query, bucket }, window),
+      }),
     ),
   );
 
@@ -131,15 +166,31 @@ export async function countFollowUps(
  * intersecting with them: it *is* a status-and-date shorthand, and letting the
  * two compose would make "overdue" plus "completed" a legal, always-empty query.
  */
-function buildWhere(actor: Actor, query: FollowUpQueryInput): Prisma.FollowUpWhereInput {
+function buildWhere(
+  actor: Actor,
+  query: FollowUpQueryInput,
+  window: DayWindow,
+): Prisma.FollowUpWhereInput {
   const search = query.q?.trim();
+
+  // `__unassigned__` is a real filter value, not an id — the same sentinel the
+  // leads table uses, so "Unassigned" behaves identically on both screens.
+  const assignees = query.assignedToId ?? [];
+  const wantsUnassigned = assignees.includes(UNASSIGNED);
+  const assigneeIds = assignees.filter((id) => id !== UNASSIGNED);
+  const assigneeFilter: Prisma.FollowUpWhereInput[] = [];
+  if (assigneeIds.length > 0) assigneeFilter.push({ assignedToId: { in: assigneeIds } });
+  if (wantsUnassigned) assigneeFilter.push({ assignedToId: null });
 
   return {
     organizationId: actor.organizationId,
+    // Trash is opt-in. Every other view — including a lead's own panel and the
+    // dashboard — behaves as though a deleted follow-up is gone.
+    ...(query.bucket === 'trash' ? {} : { deletedAt: null }),
     ...(query.leadId && { leadId: query.leadId }),
-    ...(query.assignedToId?.length && { assignedToId: { in: query.assignedToId } }),
+    ...(assigneeFilter.length > 0 && { OR: assigneeFilter }),
     ...(query.bucket
-      ? bucketWhere(query.bucket)
+      ? bucketWhere(query.bucket, window)
       : {
           ...(query.status?.length && { status: { in: query.status } }),
           ...((query.dueFrom || query.dueTo) && {
@@ -150,10 +201,16 @@ function buildWhere(actor: Actor, query: FollowUpQueryInput): Prisma.FollowUpWhe
           }),
         }),
     ...(search && {
-      OR: [
-        { title: { contains: search, mode: 'insensitive' } },
-        { lead: { customerName: { contains: search, mode: 'insensitive' } } },
-        { lead: { company: { contains: search, mode: 'insensitive' } } },
+      // `AND` rather than a second `OR`, which would widen the assignee filter
+      // instead of narrowing within it.
+      AND: [
+        {
+          OR: [
+            { title: { contains: search, mode: 'insensitive' } },
+            { lead: { customerName: { contains: search, mode: 'insensitive' } } },
+            { lead: { company: { contains: search, mode: 'insensitive' } } },
+          ],
+        },
       ],
     }),
   };
@@ -207,14 +264,25 @@ export async function createFollowUp(
  * it. A row belonging to another tenant is reported as missing rather than
  * forbidden, so the API never confirms that it exists.
  */
-async function getWritableFollowUp(actor: Actor, followUpId: string) {
+async function getWritableFollowUp(
+  actor: Actor,
+  followUpId: string,
+  options: { includeTrashed?: boolean } = {},
+) {
   const followUp = await prisma.followUp.findFirst({
-    where: { id: followUpId, organizationId: actor.organizationId },
+    where: {
+      id: followUpId,
+      organizationId: actor.organizationId,
+      // Completing or rescheduling something in the trash should read as "gone",
+      // not as a refusal — only the trash's own actions opt into seeing it.
+      ...(options.includeTrashed ? {} : { deletedAt: null }),
+    },
     select: {
       id: true,
       leadId: true,
       title: true,
       status: true,
+      deletedAt: true,
       assignedToId: true,
       createdById: true,
       lead: { select: { assignedToId: true, createdById: true } },
@@ -371,10 +439,78 @@ export async function cancelFollowUp(actor: Actor, followUpId: string): Promise<
   return toFollowUpDto(cancelled, actor);
 }
 
-export async function deleteFollowUp(actor: Actor, followUpId: string): Promise<void> {
-  const existing = await getWritableFollowUp(actor, followUpId);
+/**
+ * Moves a follow-up to the trash.
+ *
+ * Not `DELETE FROM`. A follow-up carries the only record of a promise somebody
+ * made, and the button that removes it is one click from the button that
+ * completes it — so it leaves every view immediately and stays recoverable
+ * until the reaper purges it, `TRASH_RETENTION_DAYS` later.
+ */
+export async function trashFollowUp(actor: Actor, followUpId: string): Promise<FollowUpDto> {
+  const existing = await getWritableFollowUp(actor, followUpId, { includeTrashed: true });
+  if (existing.deletedAt)
+    throw badRequest('That follow-up is already in the trash', 'ALREADY_TRASHED');
+
+  const trashed = await prisma.$transaction(async (tx) => {
+    const row = await tx.followUp.update({
+      where: { id: followUpId },
+      data: { deletedAt: new Date() },
+      select: FOLLOW_UP_SELECT,
+    });
+    // A trashed task must stop being the lead's next touchpoint.
+    await syncNextFollowUp(tx, existing.leadId);
+    return row;
+  });
+
+  return toFollowUpDto(trashed, actor);
+}
+
+export async function restoreFollowUp(actor: Actor, followUpId: string): Promise<FollowUpDto> {
+  const existing = await getWritableFollowUp(actor, followUpId, { includeTrashed: true });
+  if (!existing.deletedAt) throw badRequest('That follow-up is not in the trash', 'NOT_TRASHED');
+
+  const restored = await prisma.$transaction(async (tx) => {
+    const row = await tx.followUp.update({
+      where: { id: followUpId },
+      data: { deletedAt: null },
+      select: FOLLOW_UP_SELECT,
+    });
+    await syncNextFollowUp(tx, existing.leadId);
+    return row;
+  });
+
+  return toFollowUpDto(restored, actor);
+}
+
+/**
+ * The only path that actually removes a row, and it is deliberately reachable
+ * only from the trash: you have to have deleted something before you can
+ * destroy it.
+ */
+export async function purgeFollowUp(actor: Actor, followUpId: string): Promise<void> {
+  const existing = await getWritableFollowUp(actor, followUpId, { includeTrashed: true });
+  if (!existing.deletedAt) {
+    throw badRequest('Move it to the trash before deleting it permanently', 'NOT_TRASHED');
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.followUp.delete({ where: { id: followUpId } });
     await syncNextFollowUp(tx, existing.leadId);
   });
+}
+
+/**
+ * Purges everything that has sat in the trash past its retention.
+ *
+ * Runs from the same daily cron that reaps demo sandboxes — one scheduled job
+ * for the whole product, rather than a second one to forget about. Scoped by
+ * date only: trash is not tenant-specific work.
+ */
+export async function purgeExpiredTrash(now = new Date()): Promise<number> {
+  const cutoff = new Date(now.getTime() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  const { count } = await prisma.followUp.deleteMany({
+    where: { deletedAt: { not: null, lt: cutoff } },
+  });
+  return count;
 }

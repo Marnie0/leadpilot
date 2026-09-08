@@ -60,3 +60,29 @@ export interface CurrencyPreviewDto {
    */
   source: FxRatesDto['source'];
 }
+
+/* ------------------------------------------------------------------ *
+ * Workspace audit
+ * ------------------------------------------------------------------ */
+
+export const WORKSPACE_EVENT_TYPES = ['CURRENCY_CHANGED'] as const;
+export type WorkspaceEventType = (typeof WORKSPACE_EVENT_TYPES)[number];
+
+/**
+ * Something that happened to the workspace rather than to one lead.
+ *
+ * A lead's `Activity` row cannot express this: every one of them needs a
+ * `leadId`, and "the owner restated every amount in this workspace" belongs to
+ * none of them in particular. Kept because the change is irreversible, and an
+ * irreversible change with no record of who made it is the kind of thing
+ * somebody has to reconstruct from memory a month later.
+ */
+export interface WorkspaceEventDto {
+  id: string;
+  type: WorkspaceEventType;
+  createdAt: string;
+  /** Null once the person who did it has left the workspace. */
+  actor: { id: string; name: string } | null;
+  /** For CURRENCY_CHANGED: what it was, what it became, and at what rate. */
+  currencyChange?: { from: string; to: string; rate: number; leads: number };
+}

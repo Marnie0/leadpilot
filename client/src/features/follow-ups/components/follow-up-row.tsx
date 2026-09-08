@@ -7,7 +7,10 @@ import {
   Lock,
   Mail,
   MessageSquare,
+  MoreHorizontal,
   Phone,
+  RotateCcw,
+  Trash2,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -15,12 +18,26 @@ import { toast } from 'sonner';
 import type { FollowUpChannel, FollowUpDto } from '@leadpilot/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFormat, useT } from '@/lib/i18n';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { cn } from '@/lib/utils';
-import { useCancelFollowUpById, useCompleteFollowUpById, useRescheduleFollowUp } from '../api';
+import {
+  useCancelFollowUpById,
+  useCompleteFollowUpById,
+  usePurgeFollowUp,
+  useRescheduleFollowUp,
+  useRestoreFollowUp,
+  useTrashFollowUp,
+} from '../api';
 import { CompleteFollowUpDialog } from './complete-dialog';
+import { ConfirmPurgeDialog } from './confirm-purge-dialog';
 import { RescheduleDialog } from './reschedule-dialog';
 
 const CHANNEL_ICONS: Record<FollowUpChannel, LucideIcon> = {
@@ -57,14 +74,24 @@ export function FollowUpRow({ followUp }: { followUp: FollowUpDto }) {
   const complete = useCompleteFollowUpById();
   const cancel = useCancelFollowUpById();
   const reschedule = useRescheduleFollowUp();
+  const trash = useTrashFollowUp();
+  const restore = useRestoreFollowUp();
+  const purge = usePurgeFollowUp();
 
-  const [dialog, setDialog] = useState<'complete' | 'reschedule' | null>(null);
+  const [dialog, setDialog] = useState<'complete' | 'reschedule' | 'purge' | null>(null);
 
+  const isTrashed = followUp.deletedAt !== null;
   const isPending = followUp.status === 'PENDING';
   const canEdit = followUp.canEdit !== false;
   const due = format.dueDate(followUp.dueAt);
   const ChannelIcon = CHANNEL_ICONS[followUp.channel];
-  const busy = complete.isPending || cancel.isPending || reschedule.isPending;
+  const busy =
+    complete.isPending ||
+    cancel.isPending ||
+    reschedule.isPending ||
+    trash.isPending ||
+    restore.isPending ||
+    purge.isPending;
 
   const fail = (message: string) => (error: unknown) =>
     toast.error(message, { description: describeError(error) });
@@ -73,8 +100,8 @@ export function FollowUpRow({ followUp }: { followUp: FollowUpDto }) {
     <li
       className={cn(
         'flex flex-col gap-3 px-4 py-3.5 transition-colors sm:flex-row sm:items-start sm:gap-4 sm:px-6',
-        isPending && due.tone === 'overdue' && 'bg-destructive/[0.04]',
-        !isPending && 'bg-muted/25',
+        isPending && !isTrashed && due.tone === 'overdue' && 'bg-destructive/[0.04]',
+        (!isPending || isTrashed) && 'bg-muted/25',
       )}
     >
       <span
@@ -95,7 +122,7 @@ export function FollowUpRow({ followUp }: { followUp: FollowUpDto }) {
             dir="auto"
             className={cn(
               'text-sm font-medium text-foreground',
-              !isPending && 'text-muted-foreground line-through',
+              (!isPending || isTrashed) && 'text-muted-foreground line-through',
             )}
           >
             {followUp.title}
@@ -108,6 +135,11 @@ export function FollowUpRow({ followUp }: { followUp: FollowUpDto }) {
               {t('followUp.wasCancelledOn')}
             </Badge>
           )}
+          {isTrashed && (
+            <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+              {t('bucket.trash')}
+            </Badge>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -115,23 +147,34 @@ export function FollowUpRow({ followUp }: { followUp: FollowUpDto }) {
             variant="outline"
             className={cn('font-normal', isPending ? TONE_STYLES[due.tone] : TONE_STYLES.none)}
           >
-            {isPending
-              ? due.label
-              : followUp.status === 'COMPLETED'
-                ? t('followUp.wasCompletedBy', { when: format.dateTime(followUp.completedAt) })
-                : t('followUp.wasCancelledOn')}
+            {isTrashed
+              ? t('followUp.deletedWhen', { when: format.relative(followUp.deletedAt) })
+              : isPending
+                ? due.label
+                : followUp.status === 'COMPLETED'
+                  ? t('followUp.wasCompletedBy', { when: format.dateTime(followUp.completedAt) })
+                  : t('followUp.wasCancelledOn')}
           </Badge>
 
           {followUp.lead && (
             <>
               <span aria-hidden>·</span>
+              {/* The customer, not the company. Sorting by "Customer" against a
+                  column showing company names looked like no sort at all — and
+                  the person is the lead's identity anyway; the company is
+                  context, so it follows in muted text. */}
               <Link
                 to={`/leads/${followUp.lead.id}`}
                 dir="auto"
                 className="rounded-sm font-medium text-foreground underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
-                {followUp.lead.company ?? followUp.lead.customerName}
+                {followUp.lead.customerName}
               </Link>
+              {followUp.lead.company && (
+                <span dir="auto" className="text-muted-foreground">
+                  {followUp.lead.company}
+                </span>
+              )}
             </>
           )}
 
@@ -152,82 +195,149 @@ export function FollowUpRow({ followUp }: { followUp: FollowUpDto }) {
         )}
       </div>
 
-      {isPending && (
-        <div className="flex shrink-0 items-center gap-1 self-start">
-          {canEdit ? (
-            <>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    disabled={busy}
-                    aria-label={t('followUp.markComplete', { title: followUp.title })}
-                    onClick={() => setDialog('complete')}
-                  >
-                    <Check className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('followUp.completeAction')}</TooltipContent>
-              </Tooltip>
+      <div className="flex shrink-0 items-center gap-1 self-start">
+        {!canEdit ? (
+          /* A read-only row still says why, rather than simply having no
+             buttons where every other row has some. */
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                className="flex size-8 items-center justify-center text-muted-foreground/60"
+                tabIndex={0}
+                role="note"
+                aria-label={t('followUp.locked')}
+              >
+                <Lock className="size-3.5" aria-hidden />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{t('followUp.locked')}</TooltipContent>
+          </Tooltip>
+        ) : isTrashed ? (
+          /* In the trash the only two questions are "did I mean that" and
+             "am I sure" — completing or rescheduling something deleted is not
+             an action anybody wants. */
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  disabled={busy}
+                  aria-label={t('followUp.restore')}
+                  onClick={() =>
+                    restore.mutate(followUp.id, {
+                      onSuccess: () => toast.success(t('followUp.restored')),
+                      onError: fail(t('followUp.couldNotRestore')),
+                    })
+                  }
+                >
+                  <RotateCcw className="icon-directional size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('followUp.restore')}</TooltipContent>
+            </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-muted-foreground"
-                    disabled={busy}
-                    aria-label={t('followUp.rescheduleTitle', { title: followUp.title })}
-                    onClick={() => setDialog('reschedule')}
-                  >
-                    <CalendarClock className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('followUp.reschedule')}</TooltipContent>
-              </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground hover:text-destructive"
+                  disabled={busy}
+                  aria-label={t('followUp.deleteForeverTitle', { title: followUp.title })}
+                  onClick={() => setDialog('purge')}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('followUp.deleteForever')}</TooltipContent>
+            </Tooltip>
+          </>
+        ) : (
+          <>
+            {isPending && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      disabled={busy}
+                      aria-label={t('followUp.markComplete', { title: followUp.title })}
+                      onClick={() => setDialog('complete')}
+                    >
+                      <Check className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('followUp.completeAction')}</TooltipContent>
+                </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-muted-foreground"
-                    disabled={busy}
-                    aria-label={t('followUp.cancelOne', { title: followUp.title })}
-                    onClick={() =>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-muted-foreground"
+                      disabled={busy}
+                      aria-label={t('followUp.rescheduleTitle', { title: followUp.title })}
+                      onClick={() => setDialog('reschedule')}
+                    >
+                      <CalendarClock className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('followUp.reschedule')}</TooltipContent>
+                </Tooltip>
+              </>
+            )}
+
+            {/* Cancel and delete move into a menu rather than becoming a fourth
+                and fifth icon: they are the two a mis-click would hurt, and a
+                row of five identical ghost buttons is where mis-clicks come
+                from. Delete stays reachable on a finished follow-up, which is
+                the one that most often turns out to be a mistake. */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground"
+                  disabled={busy}
+                  aria-label={t('followUp.more')}
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {isPending && (
+                  <DropdownMenuItem
+                    onSelect={() =>
                       cancel.mutate(followUp.id, {
                         onSuccess: () => toast.success(t('followUp.wasCancelled')),
                         onError: fail(t('followUp.couldNotCancel')),
                       })
                     }
                   >
-                    <Ban className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t('followUp.cancelAction')}</TooltipContent>
-              </Tooltip>
-            </>
-          ) : (
-            /* A read-only row still says why, rather than simply having no
-               buttons where every other row has three. */
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className="flex size-8 items-center justify-center text-muted-foreground/60"
-                  tabIndex={0}
-                  role="note"
-                  aria-label={t('followUp.locked')}
+                    <Ban className="size-4" aria-hidden /> {t('followUp.cancelAction')}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() =>
+                    trash.mutate(followUp.id, {
+                      onSuccess: () => toast.success(t('followUp.deleted')),
+                      onError: fail(t('followUp.couldNotDelete')),
+                    })
+                  }
                 >
-                  <Lock className="size-3.5" aria-hidden />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{t('followUp.locked')}</TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-      )}
+                  <Trash2 className="size-4" aria-hidden /> {t('followUp.delete')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        )}
+      </div>
 
       <CompleteFollowUpDialog
         open={dialog === 'complete'}
@@ -245,6 +355,22 @@ export function FollowUpRow({ followUp }: { followUp: FollowUpDto }) {
               onError: fail(t('followUp.couldNotComplete')),
             },
           )
+        }
+      />
+
+      <ConfirmPurgeDialog
+        open={dialog === 'purge'}
+        title={followUp.title}
+        isPending={purge.isPending}
+        onCancel={() => setDialog(null)}
+        onConfirm={() =>
+          purge.mutate(followUp.id, {
+            onSuccess: () => {
+              setDialog(null);
+              toast.success(t('followUp.deletedForever'));
+            },
+            onError: fail(t('followUp.couldNotDeleteForever')),
+          })
         }
       />
 

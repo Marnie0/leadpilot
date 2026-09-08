@@ -64,6 +64,16 @@ export const paginationSchema = z.object({
 export type PaginationInput = z.infer<typeof paginationSchema>;
 
 export const sortDirectionSchema = z.enum(['asc', 'desc']);
+
+/**
+ * The reader's IANA timezone, sent by the browser on any query with a "today"
+ * or "overdue" notion in it.
+ *
+ * Optional, and validated on the server rather than here: an unrecognised zone
+ * falls back to UTC instead of failing the request, because a bucket drawn in
+ * the wrong day is a smaller problem than a screen that will not load.
+ */
+export const timeZoneSchema = z.string().max(64).optional();
 export type SortDirection = z.infer<typeof sortDirectionSchema>;
 
 export interface PageMeta {

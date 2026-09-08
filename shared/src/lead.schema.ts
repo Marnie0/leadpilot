@@ -9,6 +9,7 @@ import {
   paginationSchema,
   requiredTrimmed,
   sortDirectionSchema,
+  timeZoneSchema,
 } from './common.js';
 
 /** Loose international phone check — we normalise, we do not gatekeep. */
@@ -201,6 +202,8 @@ export const leadQuerySchema = paginationSchema.extend({
     .optional(),
   sortBy: z.enum(LEAD_SORT_FIELDS).default('updatedAt'),
   sortDir: sortDirectionSchema.default('desc'),
+  /** Draws the `followUp` filter's day boundaries in the reader's timezone. */
+  tz: timeZoneSchema,
 });
 export type LeadQueryInput = z.infer<typeof leadQuerySchema>;
 

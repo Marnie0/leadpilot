@@ -7,17 +7,28 @@ import type {
 } from '@leadpilot/shared';
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
+import { timeZoneParam } from '@/lib/time-zone';
 import { useInvalidateFollowUps } from '@/features/leads/api';
 
 /** The subset of the query the inbox actually drives. */
 export type FollowUpListParams = Partial<
-  Pick<FollowUpQueryInput, 'bucket' | 'q' | 'assignedToId' | 'page' | 'pageSize' | 'sortDir'>
+  Pick<
+    FollowUpQueryInput,
+    'bucket' | 'q' | 'assignedToId' | 'page' | 'pageSize' | 'sortBy' | 'sortDir'
+  >
 >;
 
-/** Serialises the array filter the way the API's `csvArray` expects to read it. */
+/**
+ * Serialises the array filter the way the API's `csvArray` expects to read it,
+ * and attaches the reader's timezone — every bucket boundary depends on it.
+ */
 function toParams(params: FollowUpListParams): Record<string, unknown> {
   const { assignedToId, ...rest } = params;
-  return { ...rest, ...(assignedToId?.length && { assignedToId: assignedToId.join(',') }) };
+  return {
+    ...rest,
+    ...timeZoneParam,
+    ...(assignedToId?.length && { assignedToId: assignedToId.join(',') }),
+  };
 }
 
 export function useFollowUps(params: FollowUpListParams) {
@@ -38,7 +49,7 @@ export function useFollowUps(params: FollowUpListParams) {
  * strip flickering as you move between them.
  */
 export function useFollowUpCounts(params: FollowUpListParams) {
-  const { bucket: _bucket, page: _page, ...shared } = params;
+  const { bucket: _bucket, page: _page, sortBy: _sortBy, sortDir: _sortDir, ...shared } = params;
   return useQuery({
     queryKey: queryKeys.followUps.counts(shared),
     queryFn: async () =>
@@ -57,6 +68,37 @@ export function useCompleteFollowUpById() {
     mutationFn: async ({ id, outcome }: { id: string; outcome?: string }) =>
       (await api.post<{ followUp: FollowUpDto }>(`/follow-ups/${id}/complete`, { outcome }))
         .followUp,
+    onSuccess: invalidate,
+  });
+}
+
+/**
+ * Deleting moves a follow-up to the trash; the destructive verb is separate.
+ * Both invalidate the same way — a trashed task must stop being a lead's next
+ * touchpoint, which is a change to the lead as much as to the follow-up.
+ */
+export function useTrashFollowUp() {
+  const invalidate = useInvalidateFollowUps();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await api.delete<{ followUp: FollowUpDto }>(`/follow-ups/${id}`)).followUp,
+    onSuccess: invalidate,
+  });
+}
+
+export function useRestoreFollowUp() {
+  const invalidate = useInvalidateFollowUps();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      (await api.post<{ followUp: FollowUpDto }>(`/follow-ups/${id}/restore`)).followUp,
+    onSuccess: invalidate,
+  });
+}
+
+export function usePurgeFollowUp() {
+  const invalidate = useInvalidateFollowUps();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<void>(`/follow-ups/${id}/permanent`),
     onSuccess: invalidate,
   });
 }

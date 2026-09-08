@@ -8,6 +8,7 @@ import type {
   OrganizationSettingsDto,
   UpdateOrganizationInput,
   UpdateProfileInput,
+  WorkspaceEventDto,
 } from '@leadpilot/shared';
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
@@ -27,6 +28,19 @@ export function useOrganizationSettings() {
  * cache on every render, so a refetch round-trip would leave the UI briefly
  * showing the old preference after the form has already said "Saved".
  */
+/**
+ * The workspace's audit trail. Readable by every member, not just the owner:
+ * the point of recording an irreversible change is that the people it affected
+ * can see that it happened.
+ */
+export function useWorkspaceEvents() {
+  return useQuery({
+    queryKey: queryKeys.settings.events,
+    queryFn: async () =>
+      (await api.get<{ events: WorkspaceEventDto[] }>('/settings/events')).events,
+  });
+}
+
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
   return useMutation({

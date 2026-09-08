@@ -22,7 +22,8 @@ import {
   toLeadListItemDto,
 } from '../../lib/serializers.js';
 import { recordActivity, syncNextFollowUp } from '../../lib/activity-log.js';
-import { buildLeadWhere, startOfToday } from './lead-filters.js';
+import { buildLeadWhere } from './lead-filters.js';
+import { dayWindow, normaliseTimeZone } from '../../lib/day-window.js';
 
 /** Identifies the caller. Every function here takes one — there is no unscoped path. */
 export interface Actor extends Viewer {
@@ -105,7 +106,8 @@ export async function getLeadStats(actor: Actor, query: LeadQueryInput): Promise
       where: {
         organizationId: actor.organizationId,
         status: 'PENDING',
-        dueAt: { lt: startOfToday() },
+        deletedAt: null,
+        dueAt: { lt: dayWindow(normaliseTimeZone(query.tz)).startOfToday },
       },
     }),
   ]);

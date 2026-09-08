@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { timeZoneSchema } from './common.js';
 import type { LeadSource, StageKey, StageType } from './enums.js';
 import type { FollowUpDto } from './followup.schema.js';
 
@@ -21,6 +22,8 @@ export const DASHBOARD_RANGE_DAYS: Record<DashboardRange, number> = {
 
 export const dashboardQuerySchema = z.object({
   range: z.enum(DASHBOARD_RANGES).default('90d'),
+  /** Draws the follow-up workload's day boundaries in the reader's timezone. */
+  tz: timeZoneSchema,
 });
 export type DashboardQueryInput = z.infer<typeof dashboardQuerySchema>;
 
