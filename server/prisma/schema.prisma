@@ -6,7 +6,7 @@
 // organisation-first so those scoped queries stay index-covered.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   // "native" covers local development; the rhel target is what Vercel's
   // Node runtime (Amazon Linux 2023) loads at request time.
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
@@ -20,9 +20,11 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-/* ------------------------------------------------------------------ *
+/**
+ * ------------------------------------------------------------------ *
  * Enums — these mirror shared/src/enums.ts exactly.
- * ------------------------------------------------------------------ */
+ * ------------------------------------------------------------------
+ */
 
 /// The three roles every workspace starts with. Custom roles have no key.
 ///
@@ -169,45 +171,47 @@ enum AuthTokenType {
   PASSWORD_RESET
 }
 
-/* ------------------------------------------------------------------ *
+/**
+ * ------------------------------------------------------------------ *
  * Tenancy
- * ------------------------------------------------------------------ */
+ * ------------------------------------------------------------------
+ */
 
 model Organization {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   name            String
-  slug            String   @unique
+  slug            String    @unique
   /// Fallback currency for new leads; each lead may override it.
-  defaultCurrency String   @default("USD")
-  defaultLocale   Locale   @default(en)
+  defaultCurrency String    @default("USD")
+  defaultLocale   Locale    @default(en)
   /// Whether the AI lead assistant is switched on for this workspace.
   ///
   /// Off by default, and only an owner can turn it on. The assistant sends lead
   /// text to a third party whose free tier trains on what it receives, so
   /// enabling it is a decision about somebody's customer data — not a default
   /// the product gets to make on their behalf.
-  aiEnabled       Boolean  @default(false)
+  aiEnabled       Boolean   @default(false)
   /// A throwaway sandbox created by "Start demo". Cloned from the template.
-  isDemo          Boolean  @default(false)
+  isDemo          Boolean   @default(false)
   /// The pristine workspace every demo sandbox is cloned from. Nobody signs into
   /// it directly, so visitor edits can never reach it.
-  isDemoTemplate  Boolean  @default(false)
+  isDemoTemplate  Boolean   @default(false)
   /// When a demo sandbox is reaped. Null for real workspaces and for the template.
   expiresAt       DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  users      User[]
-  roles      Role[]
-  stages     PipelineStage[]
-  leads      Lead[]
-  activities Activity[]
-  followUps  FollowUp[]
+  users       User[]
+  roles       Role[]
+  stages      PipelineStage[]
+  leads       Lead[]
+  activities  Activity[]
+  followUps   FollowUp[]
   events      WorkspaceEvent[]
   invitations Invitation[]
-  insights   LeadInsight[]
-  aiUsage    AiUsageEvent[]
-  summary    WorkspaceSummary?
+  insights    LeadInsight[]
+  aiUsage     AiUsageEvent[]
+  summary     WorkspaceSummary?
 
   // Drives the daily reaper, which scans for sandboxes past their expiry.
   @@index([expiresAt])
@@ -251,38 +255,37 @@ model Role {
 }
 
 model User {
-  id             String   @id @default(cuid())
-  organizationId String
-  email          String   @unique
+  id                String    @id @default(cuid())
+  organizationId    String
+  email             String    @unique
   /// scrypt digest — never leaves the service layer. See server/src/lib/password.ts.
-  passwordHash   String
-  name           String
+  passwordHash      String
+  name              String
   /// The role this account holds. Carries the permissions.
-  roleId         String
+  roleId            String
   /**
    * Whether this account owns the workspace.
-   *
    * Separate from the role because ownership is not a permission set: it is
    * the answer to "whose workspace is this", it is unique, and it cannot be
    * granted by editing a role. Keeping it as its own column is what lets the
    * database enforce exactly one owner — see the partial unique index — which a
    * role membership could not.
    */
-  isOwner        Boolean  @default(false)
-  locale         Locale   @default(en)
+  isOwner           Boolean   @default(false)
+  locale            Locale    @default(en)
   /// What currency this person reads figures in. Null follows the workspace.
   /// Display only — no stored amount is ever quoted in it.
-  displayCurrency String?
+  displayCurrency   String?
   /// Tailwind-friendly hex used for the avatar fallback, assigned at signup.
-  avatarColor    String   @default("#2563eb")
-  isActive       Boolean  @default(true)
+  avatarColor       String    @default("#2563eb")
+  isActive          Boolean   @default(true)
   /// When this address was confirmed by clicking an emailed link.
   ///
   /// Null means unconfirmed, which is *not* a restriction: an unverified user
   /// signs in and works normally, and sees a banner offering to resend. Gating
   /// the product on delivery would mean a mail outage locks people out of
   /// their own workspace, which is a worse failure than an unconfirmed address.
-  emailVerifiedAt DateTime?
+  emailVerifiedAt   DateTime?
   /// Access tokens issued before this instant are rejected.
   ///
   /// Revoking refresh tokens is not enough on its own: an access token is a
@@ -292,26 +295,28 @@ model User {
   /// the token's `iat` against this, so a credential change takes effect on the
   /// very next request.
   sessionsValidFrom DateTime?
-  lastLoginAt    DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  role          Role           @relation(fields: [roleId], references: [id])
-  refreshTokens RefreshToken[]
-  assignedLeads Lead[]         @relation("LeadAssignee")
-  createdLeads  Lead[]         @relation("LeadCreator")
-  activities    Activity[]
-  followUps     FollowUp[]     @relation("FollowUpAssignee")
-  createdFollowUps FollowUp[]  @relation("FollowUpCreator")
-  workspaceEvents  WorkspaceEvent[]
-  authTokens       AuthToken[]
-  sentInvitations  Invitation[]  @relation("InvitationCreator")
-  acceptedInvitation Invitation?  @relation("InvitationAcceptor")
-  generatedInsights LeadInsight[]
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role               Role               @relation(fields: [roleId], references: [id])
+  refreshTokens      RefreshToken[]
+  assignedLeads      Lead[]             @relation("LeadAssignee")
+  createdLeads       Lead[]             @relation("LeadCreator")
+  activities         Activity[]
+  followUps          FollowUp[]         @relation("FollowUpAssignee")
+  createdFollowUps   FollowUp[]         @relation("FollowUpCreator")
+  workspaceEvents    WorkspaceEvent[]
+  authTokens         AuthToken[]
+  sentInvitations    Invitation[]       @relation("InvitationCreator")
+  acceptedInvitation Invitation?        @relation("InvitationAcceptor")
+  generatedInsights  LeadInsight[]
   generatedSummaries WorkspaceSummary[]
 
   @@index([organizationId, isActive])
+  // Counting a role's holders, and moving them when it is deleted.
+  @@index([roleId])
   @@map("users")
 }
 
@@ -399,6 +404,9 @@ model Invitation {
 
   @@index([organizationId, createdAt(sort: Desc)])
   @@index([expiresAt])
+  // A settled invitation still references its role, and deleting one has to
+  // find every row that does.
+  @@index([roleId])
   @@map("invitations")
 }
 
@@ -419,9 +427,11 @@ model ExchangeRate {
   @@map("exchange_rates")
 }
 
-/* ------------------------------------------------------------------ *
+/**
+ * ------------------------------------------------------------------ *
  * Pipeline
- * ------------------------------------------------------------------ */
+ * ------------------------------------------------------------------
+ */
 
 /// Stages are rows rather than a bare enum so each tenant can rename, recolour
 /// and reorder its board (Phase 2) and carry an Arabic label (Phase 3) without
@@ -455,53 +465,53 @@ model PipelineStage {
 }
 
 model Lead {
-  id             String       @id @default(cuid())
-  organizationId String
-  customerName   String
-  company        String?
-  email          String?
-  phone          String?
-  source         LeadSource   @default(OTHER)
+  id               String       @id @default(cuid())
+  organizationId   String
+  customerName     String
+  company          String?
+  email            String?
+  phone            String?
+  source           LeadSource   @default(OTHER)
   requestedService String
-  estimatedValue Decimal      @default(0) @db.Decimal(14, 2)
-  currency       String       @default("USD")
-  priority       LeadPriority @default(MEDIUM)
-  description    String?
-  tags           String[]     @default([])
+  estimatedValue   Decimal      @default(0) @db.Decimal(14, 2)
+  currency         String       @default("USD")
+  priority         LeadPriority @default(MEDIUM)
+  description      String?
+  tags             String[]     @default([])
 
-  stageId        String
-  assignedToId   String?
-  createdById    String?
+  stageId      String
+  assignedToId String?
+  createdById  String?
 
   /// Rank within the stage column — reserved for Phase 2 drag-and-drop ordering.
-  boardPosition  Int          @default(0)
+  boardPosition Int @default(0)
 
   /// Denormalised from the earliest PENDING FollowUp so the table can sort and
   /// filter on it without a correlated subquery. Maintained in follow-up.service.
-  nextFollowUpAt DateTime?
+  nextFollowUpAt  DateTime?
   /// Denormalised from the newest Activity, for the "last touched" column.
-  lastActivityAt DateTime?
+  lastActivityAt  DateTime?
   lastContactedAt DateTime?
 
-  lostReason     String?
-  wonAt          DateTime?
-  lostAt         DateTime?
+  lostReason String?
+  wonAt      DateTime?
+  lostAt     DateTime?
 
   /// Filing, not removal. Archiving hides a lead from every list and aggregate
   /// while preserving its activity trail and follow-ups forever. Restorable by
   /// an owner or admin, and never purged — keeping the history is the point.
-  archivedAt     DateTime?
-  archivedById   String?
+  archivedAt   DateTime?
+  archivedById String?
 
   /// Trash. A different intention from archiving: this record should not exist.
   /// It leaves every view immediately, stays restorable to whatever state it
   /// was in — archived leads come back archived — and the daily reaper destroys
   /// it, along with its activities and follow-ups, after TRASH_RETENTION_DAYS.
-  deletedAt      DateTime?
-  deletedById    String?
+  deletedAt   DateTime?
+  deletedById String?
 
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   stage        PipelineStage @relation(fields: [stageId], references: [id])
@@ -524,9 +534,11 @@ model Lead {
   @@map("leads")
 }
 
-/* ------------------------------------------------------------------ *
+/**
+ * ------------------------------------------------------------------ *
  * Activity & follow-ups
- * ------------------------------------------------------------------ */
+ * ------------------------------------------------------------------
+ */
 
 /// Append-only timeline. User-authored entries carry `body`; system entries
 /// carry structured `metadata` so the UI can render them in either language.
@@ -580,33 +592,33 @@ model WorkspaceEvent {
 /// is actionable. A regeneration replaces the previous one, and the row carries
 /// who asked for it and when, which is the audit that actually gets read.
 model LeadInsight {
-  id             String   @id @default(cuid())
+  id             String @id @default(cuid())
   organizationId String
-  leadId         String   @unique
+  leadId         String @unique
   /// Language the prose was written in, so the reader can be told when the
   /// stored analysis is not in the language they are reading the app in.
-  locale         Locale   @default(en)
+  locale         Locale @default(en)
 
-  summary        String
+  summary           String
   /// 0-100. The band is derived, not stored — see `qualityBand()`.
-  qualityScore   Int
-  urgency        AiUrgency
-  rationale      String
-  nextAction     String
+  qualityScore      Int
+  urgency           AiUrgency
+  rationale         String
+  nextAction        String
   nextActionChannel FollowUpChannel @default(CALL)
-  draftMessage   String
-  signals        String[] @default([])
+  draftMessage      String
+  signals           String[]        @default([])
 
   /// Provider model id, recorded so an assessment can be attributed to the
   /// thing that made it once the default has moved on.
-  model          String
+  model         String
   /// Fingerprint of the lead fields fed to the model. Compared on read to tell
   /// the user their analysis predates the lead's current state.
-  inputHash      String
-  generatedById  String?
+  inputHash     String
+  generatedById String?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -656,27 +668,27 @@ model AiUsageEvent {
 /// reading it costs nothing so a visitor cannot spend quota by clicking, and
 /// `generatedAt` plus `model` make an assessment attributable.
 model WorkspaceSummary {
-  id             String   @id @default(cuid())
-  organizationId String   @unique
-  locale         Locale   @default(en)
+  id             String @id @default(cuid())
+  organizationId String @unique
+  locale         Locale @default(en)
 
   /// Two or three sentences: the state of the pipeline as a whole.
-  headline       String
+  headline  String
   /// Ordered, most pressing first. Shape: { title, detail, severity }.
-  attention      Json
+  attention Json
   /// What is moving, and in which direction. Shape: { title, detail }.
-  trends         Json
+  trends    Json
   /// One thing to do today, phrased as an instruction.
-  nextStep       String
+  nextStep  String
 
-  model          String
+  model         String
   /// Fingerprint of the figures the summary was written from, so a workspace
   /// that has moved on since can be told its summary predates the change.
-  inputHash      String
-  generatedById  String?
+  inputHash     String
+  generatedById String?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   generatedBy  User?        @relation(fields: [generatedById], references: [id], onDelete: SetNull)
