@@ -20,11 +20,9 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-/**
- * ------------------------------------------------------------------ *
- * Enums — these mirror shared/src/enums.ts exactly.
- * ------------------------------------------------------------------
- */
+// ------------------------------------------------------------------
+// Enums — these mirror shared/src/enums.ts exactly.
+// ------------------------------------------------------------------
 
 /// The three roles every workspace starts with. Custom roles have no key.
 ///
@@ -171,11 +169,9 @@ enum AuthTokenType {
   PASSWORD_RESET
 }
 
-/**
- * ------------------------------------------------------------------ *
- * Tenancy
- * ------------------------------------------------------------------
- */
+// ------------------------------------------------------------------
+// Tenancy
+// ------------------------------------------------------------------
 
 model Organization {
   id              String    @id @default(cuid())
@@ -427,11 +423,9 @@ model ExchangeRate {
   @@map("exchange_rates")
 }
 
-/**
- * ------------------------------------------------------------------ *
- * Pipeline
- * ------------------------------------------------------------------
- */
+// ------------------------------------------------------------------
+// Pipeline
+// ------------------------------------------------------------------
 
 /// Stages are rows rather than a bare enum so each tenant can rename, recolour
 /// and reorder its board (Phase 2) and carry an Arabic label (Phase 3) without
@@ -534,11 +528,9 @@ model Lead {
   @@map("leads")
 }
 
-/**
- * ------------------------------------------------------------------ *
- * Activity & follow-ups
- * ------------------------------------------------------------------
- */
+// ------------------------------------------------------------------
+// Activity & follow-ups
+// ------------------------------------------------------------------
 
 /// Append-only timeline. User-authored entries carry `body`; system entries
 /// carry structured `metadata` so the UI can render them in either language.
