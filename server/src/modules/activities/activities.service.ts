@@ -8,6 +8,7 @@ import type {
 } from '@leadpilot/shared';
 import { USER_ACTIVITY_TYPES } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
+import { can } from '../../lib/permissions.js';
 import { forbidden, notFound } from '../../lib/errors.js';
 import { paginate, toPrismaPagination } from '../../lib/pagination.js';
 import { ACTIVITY_SELECT, toActivityDto } from '../../lib/serializers.js';
@@ -119,8 +120,8 @@ export async function updateActivity(
     throw forbidden('System activity entries cannot be edited');
   }
 
-  const isManager = actor.role === 'OWNER' || actor.role === 'ADMIN';
-  if (existing.userId !== actor.userId && !isManager) {
+  // Editing somebody else's note is the same power as editing their lead.
+  if (existing.userId !== actor.userId && !can(actor, 'EDIT_ALL_LEADS')) {
     throw forbidden('You can only edit your own notes');
   }
 
@@ -144,8 +145,8 @@ export async function deleteActivity(actor: Actor, activityId: string): Promise<
     throw forbidden('System activity entries cannot be deleted');
   }
 
-  const isManager = actor.role === 'OWNER' || actor.role === 'ADMIN';
-  if (existing.userId !== actor.userId && !isManager) {
+  // Editing somebody else's note is the same power as editing their lead.
+  if (existing.userId !== actor.userId && !can(actor, 'EDIT_ALL_LEADS')) {
     throw forbidden('You can only delete your own notes');
   }
 

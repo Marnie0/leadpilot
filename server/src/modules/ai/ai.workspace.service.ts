@@ -380,9 +380,9 @@ export async function generateSummary(
 
 /** Discards the stored briefing. Manager-only: it is a workspace-level artefact. */
 export async function deleteSummary(actor: Actor): Promise<void> {
-  const { isManager } = await import('../../lib/permissions.js');
-  if (!isManager(actor)) {
-    throw forbidden('Only an owner or admin can discard the workspace summary', 'MANAGER_ONLY');
+  const { can } = await import('../../lib/permissions.js');
+  if (!can(actor, 'MANAGE_AI')) {
+    throw forbidden('Your role cannot discard the workspace summary', 'MANAGER_ONLY');
   }
   await prisma.workspaceSummary.deleteMany({ where: { organizationId: actor.organizationId } });
 }

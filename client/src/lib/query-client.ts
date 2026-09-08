@@ -12,12 +12,15 @@ export const queryKeys = {
   stages: ['stages'] as const,
   team: ['team'] as const,
   invitations: ['team', 'invitations'] as const,
+  roles: ['roles'] as const,
   fxRates: ['fx-rates'] as const,
   aiSettings: ['ai', 'settings'] as const,
   aiSummary: ['ai', 'summary'] as const,
   settings: {
     organization: ['settings', 'organization'] as const,
     events: ['settings', 'events'] as const,
+    deletionStatus: ['settings', 'deletion-status'] as const,
+    workspaceDeletion: ['settings', 'workspace-deletion'] as const,
   },
   leads: {
     all: ['leads'] as const,

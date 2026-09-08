@@ -1,16 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   CreateInvitationInput,
+  CreateRoleInput,
   InvitationDto,
+  RoleDto,
   TeamMemberSummaryDto,
-  UserRole,
+  UpdateRoleInput,
 } from '@leadpilot/shared';
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
 
 export interface UpdateMemberInput {
   id: string;
-  role?: UserRole;
+  /** A role row in this workspace, not a fixed tier. */
+  roleId?: string;
   isActive?: boolean;
 }
 
@@ -113,5 +116,70 @@ export function useTransferOwnership() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.team });
       await queryClient.invalidateQueries({ queryKey: queryKeys.session });
     },
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Roles
+ * ------------------------------------------------------------------ */
+
+/**
+ * The workspace's roles.
+ *
+ * Readable by everyone — the team screen has to render "Sales rep" beside a
+ * colleague's name, which is not privileged information. Only changing them is
+ * the owner's.
+ */
+export function useRoles() {
+  return useQuery({
+    queryKey: queryKeys.roles,
+    queryFn: async () => (await api.get<{ roles: RoleDto[] }>('/roles')).roles,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Invalidates everything a role change can reach.
+ *
+ * A role's permissions decide what the *session* may do, so the session query
+ * has to be refetched too — otherwise the owner edits a role and the interface
+ * keeps offering what it no longer permits until something else happens to
+ * refresh it.
+ */
+function useRoleInvalidation() {
+  const queryClient = useQueryClient();
+  return async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.roles }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.team }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.session }),
+    ]);
+  };
+}
+
+export function useCreateRole() {
+  const invalidate = useRoleInvalidation();
+  return useMutation({
+    mutationFn: async (input: CreateRoleInput) =>
+      (await api.post<{ role: RoleDto }>('/roles', input)).role,
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateRole() {
+  const invalidate = useRoleInvalidation();
+  return useMutation({
+    mutationFn: async ({ id, ...input }: UpdateRoleInput & { id: string }) =>
+      (await api.patch<{ role: RoleDto }>(`/roles/${id}`, input)).role,
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteRole() {
+  const invalidate = useRoleInvalidation();
+  return useMutation({
+    mutationFn: ({ id, reassignToRoleId }: { id: string; reassignToRoleId?: string }) =>
+      api.delete<void>(`/roles/${id}`, { body: reassignToRoleId ? { reassignToRoleId } : {} }),
+    onSuccess: invalidate,
   });
 }

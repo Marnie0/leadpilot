@@ -9,7 +9,12 @@ import * as service from './invitations.service.js';
 
 const actorFrom = (req: Parameters<typeof getAuth>[0]): Actor => {
   const auth = getAuth(req);
-  return { userId: auth.userId, organizationId: auth.organizationId, role: auth.role };
+  return {
+    userId: auth.userId,
+    organizationId: auth.organizationId,
+    permissions: auth.permissions,
+    isOwner: auth.isOwner,
+  };
 };
 
 /** Mounted at /api/team/invitations — administering who has been asked in. */

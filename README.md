@@ -24,12 +24,13 @@ move opportunities through a shared pipeline: **New → Contacted → Qualified 
 
 ## Status
 
-**Phases 1 to 7 — complete.** Auth, the full data model, the leads table with bulk actions, the
+**Phases 1 to 8 — complete.** Auth, the full data model, the leads table with bulk actions, the
 lead detail view with activity timeline and follow-ups, a drag-and-drop pipeline board, a business
 dashboard built on real aggregates, a follow-up inbox, per-reader currency display with FX
-conversion, an opt-in AI assistant that reads an enquiry and drafts the reply, profile and
-workspace settings, a marketing landing page, and the whole product in English or Arabic with a
-mirrored right-to-left layout and a light/dark theme.
+conversion, an opt-in AI assistant that reads an enquiry and drafts the reply, team invitations with
+workspace-defined roles, profile and workspace settings, account and workspace deletion, a marketing
+landing page, and the whole product in English or Arabic with a mirrored right-to-left layout and a
+light/dark theme.
 
 | Phase | Scope                                                                     | State   |
 | ----- | ------------------------------------------------------------------------- | ------- |
@@ -40,6 +41,7 @@ mirrored right-to-left layout and a light/dark theme.
 | 5     | AI lead assistant — summary, scoring, next action, drafted reply          | ✅ Done |
 | 6     | Multi-currency leads and totals · whole-workspace AI briefing             | ✅ Done |
 | 7     | Team invitations · roles and ownership · email verification and reset     | ✅ Done |
+| 8     | Custom roles the owner defines · account deletion · workspace deletion    | ✅ Done |
 
 ---
 
@@ -588,18 +590,58 @@ rule, this replaces a shared briefing about data every member can already see in
 
 ## Team, roles and getting in
 
-### One owner, transferred rather than granted
+### A role is a row, not a tier
 
-Three roles: **owner**, **admin**, **member**. An admin may change anyone's role and remove anyone;
-only the owner can make somebody an admin; nobody can touch the owner at all.
+"Admin" started as a hard-coded rank, which meant every workspace got the same three shapes whether
+or not they matched how its team actually works. A role is now a **named permission set the owner
+controls**: a workspace can have a "Regional manager" who edits every lead but cannot touch the
+team, or a "Read-only auditor" who holds nothing at all.
+
+Six permissions, and deliberately not a resource×verb matrix — each one replaces a check that used
+to read "is this an admin?":
+
+| Permission         | What it unlocks                                        |
+| ------------------ | ------------------------------------------------------ |
+| `MANAGE_TEAM`      | Invite, change roles, remove people                    |
+| `MANAGE_WORKSPACE` | Rename the workspace and edit its details              |
+| `CHANGE_CURRENCY`  | Restate every stored amount into another currency      |
+| `EDIT_ALL_LEADS`   | Edit leads you neither own nor created                 |
+| `DELETE_LEADS`     | Archive, restore and permanently delete                |
+| `MANAGE_AI`        | Switch the assistant on or off for the whole workspace |
+
+Three powers are **missing from that list on purpose** — managing roles, transferring ownership, and
+deleting the workspace. They belong to the owner and are not delegable: a permission you could grant
+yourself is not a permission. That is also why only the owner edits roles at all, since "an admin can
+edit roles" is the same sentence as "an admin is an owner".
+
+Every workspace is seeded with three roles — Owner, Admin, "Sales rep" — matching exactly what the
+old enum did, so nothing changed behaviour on the day they became rows. They can be renamed in both
+languages and none of them can be deleted; the owner role's permissions are additionally fixed at
+everything, because a workspace whose owner had switched off their own ability to manage the team
+would be one nobody could administer.
+
+Deleting a role that people hold **names its destination**. Every account has exactly one role, so a
+role in use cannot simply vanish, and picking a default on the owner's behalf would silently change
+what somebody can do.
+
+An admin cannot clone itself: granting a role is refused unless the granter holds every permission in
+it, _and_ any role carrying `MANAGE_TEAM` can only be granted by the owner. Without that second rule
+the first one is useless — two admins hold identical permission sets, so "you cannot grant what you
+do not hold" would have let either promote the other.
+
+### One owner, transferred rather than granted
 
 There is exactly **one** owner, and the database enforces it with a partial unique index rather than
 the application promising to be careful:
 
 ```sql
 CREATE UNIQUE INDEX "users_one_owner_per_organization"
-  ON "users" ("organizationId") WHERE "role" = 'OWNER';
+  ON "users" ("organizationId") WHERE "isOwner";
 ```
+
+(The predicate was `WHERE "role" = 'OWNER'` until roles became rows. Ownership is not a role — it is
+a flag on the account — precisely so that renaming or editing roles can never put a workspace into a
+state with no owner.)
 
 The app had always talked about "the owner" while the schema allowed any number, and the guards
 counted _other_ owners to decide whether a demotion was safe. That ambiguity was not theoretical:
@@ -612,9 +654,9 @@ demoted in one transaction, so there is no instant with two owners and none with
 the recipient's name to be typed, the same friction as a permanent delete, because from the giver's
 side it cannot be undone.
 
-Only the owner can grant admin — and that rule is enforced on the invitation path too, in
-`assertMayGrantRole`. Without that, "admins cannot make admins" would be a rule about which button
-you press: an admin would simply send a link instead.
+Only the owner can grant a team-managing role — and that rule is enforced on the invitation path
+too, in `assertMayGrantRole`. Without it, "admins cannot make admins" would be a rule about which
+button you press: an admin would simply send a link instead.
 
 ### Invitations
 
@@ -691,6 +733,58 @@ against somebody holding the token rather than the browser.
 `User.sessionsValidFrom` is an epoch checked in `requireAuth`, so a credential change takes effect on
 the very next request. It is compared in whole seconds because `iat` is, and comparing milliseconds
 would reject a token minted in the same second as the change.
+
+---
+
+## Closing an account, and closing the workspace
+
+### What a departing member leaves behind
+
+The account row goes; the workspace's memory of the work does not. Every reference to a user from a
+lead, an activity or a follow-up was already `onDelete: SetNull` — a choice made long before this
+feature existed and exactly the right one for it. So somebody who leaves takes their credentials with
+them and leaves the pipeline intact: **their leads become unassigned, their notes keep their text and
+lose their author, and nobody else's timeline develops holes.**
+
+Erasing the notes instead would take a colleague's context with them; keeping the name would be a
+record of somebody who asked to be removed. "A former member" is more honest than either.
+
+This is not the trash. The trash exists so a lead deleted by mistake can come back, and it lives
+_inside_ the workspace it would be restored to — which is precisely why deleting the workspace cannot
+have one.
+
+### The owner is told before they try, not after
+
+An owner with colleagues cannot delete their account: a workspace with no owner is not a state the
+product has, and the partial unique index would refuse it at an unhelpful moment. So
+`GET /auth/account/deletion-status` is asked up front and the screen names both ways out — hand the
+workspace over on the Team screen, or delete the whole thing — rather than presenting a button whose
+only outcome is a rejection after a typed password.
+
+The one exception is an owner who is the **only** member. There is nobody to transfer to, so deleting
+the account and deleting the workspace are the same act; the API says so and the dialog says so,
+instead of trapping them in a rule with no exit.
+
+### Two proofs, not one
+
+Password **and** a typed confirmation — the account's own email address, or the workspace's name.
+Every other irreversible action in this product asks for one of those; this one asks for both. The
+typed word is friction against a misclick, the password is evidence that the person at the keyboard
+is the account holder and not somebody who found an unlocked laptop. Everything else destructive here
+removes records a colleague could recreate. This removes the ability to sign in at all.
+
+### A settled invitation still pins its role
+
+Found in the browser, not in the API tests. `Invitation.role` is a required relation with no cascade,
+so **any** row pointing at a role blocks its deletion — including an invitation accepted months ago.
+The role list reported `memberCount: 0` for a role whose holder had since deleted their account, the
+dialog therefore offered no reassignment picker, and the delete was refused by a server counting
+something the client could not see.
+
+`RoleDto` now carries `referenceCount` alongside `memberCount`: the first is what the API's rule is
+made of, the second is what the row displays. The dialog asks for a destination exactly when the
+request would need one, and says which case it is — "three people hold this role" and "only a past
+invitation refers to it" are different sentences.
 
 ---
 
@@ -1128,15 +1222,16 @@ serverless function. Moving to Render, Fly or a VPS is a config change, not a re
 
 ### Data model
 
-| Model           | Notes                                                                                                                                                               |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Organization`  | The tenant. Owns everything below it. `isDemoTemplate` marks the demo master; `expiresAt` marks a throwaway sandbox.                                                |
-| `User`          | `OWNER` / `ADMIN` / `MEMBER`. Members edit leads they own or created; only owners and admins archive.                                                               |
-| `RefreshToken`  | One row per session — what makes a JWT revocable.                                                                                                                   |
-| `PipelineStage` | Per-tenant stage rows with colour, order, `name`, `nameAr` and `winProbability` — the last drives the dashboard's revenue forecast.                                 |
-| `Lead`          | The core record, plus denormalised `nextFollowUpAt` / `lastActivityAt` for sorting and `boardPosition` for manual rank on the board. Soft-deleted via `archivedAt`. |
-| `Activity`      | Append-only timeline. System entries store structured `metadata`, not English strings.                                                                              |
-| `FollowUp`      | Scheduled task with channel, due date and status.                                                                                                                   |
+| Model           | Notes                                                                                                                                                                 |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Organization`  | The tenant. Owns everything below it. `isDemoTemplate` marks the demo master; `expiresAt` marks a throwaway sandbox.                                                  |
+| `User`          | Holds one `Role` and an `isOwner` flag. What it may do comes from the role's `Permission[]`, not from its name.                                                       |
+| `Role`          | A named permission set, per tenant. The seeded three carry a `key`; anything the owner creates has none. Renameable in both languages, and the three are undeletable. |
+| `RefreshToken`  | One row per session — what makes a JWT revocable.                                                                                                                     |
+| `PipelineStage` | Per-tenant stage rows with colour, order, `name`, `nameAr` and `winProbability` — the last drives the dashboard's revenue forecast.                                   |
+| `Lead`          | The core record, plus denormalised `nextFollowUpAt` / `lastActivityAt` for sorting and `boardPosition` for manual rank on the board. Soft-deleted via `archivedAt`.   |
+| `Activity`      | Append-only timeline. System entries store structured `metadata`, not English strings.                                                                                |
+| `FollowUp`      | Scheduled task with channel, due date and status.                                                                                                                     |
 
 `Lead.nextFollowUpAt` and `Lead.lastActivityAt` are denormalised so the leads table can sort and
 filter on them without a correlated subquery per row. They are maintained in exactly one place —
@@ -1148,37 +1243,48 @@ filter on them without a correlated subquery per row. They are maintained in exa
 
 All routes are under `/api` and all except the first three require authentication.
 
-| Method           | Route                                          | Purpose                                                         |
-| ---------------- | ---------------------------------------------- | --------------------------------------------------------------- |
-| `POST`           | `/auth/signup`                                 | Create an organisation and its owner                            |
-| `POST`           | `/auth/demo`                                   | Clone the demo template into a private sandbox and sign in      |
-| `POST`           | `/auth/login`                                  | Sign in                                                         |
-| `POST`           | `/auth/refresh`                                | Rotate the session                                              |
-| `POST`           | `/auth/logout`                                 | Revoke this session                                             |
-| `GET`/`PATCH`    | `/auth/me`                                     | Current user; `PATCH` takes `name`, `locale`, `displayCurrency` |
-| `POST`           | `/auth/change-password`                        | Revokes all sessions                                            |
-| `GET`            | `/stages`                                      | The organisation's pipeline stages                              |
-| `GET`            | `/team` · `PATCH /team/:id`                    | Members (edit is owner/admin only)                              |
-| `GET`            | `/leads`                                       | List — search, filter, sort, paginate                           |
-| `GET`            | `/leads/stats`                                 | Aggregates over the _filtered_ set                              |
-| `POST`           | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id` | CRUD                                                            |
-| `POST`           | `/leads/bulk/{archive,restore,stage,assign}`   | Bulk actions; returns `{ updated, unchanged, notPermitted }`    |
-| `POST`           | `/leads/:id/stage` · `/leads/:id/assign`       | Audited stage move and reassignment                             |
-| `POST`           | `/leads/:id/board-position`                    | Drag-and-drop: stage **and** rank within the column             |
-| `GET`            | `/board?limit=`                                | Every stage with its cards, plus per-stage totals and value     |
-| `GET`            | `/dashboard?range=30d\|90d\|12m`               | Every dashboard figure, aggregated in Postgres                  |
-| `GET`/`POST`     | `/leads/:id/activities`                        | Timeline                                                        |
-| `PATCH`/`DELETE` | `/activities/:id`                              | Edit or remove your own note                                    |
-| `GET`/`POST`     | `/leads/:id/follow-ups`                        | Follow-ups for a lead                                           |
-| `GET`            | `/follow-ups`                                  | The inbox — bucket, search, assignee, paging                    |
-| `GET`            | `/follow-ups/counts`                           | Per-bucket counts under the same filters                        |
-| `POST`           | `/follow-ups/:id/complete` · `/cancel`         | Complete or cancel                                              |
-| `POST`           | `/follow-ups/:id/reschedule`                   | Move the due date                                               |
-| `PATCH`/`DELETE` | `/follow-ups/:id`                              | Edit or remove one                                              |
-| `GET`            | `/fx/rates`                                    | Reference rates, `live` \| `cache` \| `fallback`                |
-| `GET`/`PATCH`    | `/settings/organization`                       | Workspace settings (edit is owner/admin only)                   |
-| `GET`            | `/settings/currency/preview?currency=`         | What a base-currency change would restate — owner only          |
-| `POST`           | `/settings/currency`                           | Restate every stored amount — owner only, `confirm: true`       |
+| Method           | Route                                                | Purpose                                                         |
+| ---------------- | ---------------------------------------------------- | --------------------------------------------------------------- |
+| `POST`           | `/auth/signup`                                       | Create an organisation and its owner                            |
+| `POST`           | `/auth/demo`                                         | Clone the demo template into a private sandbox and sign in      |
+| `POST`           | `/auth/login`                                        | Sign in                                                         |
+| `POST`           | `/auth/refresh`                                      | Rotate the session                                              |
+| `POST`           | `/auth/logout`                                       | Revoke this session                                             |
+| `GET`/`PATCH`    | `/auth/me`                                           | Current user; `PATCH` takes `name`, `locale`, `displayCurrency` |
+| `POST`           | `/auth/change-password`                              | Revokes all sessions                                            |
+| `GET`            | `/stages`                                            | The organisation's pipeline stages                              |
+| `GET`            | `/team` · `PATCH /team/:id`                          | Members; editing needs `MANAGE_TEAM`                            |
+| `DELETE`         | `/team/:id` · `POST /team/:id/transfer-ownership`    | Remove somebody; hand the workspace over                        |
+| `GET`/`POST`     | `/team/invitations` · `DELETE /team/invitations/:id` | Issue, list and revoke invite links                             |
+| `GET`/`POST`     | `/invites/:token` · `/invites/:token/accept`         | Public: preview an invitation and redeem it                     |
+| `GET`            | `/roles`                                             | The workspace's roles — readable by everyone                    |
+| `POST`           | `/roles` · `PATCH`/`DELETE` `/roles/:id`             | Create, edit and delete roles — **owner only**                  |
+| `POST`           | `/auth/verify-email` · `/auth/resend-verification`   | Confirm an address                                              |
+| `POST`           | `/auth/forgot-password` · `/auth/reset-password`     | Emailed reset, neutral either way                               |
+| `GET`            | `/auth/account/deletion-status`                      | Whether this account can be deleted yet, and why not            |
+| `DELETE`         | `/auth/account`                                      | Close your account — password plus typed email                  |
+| `GET`            | `/auth/workspace/deletion-summary`                   | What deleting the workspace would take with it                  |
+| `DELETE`         | `/auth/workspace`                                    | Delete the workspace — owner only, password plus typed name     |
+| `GET`            | `/leads`                                             | List — search, filter, sort, paginate                           |
+| `GET`            | `/leads/stats`                                       | Aggregates over the _filtered_ set                              |
+| `POST`           | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id`       | CRUD                                                            |
+| `POST`           | `/leads/bulk/{archive,restore,stage,assign}`         | Bulk actions; returns `{ updated, unchanged, notPermitted }`    |
+| `POST`           | `/leads/:id/stage` · `/leads/:id/assign`             | Audited stage move and reassignment                             |
+| `POST`           | `/leads/:id/board-position`                          | Drag-and-drop: stage **and** rank within the column             |
+| `GET`            | `/board?limit=`                                      | Every stage with its cards, plus per-stage totals and value     |
+| `GET`            | `/dashboard?range=30d\|90d\|12m`                     | Every dashboard figure, aggregated in Postgres                  |
+| `GET`/`POST`     | `/leads/:id/activities`                              | Timeline                                                        |
+| `PATCH`/`DELETE` | `/activities/:id`                                    | Edit or remove your own note                                    |
+| `GET`/`POST`     | `/leads/:id/follow-ups`                              | Follow-ups for a lead                                           |
+| `GET`            | `/follow-ups`                                        | The inbox — bucket, search, assignee, paging                    |
+| `GET`            | `/follow-ups/counts`                                 | Per-bucket counts under the same filters                        |
+| `POST`           | `/follow-ups/:id/complete` · `/cancel`               | Complete or cancel                                              |
+| `POST`           | `/follow-ups/:id/reschedule`                         | Move the due date                                               |
+| `PATCH`/`DELETE` | `/follow-ups/:id`                                    | Edit or remove one                                              |
+| `GET`            | `/fx/rates`                                          | Reference rates, `live` \| `cache` \| `fallback`                |
+| `GET`/`PATCH`    | `/settings/organization`                             | Workspace settings (edit is owner/admin only)                   |
+| `GET`            | `/settings/currency/preview?currency=`               | What a base-currency change would restate — owner only          |
+| `POST`           | `/settings/currency`                                 | Restate every stored amount — owner only, `confirm: true`       |
 
 ---
 

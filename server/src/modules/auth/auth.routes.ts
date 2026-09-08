@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import {
+  deleteWorkspaceSchema,
+  deleteAccountSchema,
   verifyEmailSchema,
   resetPasswordSchema,
   forgotPasswordSchema,
@@ -19,6 +21,7 @@ import {
 import { clearAuthCookies, REFRESH_COOKIE, setAuthCookies } from '../../lib/cookies.js';
 import type { SessionContext } from './auth.service.js';
 import * as authService from './auth.service.js';
+import * as accountDeletion from './account-deletion.service.js';
 
 export const authRouter = Router();
 
@@ -189,6 +192,53 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     await authService.changePassword(getAuth(req).userId, req.body);
     // Every session was revoked, including this one — force a fresh sign-in.
+    clearAuthCookies(res);
+    res.status(204).end();
+  }),
+);
+
+/* ------------------------------------------------------------------ *
+ * Closing an account, and closing the workspace
+ * ------------------------------------------------------------------ */
+
+/** Whether this account can be deleted yet — asked before the button is shown. */
+authRouter.get(
+  '/account/deletion-status',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await accountDeletion.accountDeletionStatus(getAuth(req).userId));
+  }),
+);
+
+authRouter.delete(
+  '/account',
+  requireAuth,
+  authLimiter,
+  validate(deleteAccountSchema),
+  asyncHandler(async (req, res) => {
+    await accountDeletion.deleteAccount(getAuth(req).userId, req.body);
+    // The session belongs to an account that no longer exists.
+    clearAuthCookies(res);
+    res.status(204).end();
+  }),
+);
+
+/** What the workspace deletion dialog quotes back before it is allowed. */
+authRouter.get(
+  '/workspace/deletion-summary',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await accountDeletion.workspaceDeletionSummary(getAuth(req).userId));
+  }),
+);
+
+authRouter.delete(
+  '/workspace',
+  requireAuth,
+  authLimiter,
+  validate(deleteWorkspaceSchema),
+  asyncHandler(async (req, res) => {
+    await accountDeletion.deleteWorkspace(getAuth(req).userId, req.body);
     clearAuthCookies(res);
     res.status(204).end();
   }),

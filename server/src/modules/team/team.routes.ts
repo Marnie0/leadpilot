@@ -1,8 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { idSchema, msg, requiredTrimmed, USER_ROLES } from '@leadpilot/shared';
+import { idSchema, msg, requiredTrimmed } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
-import { asyncHandler, getAuth, requireAuth, requireRole } from '../../middleware/auth.js';
+import {
+  asyncHandler,
+  getAuth,
+  requireAuth,
+  requireOwner,
+  requirePermission,
+} from '../../middleware/auth.js';
 import { assertMayGrantRole } from '../invitations/invitations.service.js';
 import { recordWorkspaceEvent } from '../../lib/workspace-events.js';
 import { confirmationMatches, transferOwnershipSchema } from '@leadpilot/shared';
@@ -12,7 +18,12 @@ import { TEAM_MEMBER_SELECT, toTeamMemberDto } from '../../lib/serializers.js';
 
 const actorFrom = (req: Parameters<typeof getAuth>[0]) => {
   const auth = getAuth(req);
-  return { userId: auth.userId, organizationId: auth.organizationId, role: auth.role };
+  return {
+    userId: auth.userId,
+    organizationId: auth.organizationId,
+    permissions: auth.permissions,
+    isOwner: auth.isOwner,
+  };
 };
 
 export const teamRouter = Router();
@@ -45,14 +56,15 @@ teamRouter.get(
 const updateMemberSchema = z
   .object({
     name: requiredTrimmed('field.name', 80, 2).optional(),
-    role: z.enum(USER_ROLES).optional(),
+    /** A role row in this workspace, not a fixed tier. */
+    roleId: idSchema.optional(),
     isActive: z.boolean().optional(),
   })
   .refine((values) => Object.keys(values).length > 0, { message: msg('validation.noChanges') });
 
 teamRouter.patch(
   '/:id',
-  requireRole('OWNER', 'ADMIN'),
+  requirePermission('MANAGE_TEAM'),
   validate(z.object({ id: idSchema }), 'params'),
   validate(updateMemberSchema),
   asyncHandler(async (req, res) => {
@@ -61,7 +73,7 @@ teamRouter.patch(
 
     const target = await prisma.user.findFirst({
       where: { id: targetId, organizationId: auth.organizationId },
-      select: { id: true, role: true, name: true },
+      select: { id: true, name: true, isOwner: true, role: { select: { id: true, name: true } } },
     });
     if (!target) throw notFound('Team member');
 
@@ -75,7 +87,7 @@ teamRouter.patch(
      * state the product has. Handing the role over is a different operation
      * with its own confirmation: see POST /team/:id/transfer-ownership.
      */
-    if (target.role === 'OWNER') {
+    if (target.isOwner) {
       throw forbidden('The owner can only be changed by transferring ownership', 'OWNER_ONLY');
     }
     /*
@@ -87,11 +99,12 @@ teamRouter.patch(
      * is also blocked on the invitation path, in `assertMayGrantRole`, because
      * a link is just a slower button.
      */
-    if (body.role !== undefined) assertMayGrantRole(actorFrom(req), body.role);
+    const nextRole =
+      body.roleId !== undefined ? await assertMayGrantRole(actorFrom(req), body.roleId) : null;
     if (target.id === auth.userId && body.isActive === false) {
       throw badRequest('You cannot deactivate your own account', 'CANNOT_DEACTIVATE_SELF');
     }
-    if (target.id === auth.userId && body.role !== undefined && body.role !== target.role) {
+    if (target.id === auth.userId && nextRole !== null && nextRole.id !== target.role.id) {
       // An admin demoting themselves would be a one-way trip with no admin
       // left to undo it, and is far more likely a misclick than an intention.
       throw badRequest('You cannot change your own role', 'CANNOT_CHANGE_OWN_ROLE');
@@ -102,7 +115,7 @@ teamRouter.patch(
         where: { id: target.id },
         data: {
           ...(body.name !== undefined && { name: body.name }),
-          ...(body.role !== undefined && { role: body.role }),
+          ...(nextRole !== null && { roleId: nextRole.id }),
           ...(body.isActive !== undefined && { isActive: body.isActive }),
         },
         select: TEAM_MEMBER_SELECT,
@@ -110,12 +123,12 @@ teamRouter.patch(
 
       // A role change is a permission change, so it belongs on the workspace
       // record alongside the currency conversion and the ownership transfer.
-      if (body.role !== undefined && body.role !== target.role) {
+      if (nextRole !== null && nextRole.id !== target.role.id) {
         await recordWorkspaceEvent(tx, {
           organizationId: auth.organizationId,
           userId: auth.userId,
           type: 'MEMBER_ROLE_CHANGED',
-          metadata: { subject: row.name, role: body.role, previousRole: target.role },
+          metadata: { subject: row.name, role: nextRole.name, previousRole: target.role.name },
         });
       }
 
@@ -152,7 +165,7 @@ teamRouter.patch(
  */
 teamRouter.post(
   '/:id/transfer-ownership',
-  requireRole('OWNER'),
+  requireOwner,
   validate(z.object({ id: idSchema }), 'params'),
   validate(transferOwnershipSchema),
   asyncHandler(async (req, res) => {
@@ -166,7 +179,7 @@ teamRouter.post(
 
     const target = await prisma.user.findFirst({
       where: { id: targetId, organizationId: auth.organizationId, isActive: true },
-      select: { id: true, name: true, role: true },
+      select: { id: true, name: true, role: { select: { id: true, name: true } } },
     });
     if (!target) throw notFound('Team member');
 
@@ -177,21 +190,34 @@ teamRouter.post(
     const member = await prisma.$transaction(async (tx) => {
       // Demote first: the partial unique index permits one OWNER per
       // organisation, so promoting before demoting would collide with itself.
+      const [ownerRole, adminRole] = await Promise.all([
+        tx.role.findFirstOrThrow({
+          where: { organizationId: auth.organizationId, key: 'OWNER' },
+          select: { id: true },
+        }),
+        tx.role.findFirstOrThrow({
+          where: { organizationId: auth.organizationId, key: 'ADMIN' },
+          select: { id: true },
+        }),
+      ]);
+
+      // Demote first: the partial unique index permits one owner per
+      // organisation, so promoting before demoting would collide with itself.
       await tx.user.update({
         where: { id: auth.userId },
-        data: { role: 'ADMIN' },
+        data: { isOwner: false, roleId: adminRole.id },
         select: { id: true },
       });
       const promoted = await tx.user.update({
         where: { id: target.id },
-        data: { role: 'OWNER' },
+        data: { isOwner: true, roleId: ownerRole.id },
         select: TEAM_MEMBER_SELECT,
       });
       await recordWorkspaceEvent(tx, {
         organizationId: auth.organizationId,
         userId: auth.userId,
         type: 'OWNERSHIP_TRANSFERRED',
-        metadata: { subject: target.name, role: 'OWNER', previousRole: target.role },
+        metadata: { subject: target.name, role: 'Owner', previousRole: target.role.name },
       });
       return promoted;
     });
@@ -211,7 +237,7 @@ teamRouter.post(
  */
 teamRouter.delete(
   '/:id',
-  requireRole('OWNER', 'ADMIN'),
+  requirePermission('MANAGE_TEAM'),
   validate(z.object({ id: idSchema }), 'params'),
   asyncHandler(async (req, res) => {
     const auth = getAuth(req);
@@ -223,10 +249,16 @@ teamRouter.delete(
 
     const target = await prisma.user.findFirst({
       where: { id: targetId, organizationId: auth.organizationId },
-      select: { id: true, name: true, role: true, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        isOwner: true,
+        role: { select: { name: true } },
+      },
     });
     if (!target) throw notFound('Team member');
-    if (target.role === 'OWNER') {
+    if (target.isOwner) {
       throw forbidden('The owner cannot be removed. Transfer ownership first.', 'OWNER_ONLY');
     }
 
@@ -244,7 +276,7 @@ teamRouter.delete(
         organizationId: auth.organizationId,
         userId: auth.userId,
         type: 'MEMBER_REMOVED',
-        metadata: { subject: target.name, role: target.role },
+        metadata: { subject: target.name, role: target.role.name },
       });
     });
 

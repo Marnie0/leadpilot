@@ -17,7 +17,8 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api-client';
-import { useT } from '@/lib/i18n';
+import { useI18n, useT } from '@/lib/i18n';
+import { roleLabel } from '@/lib/permissions';
 import { useLocalizedResolver } from '@/lib/i18n/zod-resolver';
 
 /**
@@ -34,6 +35,7 @@ import { useLocalizedResolver } from '@/lib/i18n/zod-resolver';
  */
 export function AcceptInvitePage() {
   const t = useT();
+  const { locale } = useI18n();
   const navigate = useNavigate();
   const { token = '' } = useParams<{ token: string }>();
   const [showPassword, setShowPassword] = useState(false);
@@ -132,9 +134,9 @@ export function AcceptInvitePage() {
         invitation.invitedByName
           ? t('invite.subtitleFrom', {
               name: invitation.invitedByName,
-              role: t(`role.${invitation.role}`),
+              role: roleLabel(invitation.role, locale),
             })
-          : t('invite.subtitle', { role: t(`role.${invitation.role}`) })
+          : t('invite.subtitle', { role: roleLabel(invitation.role, locale) })
       }
     >
       <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-5" noValidate>

@@ -24,10 +24,42 @@ datasource db {
  * Enums — these mirror shared/src/enums.ts exactly.
  * ------------------------------------------------------------------ */
 
-enum UserRole {
+/// The three roles every workspace starts with. Custom roles have no key.
+///
+/// Kept as an enum rather than a plain string so the seeded roles stay
+/// addressable in code — "the member role of this workspace" has to be
+/// findable to assign an invitee, whatever the owner has renamed it to.
+enum RoleKey {
   OWNER
   ADMIN
   MEMBER
+}
+
+/// What a role is allowed to do.
+///
+/// Deliberately a short, closed list of things this product actually gates,
+/// rather than a generic resource×verb matrix. Every entry here corresponds to
+/// a guard that already existed as `isManager` or `requireRole`; making them
+/// nameable is what turns "admin" from a hard-coded tier into a description of
+/// a permission set somebody chose.
+///
+/// Three powers are deliberately absent, because they belong to the owner alone
+/// and are not delegable: managing roles, transferring ownership, and deleting
+/// the workspace. A permission you can grant yourself is not a permission —
+/// anyone who could edit roles could hand themselves everything else.
+enum Permission {
+  /// Invite people, change their role, remove them.
+  MANAGE_TEAM
+  /// Rename the workspace, change its default language.
+  MANAGE_WORKSPACE
+  /// Restate every stored amount into another currency. Irreversible.
+  CHANGE_CURRENCY
+  /// Edit any lead, not only the ones assigned to or created by you.
+  EDIT_ALL_LEADS
+  /// Archive, trash, restore and permanently delete leads.
+  DELETE_LEADS
+  /// Turn the AI assistant on or off for the workspace.
+  MANAGE_AI
 }
 
 enum Locale {
@@ -120,6 +152,10 @@ enum WorkspaceEventType {
   INVITE_REVOKED
   MEMBER_ROLE_CHANGED
   MEMBER_REMOVED
+  ROLE_CREATED
+  ROLE_UPDATED
+  ROLE_DELETED
+  ACCOUNT_DELETED
 }
 
 /// What a one-time emailed token is for.
@@ -162,6 +198,7 @@ model Organization {
   updatedAt       DateTime @updatedAt
 
   users      User[]
+  roles      Role[]
   stages     PipelineStage[]
   leads      Lead[]
   activities Activity[]
@@ -177,6 +214,42 @@ model Organization {
   @@map("organizations")
 }
 
+/// A named set of permissions, per workspace.
+///
+/// Every workspace is seeded with three — owner, admin, member — reproducing
+/// exactly the behaviour that used to be hard-coded in `isManager` and
+/// `requireRole`. The owner may add more, rename any of them in both languages,
+/// and change what the non-owner ones can do.
+///
+/// The owner role is not editable: its permission set is "everything", and a
+/// workspace whose owner could remove their own ability to manage the team is a
+/// workspace nobody can administer.
+model Role {
+  id             String       @id @default(cuid())
+  organizationId String
+  /// Set for the three seeded roles, null for anything the owner creates.
+  key            RoleKey?
+  name           String
+  /// Arabic label, so a renamed role reads correctly in both languages —
+  /// the same reasoning as `PipelineStage.nameAr`.
+  nameAr         String
+  permissions    Permission[] @default([])
+  /// True for the seeded three. They may be renamed but never deleted:
+  /// something has to be assignable, and the owner role has to exist.
+  isSystem       Boolean      @default(false)
+  order          Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users        User[]
+  invitations  Invitation[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId, order])
+  @@map("roles")
+}
+
 model User {
   id             String   @id @default(cuid())
   organizationId String
@@ -184,7 +257,18 @@ model User {
   /// scrypt digest — never leaves the service layer. See server/src/lib/password.ts.
   passwordHash   String
   name           String
-  role           UserRole @default(MEMBER)
+  /// The role this account holds. Carries the permissions.
+  roleId         String
+  /**
+   * Whether this account owns the workspace.
+   *
+   * Separate from the role because ownership is not a permission set: it is
+   * the answer to "whose workspace is this", it is unique, and it cannot be
+   * granted by editing a role. Keeping it as its own column is what lets the
+   * database enforce exactly one owner — see the partial unique index — which a
+   * role membership could not.
+   */
+  isOwner        Boolean  @default(false)
   locale         Locale   @default(en)
   /// What currency this person reads figures in. Null follows the workspace.
   /// Display only — no stored amount is ever quoted in it.
@@ -213,6 +297,7 @@ model User {
   updatedAt      DateTime @updatedAt
 
   organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role          Role           @relation(fields: [roleId], references: [id])
   refreshTokens RefreshToken[]
   assignedLeads Lead[]         @relation("LeadAssignee")
   createdLeads  Lead[]         @relation("LeadCreator")
@@ -292,9 +377,12 @@ model Invitation {
   /// invite forwarded to the wrong person fail closed rather than silently
   /// admitting a stranger.
   email          String?
-  /// The role the invitee lands on. An admin may only issue MEMBER invites;
-  /// otherwise "only the owner grants admin" is bypassed by sending a link.
-  role           UserRole  @default(MEMBER)
+  /// The role the invitee lands on.
+  ///
+  /// Issuing an invitation grants a role, so it is bounded by the same rule as
+  /// granting one directly: you cannot invite somebody into a role holding
+  /// permissions you do not hold yourself.
+  roleId         String
   /// SHA-256 of the raw token, exactly as `AuthToken`.
   tokenHash      String    @unique
   invitedById    String?
@@ -305,6 +393,7 @@ model Invitation {
   createdAt      DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role         @relation(fields: [roleId], references: [id])
   invitedBy    User?        @relation("InvitationCreator", fields: [invitedById], references: [id], onDelete: SetNull)
   acceptedBy   User?        @relation("InvitationAcceptor", fields: [acceptedById], references: [id], onDelete: SetNull)
 

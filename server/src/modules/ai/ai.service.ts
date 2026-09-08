@@ -11,7 +11,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../../db.js';
 import { env } from '../../env.js';
 import { AppError, forbidden, notFound } from '../../lib/errors.js';
-import { canMutateLead, isManager } from '../../lib/permissions.js';
+import { can, canMutateLead } from '../../lib/permissions.js';
 import { logger } from '../../logger.js';
 import type { Actor } from '../leads/leads.service.js';
 import { PROVIDER_NAME, PROVIDER_TRAINS_ON_INPUT, analyse } from './ai.provider.js';
@@ -206,8 +206,8 @@ export async function updateSettings(
   actor: Actor,
   input: UpdateAiSettingsInput,
 ): Promise<AiSettingsDto> {
-  if (!isManager(actor)) {
-    throw forbidden('Only an owner or admin can change the assistant settings', 'MANAGER_ONLY');
+  if (!can(actor, 'MANAGE_AI')) {
+    throw forbidden('Your role cannot change the assistant settings', 'MANAGER_ONLY');
   }
   await prisma.organization.update({
     where: { id: actor.organizationId },

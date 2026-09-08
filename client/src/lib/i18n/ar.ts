@@ -73,6 +73,8 @@ export const ar: Dictionary = {
   'validation.confirmName': 'اكتب اسم العميل للتأكيد',
   'validation.requiredShort': 'مطلوب',
 
+  'validation.confirmEmail': 'اكتب بريدك الإلكتروني للتأكيد',
+  'field.roleName': 'اسم الصلاحية',
   'field.name': 'الاسم',
   'field.workspaceName': 'اسم مساحة العمل',
   'field.companyName': 'اسم الشركة',
@@ -162,12 +164,11 @@ export const ar: Dictionary = {
   'apiError.CURRENT_PASSWORD_INCORRECT': 'كلمة المرور الحالية غير صحيحة',
   'apiError.EMAIL_TAKEN': 'يوجد حساب مسجَّل بهذا البريد الإلكتروني',
   'apiError.OWNER_ONLY': 'لا يغيّر حساب المالك إلا مالك مساحة العمل',
-  'apiError.OWNER_GRANT_ONLY': 'لا يمنح دور المالك إلا مالك مساحة العمل',
   'apiError.FOLLOW_UP_ALREADY_COMPLETED': 'أنهى شخص آخر هذه المتابعة بالفعل',
   'apiError.FOLLOW_UP_NOT_PENDING': 'لم تعد هذه المتابعة مفتوحة',
   'apiError.ALREADY_TRASHED': 'هذه المتابعة في سلة المحذوفات بالفعل',
   'apiError.NOT_TRASHED': 'انقلها إلى سلة المحذوفات قبل حذفها نهائيًا',
-  'apiError.CONFIRMATION_MISMATCH': 'الاسم الذي كتبته لا يطابق هذا العميل',
+  'apiError.CONFIRMATION_MISMATCH': 'ما كتبته لا يطابق المطلوب',
   'apiError.LAST_OWNER': 'لا بد أن يكون لمساحة العمل مالك دائمًا',
   'apiError.CANNOT_DEACTIVATE_SELF': 'لا يمكنك إلغاء تنشيط حسابك',
   'apiError.FOLLOW_UP_NOT_YOURS': 'لا تستطيع تغيير إلا متابعات عملائك',
@@ -188,6 +189,12 @@ export const ar: Dictionary = {
   'apiError.EMAIL_REQUIRED': 'يلزم بريد إلكتروني لقبول هذه الدعوة',
   'apiError.INVALID_OR_EXPIRED_TOKEN': 'لم يعد هذا الرابط صالحًا. اطلب رابطًا جديدًا.',
   'apiError.CANNOT_CHANGE_OWN_ROLE': 'لا يمكنك تغيير صلاحيتك بنفسك',
+  'apiError.ROLE_NAME_TAKEN': 'يوجد دور بهذا الاسم بالفعل',
+  'apiError.ROLE_IN_USE': 'اختر دورًا يُنقل إليه أعضاء هذا الدور أولًا',
+  'apiError.SYSTEM_ROLE': 'لا يمكن حذف الأدوار المدمجة',
+  'apiError.OWNER_ROLE_FIXED': 'دور المالك يملك كل الصلاحيات دائمًا',
+  'apiError.OWNER_MUST_TRANSFER': 'سلِّم مساحة العمل أو احذفها قبل حذف حسابك',
+  'apiError.CANNOT_GRANT_ROLE': 'لا يمكنك منح دور يملك أكثر مما تملك، أو دور يستطيع إدارة الفريق',
   'apiError.NOT_FOUND': 'لم يعد هذا السجل موجودًا',
   'apiError.VALIDATION_ERROR': 'بعض الحقول بحاجة إلى مراجعة',
   'apiError.RATE_LIMITED': 'عدد كبير من الطلبات. يرجى المحاولة بعد قليل.',
@@ -805,8 +812,7 @@ export const ar: Dictionary = {
   'team.deactivated': 'معطّل',
   'team.activeAgo': 'نشِط {when}',
   'team.neverSignedIn': 'لم يسجّل الدخول قط',
-  'team.footnote':
-    'يرى الجميع هنا خط الصفقات كاملًا. ويقرّر المالك والمشرفون من ينضم وما الذي يمكنه تغييره.',
+  'team.footnote': 'يرى الجميع هنا خط الصفقات كاملًا. وما يستطيع كل شخص تغييره يأتي من دوره.',
   'team.footnoteMember': 'تحدّث إلى المالك أو أحد المشرفين إن كان شخص آخر بحاجة إلى الوصول.',
   'team.manage': 'إدارة {name}',
   'team.changeRole': 'الدور',
@@ -1080,6 +1086,11 @@ export const ar: Dictionary = {
   'settings.eventInviteRevoked': 'أُلغيت دعوة {name}',
   'settings.eventRoleChanged': 'أصبح {name} الآن {role}',
   'settings.eventMemberRemoved': 'أُزيل {name} من مساحة العمل',
+  'settings.eventRoleCreated': 'أُنشئ الدور {name}',
+  'settings.eventRoleUpdated': 'عُدِّل الدور {name}',
+  'settings.eventRoleDeleted': 'حُذف الدور {name}',
+  'settings.eventRoleDeletedMoved': 'حُذف الدور {name}، وأصبح أعضاؤه {role}',
+  'settings.eventAccountDeleted': 'حذف {name} حسابه',
   'settings.eventUnknown': 'تغيير في مساحة العمل',
   'settings.eventByRemovedMember': 'عضو سابق',
   'settings.couldNotLoadHistory': 'تعذّر تحميل سجل مساحة العمل',
@@ -1322,4 +1333,105 @@ export const ar: Dictionary = {
   'due.today': 'اليوم، {time}',
   'due.tomorrow': 'غدًا، {time}',
   'relative.justNow': 'الآن',
+
+  /* -------------------------------------------------------------- *
+   * الأدوار والصلاحيات
+   * -------------------------------------------------------------- */
+  'common.listSeparator': '، ',
+
+  'roles.title': 'الأدوار',
+  'roles.body': 'ما يُسمح به لكل دور في مساحة العمل هذه. أنت وحدك من يمكنه تغييرها.',
+  'roles.new': 'دور جديد',
+  'roles.empty': 'لا أدوار بعد',
+  'roles.builtIn': 'مدمج',
+  'roles.everything': 'كل شيء، بما في ذلك ما لا يمكن تفويضه.',
+  'roles.nonePermissions': 'يعمل على عملائه المحتملين فقط، لا أكثر.',
+  'roles.memberCount_zero': 'لا أحد',
+  'roles.memberCount_one': 'شخص واحد',
+  'roles.memberCount_two': 'شخصان',
+  'roles.memberCount_few': '{count} أشخاص',
+  'roles.memberCount_many': '{count} شخصًا',
+  'roles.memberCount_other': '{count} شخص',
+  'roles.manage': 'إدارة {name}',
+  'roles.edit': 'تعديل',
+  'roles.rename': 'إعادة التسمية',
+  'roles.delete': 'حذف الدور',
+  'roles.newTitle': 'دور جديد',
+  'roles.editTitle': 'تعديل الدور',
+  'roles.dialogBody':
+    'سمِّه باللغتين، وحدِّد ما يُسمح له به. يسري التغيير على كل من يحمل هذا الدور فور الحفظ.',
+  'roles.ownerFixed':
+    'دور المالك يملك كل الصلاحيات دائمًا، فلا شيء لتحديده. ما زال بإمكانك إعادة تسميته.',
+  'roles.fieldName': 'الاسم',
+  'roles.fieldNameAr': 'الاسم بالعربية',
+  'roles.permissionsLegend': 'يستطيع هذا الدور',
+  'roles.create': 'إنشاء الدور',
+  'roles.save': 'حفظ الدور',
+  'roles.couldNotSave': 'تعذّر حفظ هذا الدور',
+  'roles.deleteTitle': 'حذف {name}؟',
+  'roles.deleteBody': 'لا أحد يحمل هذا الدور، فلن يتغيّر شيء آخر.',
+  'roles.deleteBodyInUse_zero': 'لا أحد يحمل هذا الدور، فلن يتغيّر شيء آخر.',
+  'roles.deleteBodyInUse_one': 'يحمل هذا الدور شخص واحد. اختر ما سيصبح عليه قبل حذفه.',
+  'roles.deleteBodyInUse_two': 'يحمل هذا الدور شخصان. اختر ما سيصبحان عليه قبل حذفه.',
+  'roles.deleteBodyInUse_few': 'يحمل هذا الدور {count} أشخاص. اختر ما سيصبحون عليه قبل حذفه.',
+  'roles.deleteBodyInUse_many': 'يحمل هذا الدور {count} شخصًا. اختر ما سيصبحون عليه قبل حذفه.',
+  'roles.deleteBodyInUse_other': 'يحمل هذا الدور {count} شخص. اختر ما سيصبحون عليه قبل حذفه.',
+  'roles.deleteBodyReferenced':
+    'لا أحد يحمل هذا الدور، لكن دعوات سابقة ما زالت تشير إليه. اختر الدور الذي ستشير إليه بدلًا منه.',
+  'roles.moveTo': 'انقلهم إلى',
+  'roles.moveToPlaceholder': 'اختر دورًا',
+  'roles.couldNotDelete': 'تعذّر حذف هذا الدور',
+
+  'permission.MANAGE_TEAM': 'إدارة الفريق',
+  'permission.MANAGE_WORKSPACE': 'تغيير إعدادات مساحة العمل',
+  'permission.CHANGE_CURRENCY': 'تغيير العملة الأساسية',
+  'permission.EDIT_ALL_LEADS': 'تعديل كل العملاء المحتملين',
+  'permission.DELETE_LEADS': 'أرشفة العملاء المحتملين وحذفهم',
+  'permission.MANAGE_AI': 'إدارة المساعد الذكي',
+  'permissionHint.MANAGE_TEAM': 'دعوة الأشخاص وتغيير أدوارهم وإزالتهم.',
+  'permissionHint.MANAGE_WORKSPACE': 'إعادة تسمية مساحة العمل وتعديل بياناتها.',
+  'permissionHint.CHANGE_CURRENCY': 'إعادة احتساب كل المبالغ المحفوظة بعملة أخرى.',
+  'permissionHint.EDIT_ALL_LEADS': 'لا العملاء المسندين إليه أو الذين أنشأهم فقط.',
+  'permissionHint.DELETE_LEADS': 'نقل العملاء المحتملين إلى المهملات وإفراغها.',
+  'permissionHint.MANAGE_AI': 'تشغيل المساعد أو إيقافه للجميع.',
+
+  /* -------------------------------------------------------------- *
+   * إغلاق الحساب وإغلاق مساحة العمل
+   * -------------------------------------------------------------- */
+  'danger.title': 'حذف حسابك',
+  'danger.body': 'إجراء دائم، ولا يمكن التراجع عنه من هنا.',
+  'danger.whatSurvives':
+    'يُحذف تسجيل دخولك. أما العملاء المحتملون الذين كنت تعمل عليهم فيبقون في مساحة العمل بلا مسؤول، وتبقى ملاحظاتك بنصّها دون اسمك.',
+  'danger.ownerBlocked_zero':
+    'أنت مالك مساحة العمل هذه. سلِّم الملكية من شاشة الفريق، أو احذف مساحة العمل بالكامل من الأسفل، قبل أن تتمكن من حذف حسابك.',
+  'danger.ownerBlocked_one':
+    'أنت مالك مساحة العمل هذه ومعك شخص واحد آخر. سلِّم الملكية من شاشة الفريق، أو احذف مساحة العمل بالكامل من الأسفل، قبل أن تتمكن من حذف حسابك.',
+  'danger.ownerBlocked_two':
+    'أنت مالك مساحة العمل هذه ومعك شخصان آخران. سلِّم الملكية من شاشة الفريق، أو احذف مساحة العمل بالكامل من الأسفل، قبل أن تتمكن من حذف حسابك.',
+  'danger.ownerBlocked_few':
+    'أنت مالك مساحة العمل هذه ومعك {count} أشخاص آخرين. سلِّم الملكية من شاشة الفريق، أو احذف مساحة العمل بالكامل من الأسفل، قبل أن تتمكن من حذف حسابك.',
+  'danger.ownerBlocked_many':
+    'أنت مالك مساحة العمل هذه ومعك {count} شخصًا آخرين. سلِّم الملكية من شاشة الفريق، أو احذف مساحة العمل بالكامل من الأسفل، قبل أن تتمكن من حذف حسابك.',
+  'danger.ownerBlocked_other':
+    'أنت مالك مساحة العمل هذه ومعك {count} شخص آخرين. سلِّم الملكية من شاشة الفريق، أو احذف مساحة العمل بالكامل من الأسفل، قبل أن تتمكن من حذف حسابك.',
+  'danger.lastMemberNotice':
+    'أنت الشخص الوحيد هنا، لذا فحذف حسابك يحذف مساحة العمل هذه وكل ما فيها.',
+  'danger.deleteAccount': 'حذف حسابي',
+  'danger.deleteWorkspace': 'حذف مساحة العمل',
+  'danger.accountDialogTitle': 'حذف حسابك؟',
+  'danger.accountDialogBody':
+    'لا يمكن التراجع عن هذا. يبقى عملاؤك المحتملون في مساحة العمل بلا مسؤول، وتبقى ملاحظاتك بنصّها دون كاتبها.',
+  'danger.accountDialogBodyLast':
+    'لا يمكن التراجع عن هذا، وأنت الشخص الوحيد هنا — فتذهب مساحة العمل وعملاؤها وسجلّها مع حسابك.',
+  'danger.workspaceDialogTitle': 'حذف {name}؟',
+  'danger.workspaceDialogBody':
+    'يفقد الجميع الوصول فورًا، ولا يمكن استرجاع أي شيء — ولا حتى من المهملات، فهي تعيش داخل مساحة العمل التي سيُستعاد إليها.',
+  'danger.workspaceCounts': 'سيحذف هذا {members} و{leads}.',
+  'danger.typeEmail': 'اكتب {email} للتأكيد',
+  'danger.typeName': 'اكتب {name} للتأكيد',
+  'danger.yourPassword': 'كلمة مرورك',
+  'danger.confirmAccount': 'حذف حسابي',
+  'danger.confirmWorkspace': 'حذف مساحة العمل',
+  'danger.couldNotDeleteAccount': 'تعذّر حذف حسابك',
+  'danger.couldNotDeleteWorkspace': 'تعذّر حذف مساحة العمل',
 };

@@ -6,7 +6,7 @@ import type {
 } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
 import { forbidden } from '../../lib/errors.js';
-import { canMutateLead, isManager } from '../../lib/permissions.js';
+import { can, canMutateLead } from '../../lib/permissions.js';
 import { recordActivities, type ActivityLogEntry } from '../../lib/activity-log.js';
 import {
   assertAssigneeInOrg,
@@ -73,7 +73,7 @@ export async function bulkArchive(
   actor: Actor,
   { ids }: BulkLeadIdsInput,
 ): Promise<BulkLeadResultDto> {
-  if (!isManager(actor)) throw forbidden('Only an owner or admin can archive a lead');
+  if (!can(actor, 'DELETE_LEADS')) throw forbidden('Your role cannot archive leads');
 
   const { count } = await prisma.lead.updateMany({
     where: {
@@ -92,7 +92,7 @@ export async function bulkRestore(
   actor: Actor,
   { ids }: BulkLeadIdsInput,
 ): Promise<BulkLeadResultDto> {
-  if (!isManager(actor)) throw forbidden('Only an owner or admin can restore a lead');
+  if (!can(actor, 'DELETE_LEADS')) throw forbidden('Your role cannot restore leads');
 
   const { count } = await prisma.lead.updateMany({
     where: {
@@ -120,7 +120,7 @@ export async function bulkTrash(
   actor: Actor,
   { ids }: BulkLeadIdsInput,
 ): Promise<BulkLeadResultDto> {
-  if (!isManager(actor)) throw forbidden('Only an owner or admin can delete a lead');
+  if (!can(actor, 'DELETE_LEADS')) throw forbidden('Your role cannot delete leads');
 
   const { count } = await prisma.lead.updateMany({
     where: { id: { in: ids }, organizationId: actor.organizationId, deletedAt: null },
@@ -135,7 +135,7 @@ export async function bulkRestoreFromTrash(
   actor: Actor,
   { ids }: BulkLeadIdsInput,
 ): Promise<BulkLeadResultDto> {
-  if (!isManager(actor)) throw forbidden('Only an owner or admin can restore a lead');
+  if (!can(actor, 'DELETE_LEADS')) throw forbidden('Your role cannot restore leads');
 
   const { count } = await prisma.lead.updateMany({
     where: { id: { in: ids }, organizationId: actor.organizationId, deletedAt: { not: null } },

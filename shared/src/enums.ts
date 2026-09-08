@@ -65,16 +65,45 @@ export const FOLLOW_UP_STATUSES = ['PENDING', 'COMPLETED', 'CANCELLED'] as const
 export type FollowUpStatus = (typeof FOLLOW_UP_STATUSES)[number];
 
 /**
- * Org-level roles.
- * OWNER  — billing + org settings, cannot be removed by others
- * ADMIN  — full lead access, can invite and manage members
- * MEMBER — a sales rep: sees org leads, edits the ones they own
+ * The three roles every workspace is seeded with.
+ *
+ * A *key*, not the whole story: roles are rows now, a workspace may add its own,
+ * and any of these three may be renamed. The key exists so code can still find
+ * "the member role of this workspace" in order to assign an invitee, whatever it
+ * has since been called.
  */
-export const USER_ROLES = ['OWNER', 'ADMIN', 'MEMBER'] as const;
-export type UserRole = (typeof USER_ROLES)[number];
+export const ROLE_KEYS = ['OWNER', 'ADMIN', 'MEMBER'] as const;
+export type RoleKey = (typeof ROLE_KEYS)[number];
 
-/** Roles allowed to administer the organisation and its members. */
-export const MANAGER_ROLES: readonly UserRole[] = ['OWNER', 'ADMIN'];
+/**
+ * What a role may be allowed to do.
+ *
+ * A short closed list of the things this product actually gates, rather than a
+ * generic resource×verb matrix. Each one replaces a check that used to read
+ * "is this an admin?".
+ *
+ * Three powers are deliberately missing — managing roles, transferring
+ * ownership, deleting the workspace — because they belong to the owner and are
+ * not delegable. A permission you could grant yourself is not a permission.
+ */
+export const PERMISSIONS = [
+  'MANAGE_TEAM',
+  'MANAGE_WORKSPACE',
+  'CHANGE_CURRENCY',
+  'EDIT_ALL_LEADS',
+  'DELETE_LEADS',
+  'MANAGE_AI',
+] as const;
+export type Permission = (typeof PERMISSIONS)[number];
+
+/** What each seeded role starts with — and what the migration backfilled. */
+export const DEFAULT_ROLE_PERMISSIONS: Record<RoleKey, readonly Permission[]> = {
+  OWNER: PERMISSIONS,
+  // Exactly the old admin: everything except restating the workspace currency,
+  // which was owner-only before roles existed and stays that way by default.
+  ADMIN: ['MANAGE_TEAM', 'MANAGE_WORKSPACE', 'EDIT_ALL_LEADS', 'DELETE_LEADS', 'MANAGE_AI'],
+  MEMBER: [],
+};
 
 export const CURRENCIES = ['USD', 'EUR', 'GBP', 'SAR', 'AED', 'EGP', 'QAR', 'KWD'] as const;
 export type Currency = (typeof CURRENCIES)[number];

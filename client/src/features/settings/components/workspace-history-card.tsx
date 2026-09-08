@@ -86,7 +86,15 @@ function EventRow({
       return t('settings.eventCurrencyChanged', { from: change.from, to: change.to });
     }
     const name = membership?.subject ?? t('team.someone');
-    const role = membership?.role ? t(`role.${membership.role}` as 'role.MEMBER') : '';
+    /*
+     * The role is quoted, not translated.
+     *
+     * It used to be one of three fixed keys; a workspace now names its own
+     * roles, and the event stores the name as it read at the time. Looking it
+     * up again would rename history every time somebody renames a role — and
+     * would find nothing at all for a role since deleted.
+     */
+    const role = membership?.role ?? '';
     switch (event.type) {
       case 'OWNERSHIP_TRANSFERRED':
         return t('settings.eventOwnershipTransferred', { name });
@@ -100,6 +108,16 @@ function EventRow({
         return t('settings.eventRoleChanged', { name, role });
       case 'MEMBER_REMOVED':
         return t('settings.eventMemberRemoved', { name });
+      case 'ROLE_CREATED':
+        return t('settings.eventRoleCreated', { name });
+      case 'ROLE_UPDATED':
+        return t('settings.eventRoleUpdated', { name });
+      case 'ROLE_DELETED':
+        return role
+          ? t('settings.eventRoleDeletedMoved', { name, role })
+          : t('settings.eventRoleDeleted', { name });
+      case 'ACCOUNT_DELETED':
+        return t('settings.eventAccountDeleted', { name });
       default:
         return t('settings.eventUnknown');
     }

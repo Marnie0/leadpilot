@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { USER_ROLES, type UserRole } from './enums.js';
+import { idSchema as roleIdSchema } from './common.js';
 import { emailSchema, passwordSchema } from './auth.schema.js';
 import { idSchema, requiredTrimmed } from './common.js';
 import { msg } from './message.js';
@@ -26,18 +26,18 @@ import { msg } from './message.js';
 /** How long an unaccepted invitation stays usable. */
 export const INVITE_LIFETIME_DAYS = 7;
 
-/** The roles an invitation may grant. Owner is transferred, never invited. */
-export const INVITABLE_ROLES = USER_ROLES.filter(
-  (role): role is Exclude<UserRole, 'OWNER'> => role !== 'OWNER',
-);
-
 export const createInvitationSchema = z.object({
   /**
    * Optional. Binding the invite to an address is what makes a forwarded link
    * fail closed instead of quietly admitting whoever received it.
    */
   email: emailSchema.optional(),
-  role: z.enum(['ADMIN', 'MEMBER']).default('MEMBER'),
+  /**
+   * The role to grant. A workspace's own roles are rows, so this is an id
+   * rather than an enum — and the server refuses a role carrying permissions
+   * the inviter does not hold themselves.
+   */
+  roleId: roleIdSchema,
 });
 export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
 
@@ -69,7 +69,7 @@ export interface InvitationDto {
   id: string;
   /** Null for a link anybody may redeem. */
   email: string | null;
-  role: Exclude<UserRole, 'OWNER'>;
+  role: { id: string; name: string; nameAr: string };
   state: InvitationState;
   expiresAt: string;
   createdAt: string;
@@ -101,7 +101,7 @@ export interface InvitationDto {
 /** What the accept screen may know before anybody has signed in. */
 export interface InvitationPreviewDto {
   workspaceName: string;
-  role: Exclude<UserRole, 'OWNER'>;
+  role: { name: string; nameAr: string };
   invitedByName: string | null;
   /** Present when the invite is bound, so the form can lock the field. */
   email: string | null;

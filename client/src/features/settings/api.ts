@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  AccountDeletionStatusDto,
   AuthUser,
   ChangePasswordInput,
   Currency,
   CurrencyChangeResultDto,
   CurrencyPreviewDto,
+  DeleteAccountInput,
+  DeleteWorkspaceInput,
   OrganizationSettingsDto,
   UpdateOrganizationInput,
   UpdateProfileInput,
@@ -113,5 +116,57 @@ export function useChangeCurrency() {
         predicate: (query) => query.queryKey[0] !== 'session',
       });
     },
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Closing an account, and closing the workspace
+ * ------------------------------------------------------------------ */
+
+/**
+ * Whether this account can be deleted yet.
+ *
+ * Asked before the button is offered rather than after it is pressed: an owner
+ * with colleagues has to hand the workspace over first, and finding that out
+ * from a rejected request means typing a password to be told no.
+ */
+export function useAccountDeletionStatus() {
+  return useQuery({
+    queryKey: queryKeys.settings.deletionStatus,
+    queryFn: () => api.get<AccountDeletionStatusDto>('/auth/account/deletion-status'),
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * What the workspace deletion dialog quotes back — the name to be typed, and
+ * how much is about to go with it. Owner-only server-side, so the query only
+ * runs once the dialog that needs it is open.
+ */
+export function useWorkspaceDeletionSummary(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.settings.workspaceDeletion,
+    queryFn: () =>
+      api.get<{ name: string; members: number; leads: number }>('/auth/workspace/deletion-summary'),
+    enabled,
+  });
+}
+
+/*
+ * Both deletions end the session by design, and the server has already cleared
+ * the cookies by the time these resolve. The caller reloads rather than
+ * navigating: every cache in the app belongs to an account that no longer
+ * exists, and dropping the whole page is the only honest way to forget it.
+ */
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: (input: DeleteAccountInput) => api.delete<void>('/auth/account', { body: input }),
+  });
+}
+
+export function useDeleteWorkspace() {
+  return useMutation({
+    mutationFn: (input: DeleteWorkspaceInput) =>
+      api.delete<void>('/auth/workspace', { body: input }),
   });
 }

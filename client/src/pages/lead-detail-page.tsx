@@ -45,6 +45,7 @@ import { useCurrentUser } from '@/features/auth/auth-context';
 import { ApiError } from '@/lib/api-client';
 import { telHref } from '@/lib/format';
 import { useFormat, useT } from '@/lib/i18n';
+import { useCan } from '@/lib/permissions';
 import { useMoney } from '@/lib/money';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import {
@@ -141,6 +142,12 @@ export function LeadDetailPage() {
   const trashLead = useTrashLead();
   const restoreFromTrash = useRestoreLeadFromTrash();
   const purgeLead = usePurgeLead();
+  /**
+   * Owners and admins only — the API enforces it, this just hides the
+   * affordance. Read up here with the other hooks, not beside the JSX that uses
+   * it: the early returns below would make it a conditional hook.
+   */
+  const canArchive = useCan('DELETE_LEADS');
 
   if (leadQuery.isLoading) return <LeadDetailSkeleton />;
 
@@ -171,8 +178,6 @@ export function LeadDetailPage() {
   const activityTotal = activitiesQuery.data?.meta.total ?? 0;
   const followUps = followUpsQuery.data?.data ?? [];
 
-  /** Owners and admins only — the API enforces it, this just hides the affordance. */
-  const canArchive = user.role === 'OWNER' || user.role === 'ADMIN';
   /** Archived and trashed leads reject every write, so they show no write UI. */
   const isEditable = !lead.archivedAt && !lead.deletedAt;
 

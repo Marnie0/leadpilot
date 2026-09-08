@@ -1,3 +1,4 @@
+import { roleLabel } from '@/lib/permissions';
 import { Loader2, MailPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { InvitationDto, InvitationState } from '@leadpilot/shared';
@@ -7,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
-import { useFormat, useT } from '@/lib/i18n';
+import { useFormat, useI18n, useT } from '@/lib/i18n';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { cn } from '@/lib/utils';
 import { useInvitations, useRevokeInvitation } from '../api';
@@ -28,6 +29,7 @@ const STATE_STYLES: Record<InvitationState, string> = {
  */
 export function InvitationList({ canManage }: { canManage: boolean }) {
   const t = useT();
+  const { locale } = useI18n();
   const format = useFormat();
   const describeError = useApiErrorMessage();
   const query = useInvitations(canManage);
@@ -69,7 +71,7 @@ export function InvitationList({ canManage }: { canManage: boolean }) {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {t('team.inviteMeta', {
-                      role: t(`role.${invitation.role}`),
+                      role: roleLabel(invitation.role, locale),
                       by: invitation.invitedBy?.name ?? t('team.someone'),
                       date: format.date(invitation.createdAt),
                     })}

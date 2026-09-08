@@ -22,7 +22,8 @@ import {
 } from '@/components/ui/select';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useUpdateProfile } from '@/features/settings/api';
-import { useT } from '@/lib/i18n';
+import { useI18n, useT } from '@/lib/i18n';
+import { roleLabel } from '@/lib/permissions';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { asCurrency } from '@/lib/money';
 
@@ -39,6 +40,7 @@ const FOLLOW_WORKSPACE = 'workspace';
  */
 export function ProfileCard() {
   const t = useT();
+  const { locale: uiLocale } = useI18n();
   const user = useCurrentUser();
   const describeError = useApiErrorMessage();
   const updateProfile = useUpdateProfile();
@@ -136,7 +138,7 @@ export function ProfileCard() {
 
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="settings-role">{t('settings.fieldRole')}</Label>
-            <Input id="settings-role" value={t(`role.${user.role}`)} disabled />
+            <Input id="settings-role" value={roleLabel(user.role, uiLocale)} disabled />
             <p className="text-xs text-muted-foreground">{t('settings.roleHint')}</p>
           </div>
         </CardContent>

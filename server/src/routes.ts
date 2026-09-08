@@ -12,6 +12,7 @@ import { adminRouter } from './modules/admin/admin.routes.js';
 import { settingsRouter } from './modules/settings/settings.routes.js';
 import { fxRouter } from './modules/fx/fx.routes.js';
 import { aiRouter, leadInsightRouter } from './modules/ai/ai.routes.js';
+import { rolesRouter } from './modules/roles/roles.routes.js';
 import {
   invitationsRouter,
   publicInvitesRouter,
@@ -40,6 +41,7 @@ apiRouter.use('/internal', adminRouter);
 apiRouter.use('/stages', stagesRouter);
 // Declared before the bare /team router so /team/invitations is not read as an id.
 apiRouter.use('/team/invitations', invitationsRouter);
+apiRouter.use('/roles', rolesRouter);
 apiRouter.use('/team', teamRouter);
 apiRouter.use('/invites', publicInvitesRouter);
 apiRouter.use('/board', boardRouter);

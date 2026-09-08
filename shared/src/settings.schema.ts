@@ -73,6 +73,10 @@ export const WORKSPACE_EVENT_TYPES = [
   'INVITE_REVOKED',
   'MEMBER_ROLE_CHANGED',
   'MEMBER_REMOVED',
+  'ROLE_CREATED',
+  'ROLE_UPDATED',
+  'ROLE_DELETED',
+  'ACCOUNT_DELETED',
 ] as const;
 export type WorkspaceEventType = (typeof WORKSPACE_EVENT_TYPES)[number];
 

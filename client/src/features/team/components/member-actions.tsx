@@ -1,6 +1,6 @@
 import { Crown, MoreHorizontal, ShieldCheck, UserCheck, UserMinus, UserX } from 'lucide-react';
 import { toast } from 'sonner';
-import { USER_ROLES, type UserRole } from '@leadpilot/shared';
+import type { RoleDto, TeamMemberSummaryDto } from '@leadpilot/shared';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,16 +12,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useT } from '@/lib/i18n';
+import { useI18n, useT } from '@/lib/i18n';
+import { useCurrentUser } from '@/features/auth/auth-context';
+import { roleLabel, useIsOwner } from '@/lib/permissions';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { useUpdateTeamMember } from '../api';
 
-export interface ManageableMember {
-  id: string;
-  name: string;
-  role: UserRole;
-  isActive: boolean;
-}
+export type ManageableMember = Pick<
+  TeamMemberSummaryDto,
+  'id' | 'name' | 'role' | 'isOwner' | 'isActive'
+>;
 
 /**
  * Role and membership controls for one team member.
@@ -44,24 +44,26 @@ export interface ManageableMember {
 export function MemberActions({
   member,
   viewerId,
-  viewerRole,
+  roles,
   onTransfer,
   onRemove,
 }: {
   member: ManageableMember;
   viewerId: string;
-  viewerRole: UserRole;
+  /** Every role in the workspace, so the menu can offer the real ones. */
+  roles: RoleDto[];
   /** Both open a confirmation the page owns — neither acts from this menu. */
   onTransfer: (member: ManageableMember) => void;
   onRemove: (member: ManageableMember) => void;
 }) {
   const t = useT();
+  const { locale } = useI18n();
   const describeError = useApiErrorMessage();
   const updateMember = useUpdateTeamMember();
 
   const isSelf = member.id === viewerId;
-  const isOwner = member.role === 'OWNER';
-  const viewerIsOwner = viewerRole === 'OWNER';
+  const viewerIsOwner = useIsOwner();
+  const viewerPermissions = useCurrentUser().role.permissions;
 
   /*
    * Nothing is offered on the owner's own row, to anybody.
@@ -71,20 +73,26 @@ export function MemberActions({
    * ownerless, removing does the same, and "transfer" is initiated from the
    * *recipient's* row rather than the owner's.
    */
-  if (isOwner) return null;
+  if (member.isOwner) return null;
   // Acting on yourself is refused server-side in every case that matters.
   if (isSelf) return null;
 
   const fail = (error: unknown) =>
     toast.error(t('team.couldNotUpdate'), { description: describeError(error) });
 
-  const setRole = (role: UserRole) => {
-    if (role === member.role) return;
+  const setRole = (roleId: string) => {
+    if (roleId === member.role.id) return;
+    const role = roles.find((entry) => entry.id === roleId);
     updateMember.mutate(
-      { id: member.id, role },
+      { id: member.id, roleId },
       {
         onSuccess: () =>
-          toast.success(t('team.roleChanged', { name: member.name, role: t(`role.${role}`) })),
+          toast.success(
+            t('team.roleChanged', {
+              name: member.name,
+              role: role ? roleLabel(role, locale) : '',
+            }),
+          ),
         onError: fail,
       },
     );
@@ -123,22 +131,28 @@ export function MemberActions({
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
           {t('team.changeRole')}
         </DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={member.role}
-          onValueChange={(value) => setRole(value as UserRole)}
-        >
-          {USER_ROLES.filter((role) => {
-            // Ownership is transferred, never picked from a list.
-            if (role === 'OWNER') return false;
-            // Only the owner grants admin. An admin seeing the row and being
-            // refused would be the API teaching a permission by rejection.
-            if (role === 'ADMIN') return viewerIsOwner;
-            return true;
-          }).map((role) => (
-            <DropdownMenuRadioItem key={role} value={role}>
-              <ShieldCheck className="size-4" aria-hidden /> {t(`role.${role}`)}
-            </DropdownMenuRadioItem>
-          ))}
+        <DropdownMenuRadioGroup value={member.role.id} onValueChange={setRole}>
+          {roles
+            .filter((role) => {
+              // Ownership is transferred, never picked from a list.
+              if (role.key === 'OWNER') return false;
+              /*
+               * Granting team management is the owner's alone — the same rule
+               * the server enforces in `canGrantRole`. Offering the row to
+               * somebody who would be refused teaches a permission by
+               * rejection, which is what `canEdit` on a lead row exists to
+               * avoid.
+               */
+              if (role.permissions.includes('MANAGE_TEAM')) return viewerIsOwner;
+              // And nobody hands out what they do not hold themselves, which is
+              // the other half of `canGrantRole`.
+              return role.permissions.every((permission) => viewerPermissions.includes(permission));
+            })
+            .map((role) => (
+              <DropdownMenuRadioItem key={role.id} value={role.id}>
+                <ShieldCheck className="size-4" aria-hidden /> {roleLabel(role, locale)}
+              </DropdownMenuRadioItem>
+            ))}
         </DropdownMenuRadioGroup>
 
         <DropdownMenuSeparator />

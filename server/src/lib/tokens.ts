@@ -17,8 +17,17 @@ export interface AccessTokenClaims extends JWTPayload {
   sub: string;
   /** Organisation id — every authorised query is scoped by this. */
   org: string;
-  role: 'OWNER' | 'ADMIN' | 'MEMBER';
 }
+
+/*
+ * The role is deliberately no longer a claim.
+ *
+ * It used to ride in the token, which meant a role change took up to fifteen
+ * minutes to bite. Permissions are now read from the role row on every request
+ * — in the same user lookup `requireAuth` was already doing — so editing a role
+ * takes effect on the very next request, and a token cannot vouch for
+ * permissions it was minted before somebody revoked.
+ */
 
 export interface RefreshTokenClaims extends JWTPayload {
   sub: string;
@@ -28,9 +37,8 @@ export interface RefreshTokenClaims extends JWTPayload {
 export async function signAccessToken(claims: {
   userId: string;
   organizationId: string;
-  role: AccessTokenClaims['role'];
 }): Promise<string> {
-  return new SignJWT({ org: claims.organizationId, role: claims.role })
+  return new SignJWT({ org: claims.organizationId })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setSubject(claims.userId)
     .setIssuer(ISSUER)

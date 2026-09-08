@@ -3,7 +3,8 @@ import { ChevronsUpDown, LogOut, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/features/auth/auth-context';
 import { initials } from '@/lib/format';
-import { useT } from '@/lib/i18n';
+import { useI18n, useT } from '@/lib/i18n';
+import { roleLabel } from '@/lib/permissions';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +21,7 @@ import { LanguageMenuItems, ThemeMenuItems } from './appearance-controls';
 export function UserMenu({ compact = false }: { compact?: boolean }) {
   const { user, logout } = useAuth();
   const t = useT();
+  const { locale } = useI18n();
   const navigate = useNavigate();
 
   if (!user) return null;
@@ -53,7 +55,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
                   {user.name}
                 </span>
                 <span className="w-full truncate text-xs text-muted-foreground">
-                  {t(`role.${user.role}`)}
+                  {roleLabel(user.role, locale)}
                 </span>
               </span>
               <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />

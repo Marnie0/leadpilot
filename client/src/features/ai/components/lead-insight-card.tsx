@@ -19,7 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
-import { useCurrentUser } from '@/features/auth/auth-context';
+import { useCan } from '@/lib/permissions';
 import { AI_BAND_STYLES, AI_URGENCY_STYLES } from '@/lib/labels';
 import { useFormat, useI18n, useT } from '@/lib/i18n';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
@@ -275,7 +275,6 @@ export function LeadInsightCard({
   const canGenerate = block === null;
   const t = useT();
   const { locale } = useI18n();
-  const user = useCurrentUser();
   const describeError = useApiErrorMessage();
 
   const query = useLeadInsight(leadId);
@@ -284,7 +283,7 @@ export function LeadInsightCard({
 
   const insight = query.data?.insight ?? null;
   const usage: AiUsageDto | undefined = query.data?.usage;
-  const isManager = user.role === 'OWNER' || user.role === 'ADMIN';
+  const canManageAi = useCan('MANAGE_AI');
 
   const header = (
     <CardHeader className="flex-row items-center justify-between gap-2">
@@ -350,7 +349,7 @@ export function LeadInsightCard({
         description={t('ai.offBody')}
         className="py-8"
         action={
-          isManager ? (
+          canManageAi ? (
             <Button asChild variant="outline" size="sm">
               <Link to="/settings">{t('ai.offOwnerHint')}</Link>
             </Button>

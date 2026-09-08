@@ -18,7 +18,8 @@ dashboardRouter.get(
     const actor: Actor = {
       userId: auth.userId,
       organizationId: auth.organizationId,
-      role: auth.role,
+      permissions: auth.permissions,
+      isOwner: auth.isOwner,
     };
     const query = validatedQuery<z.infer<typeof dashboardQuerySchema>>(req);
     res.json({ dashboard: await dashboardService.getDashboard(actor, query) });

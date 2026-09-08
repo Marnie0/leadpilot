@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
-import type { Prisma, UserRole } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import {
   INVITE_LIFETIME_DAYS,
+  type Permission,
   type AcceptInvitationInput,
   type CreateInvitationInput,
   type InvitationDto,
@@ -11,12 +12,12 @@ import {
 import { prisma } from '../../db.js';
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors.js';
 import { hashToken } from '../../lib/tokens.js';
-import { isManager } from '../../lib/permissions.js';
+import { can, canGrantRole } from '../../lib/permissions.js';
 import { logger } from '../../logger.js';
 import { recordWorkspaceEvent } from '../../lib/workspace-events.js';
 import { pickAvatarColor } from '../../lib/stage-presets.js';
 import { sendEmail } from '../email/email.provider.js';
-import { ROLE_NAMES, appLink, buildEmail } from '../email/email.templates.js';
+import { appLink, buildEmail } from '../email/email.templates.js';
 import type { Actor } from '../leads/leads.service.js';
 
 /**
@@ -42,7 +43,7 @@ const LIFETIME_MS = INVITE_LIFETIME_DAYS * 24 * 60 * 60 * 1000;
 const INVITATION_SELECT = {
   id: true,
   email: true,
-  role: true,
+  role: { select: { id: true, name: true, nameAr: true, permissions: true } },
   expiresAt: true,
   createdAt: true,
   acceptedAt: true,
@@ -73,7 +74,7 @@ function toDto(row: InvitationRow, link?: string, emailed = false): InvitationDt
   return {
     id: row.id,
     email: row.email,
-    role: row.role as Exclude<UserRole, 'OWNER'>,
+    role: { id: row.role.id, name: row.role.name, nameAr: row.role.nameAr },
     state: stateOf(row),
     expiresAt: row.expiresAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
@@ -85,18 +86,47 @@ function toDto(row: InvitationRow, link?: string, emailed = false): InvitationDt
   };
 }
 
-/** The role rule, in one place so the invite path and the role path agree. */
-export function assertMayGrantRole(actor: Actor, role: UserRole): void {
-  if (role === 'OWNER') {
+/**
+ * The role rule, in one place so the invite path and the role-change path agree.
+ *
+ * You cannot put somebody into a role carrying permissions you do not hold
+ * yourself. That replaces the old "only the owner grants admin" with something
+ * that still means the right thing once a workspace has roles nobody
+ * anticipated: a team manager cannot mint someone who can restate the
+ * workspace's currency, because they cannot do that themselves.
+ *
+ * The owner role is refused outright — ownership is transferred, not granted.
+ */
+export async function assertMayGrantRole(
+  actor: Actor,
+  roleId: string,
+): Promise<{
+  id: string;
+  key: string | null;
+  name: string;
+  nameAr: string;
+  permissions: Permission[];
+}> {
+  const role = await prisma.role.findFirst({
+    where: { id: roleId, organizationId: actor.organizationId },
+    select: { id: true, key: true, name: true, nameAr: true, permissions: true },
+  });
+  if (!role) throw notFound('Role');
+
+  if (role.key === 'OWNER') {
     throw forbidden('Ownership is transferred, not granted', 'OWNER_TRANSFER_ONLY');
   }
-  if (role === 'ADMIN' && actor.role !== 'OWNER') {
-    throw forbidden('Only the workspace owner can make someone an admin', 'OWNER_GRANT_ONLY');
+  if (!canGrantRole(actor, role)) {
+    throw forbidden(
+      'You cannot grant a role with permissions you do not have yourself',
+      'CANNOT_GRANT_ROLE',
+    );
   }
+  return role;
 }
 
 export async function listInvitations(actor: Actor): Promise<InvitationDto[]> {
-  if (!isManager(actor)) throw forbidden('Only an owner or admin can see invitations');
+  if (!can(actor, 'MANAGE_TEAM')) throw forbidden('You cannot manage this team');
   const rows = await prisma.invitation.findMany({
     where: { organizationId: actor.organizationId },
     select: INVITATION_SELECT,
@@ -110,8 +140,8 @@ export async function createInvitation(
   actor: Actor,
   input: CreateInvitationInput,
 ): Promise<InvitationDto> {
-  if (!isManager(actor)) throw forbidden('Only an owner or admin can invite people');
-  assertMayGrantRole(actor, input.role);
+  if (!can(actor, 'MANAGE_TEAM')) throw forbidden('You cannot invite people to this workspace');
+  const role = await assertMayGrantRole(actor, input.roleId);
 
   if (input.email) {
     // A member of this workspace already. Refused rather than silently
@@ -144,7 +174,7 @@ export async function createInvitation(
       data: {
         organizationId: actor.organizationId,
         email: input.email ?? null,
-        role: input.role,
+        roleId: role.id,
         tokenHash: hashToken(token),
         invitedById: actor.userId,
         expiresAt: new Date(Date.now() + LIFETIME_MS),
@@ -156,7 +186,7 @@ export async function createInvitation(
       organizationId: actor.organizationId,
       userId: actor.userId,
       type: 'MEMBER_INVITED',
-      metadata: { subject: input.email ?? 'link', role: input.role },
+      metadata: { subject: input.email ?? 'link', role: role.name },
     });
 
     return created;
@@ -177,19 +207,20 @@ export async function createInvitation(
     const message = buildEmail('invite', locale, link, {
       inviter: inviter?.name ?? 'A colleague',
       workspace: organization?.name ?? 'LeadPilot',
-      role: ROLE_NAMES[locale]?.[input.role] ?? input.role,
+      // The workspace's own label for the role, in the recipient's language.
+      role: locale === 'ar' ? role.nameAr : role.name,
     });
     const result = await sendEmail({ to: input.email, kind: 'invite', ...message });
     emailed = result.sent;
   }
 
-  logger.info({ organizationId: actor.organizationId, role: input.role }, 'invitation created');
+  logger.info({ organizationId: actor.organizationId, roleId: role.id }, 'invitation created');
   // The only moment the raw link is ever available.
   return toDto(row, link, emailed);
 }
 
 export async function revokeInvitation(actor: Actor, id: string): Promise<InvitationDto> {
-  if (!isManager(actor)) throw forbidden('Only an owner or admin can revoke invitations');
+  if (!can(actor, 'MANAGE_TEAM')) throw forbidden('You cannot manage this team');
 
   const existing = await prisma.invitation.findFirst({
     where: { id, organizationId: actor.organizationId },
@@ -210,7 +241,7 @@ export async function revokeInvitation(actor: Actor, id: string): Promise<Invita
       organizationId: actor.organizationId,
       userId: actor.userId,
       type: 'INVITE_REVOKED',
-      metadata: { subject: existing.email ?? 'link', role: existing.role },
+      metadata: { subject: existing.email ?? 'link', role: existing.role.name },
     });
     return updated;
   });
@@ -240,7 +271,7 @@ export async function previewInvitation(token: string): Promise<InvitationPrevie
 
   return {
     workspaceName: row.organization.name,
-    role: row.role as Exclude<UserRole, 'OWNER'>,
+    role: { name: row.role.name, nameAr: row.role.nameAr },
     invitedByName: row.invitedBy?.name ?? null,
     email: row.email,
     expiresAt: row.expiresAt.toISOString(),
@@ -302,7 +333,7 @@ export async function acceptInvitation(
         email,
         passwordHash,
         name: input.name,
-        role: invitation.role,
+        roleId: invitation.role.id,
         avatarColor: pickAvatarColor(email),
         // Accepting an emailed invitation *is* proof of the address, when the
         // invitation named it. An open link proves nothing about who redeemed it.
@@ -321,7 +352,7 @@ export async function acceptInvitation(
       organizationId: invitation.organizationId,
       userId: user.id,
       type: 'INVITE_ACCEPTED',
-      metadata: { subject: input.name, role: invitation.role },
+      metadata: { subject: input.name, role: invitation.role.name },
     });
 
     return user.id;

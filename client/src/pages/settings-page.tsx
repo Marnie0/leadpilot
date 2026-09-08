@@ -1,5 +1,4 @@
 import { Info } from 'lucide-react';
-import { MANAGER_ROLES } from '@leadpilot/shared';
 import { PageHeader } from '@/components/layout/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -12,9 +11,11 @@ import { BaseCurrencyCard } from '@/features/settings/components/base-currency-c
 import { PasswordCard } from '@/features/settings/components/password-card';
 import { ProfileCard } from '@/features/settings/components/profile-card';
 import { AiAssistantCard } from '@/features/settings/components/ai-assistant-card';
+import { DangerZoneCard } from '@/features/settings/components/danger-zone-card';
 import { WorkspaceCard } from '@/features/settings/components/workspace-card';
 import { WorkspaceHistoryCard } from '@/features/settings/components/workspace-history-card';
 import { useT } from '@/lib/i18n';
+import { useCan, useIsOwner } from '@/lib/permissions';
 
 /** Placeholder shaped like the cards it stands in for, so the layout does not
  *  jump when the real thing arrives. */
@@ -48,8 +49,8 @@ export function SettingsPage() {
   const user = useCurrentUser();
   const settingsQuery = useOrganizationSettings();
 
-  const isManager = MANAGER_ROLES.includes(user.role);
-  const isOwner = user.role === 'OWNER';
+  const isManager = useCan('MANAGE_WORKSPACE');
+  const isOwner = useIsOwner();
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -71,6 +72,8 @@ export function SettingsPage() {
         <TabsContent value="profile" className="space-y-6">
           <ProfileCard />
           <PasswordCard />
+          {/* Last on the tab, and the only thing here that cannot be undone. */}
+          <DangerZoneCard />
         </TabsContent>
 
         <TabsContent value="workspace" className="space-y-6">

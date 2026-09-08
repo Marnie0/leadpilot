@@ -24,7 +24,12 @@ export async function recordWorkspaceEvent(
   tx: Prisma.TransactionClient,
   entry: {
     organizationId: string;
-    userId: string;
+    /**
+     * Null when the actor is being removed by the very action being recorded —
+     * an account deleting itself. The row's own FK is `SetNull` for the same
+     * reason: the entry has to outlive the person it is about.
+     */
+    userId: string | null;
     type: WorkspaceEventType;
     metadata?: Prisma.InputJsonValue;
   },

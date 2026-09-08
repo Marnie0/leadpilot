@@ -9,6 +9,7 @@ import {
   type StageKey,
 } from '@prisma/client';
 import { hashPassword } from '../src/lib/password.js';
+import { DEFAULT_ROLES } from '../src/lib/default-roles.js';
 import { DEFAULT_STAGE_PRESETS } from '../src/lib/stage-presets.js';
 import {
   COMPANIES,
@@ -199,24 +200,37 @@ async function createOrganization(
       stages: {
         create: DEFAULT_STAGE_PRESETS.map((preset) => ({ ...preset })),
       },
-      users: {
-        create: users.map((user) => ({
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          avatarColor: user.avatarColor,
-          passwordHash,
-          lastLoginAt: daysAgo(intBetween(0, 5)),
-        })),
-      },
+      roles: { create: DEFAULT_ROLES.map((role) => ({ ...role })) },
     },
-    include: {
-      stages: { orderBy: { order: 'asc' } },
-      users: { orderBy: { createdAt: 'asc' } },
-    },
+    include: { roles: true },
   });
 
-  return organization;
+  // Users are created after the workspace so each can be pointed at the role
+  // row matching the tier the seed data describes.
+  const roleByKey = new Map(organization.roles.map((role) => [role.key, role]));
+  await prisma.user.createMany({
+    data: users.map((user) => ({
+      organizationId: organization.id,
+      email: user.email,
+      name: user.name,
+      roleId: roleByKey.get(user.role)!.id,
+      isOwner: user.role === 'OWNER',
+      avatarColor: user.avatarColor,
+      passwordHash,
+      lastLoginAt: daysAgo(intBetween(0, 5)),
+    })),
+  });
+
+  return prisma.organization.findUniqueOrThrow({
+    where: { id: organization.id },
+    include: {
+      stages: { orderBy: { order: 'asc' } },
+      users: {
+        orderBy: { createdAt: 'asc' },
+        include: { role: { select: { key: true } } },
+      },
+    },
+  });
 }
 
 type SeededOrg = Awaited<ReturnType<typeof createOrganization>>;
@@ -234,7 +248,7 @@ async function createLead(
   const stage = org.stages.find((entry) => entry.key === stageKey);
   if (!stage) throw new Error(`Stage ${stageKey} missing for ${org.slug}`);
 
-  const reps = org.users.filter((user) => user.role !== 'OWNER' || org.users.length <= 2);
+  const reps = org.users.filter((user) => !user.isOwner || org.users.length <= 2);
   const owner = org.users[0];
   if (!owner) throw new Error(`Organisation ${org.slug} has no users`);
 

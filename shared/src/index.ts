@@ -10,4 +10,5 @@ export * from './dashboard.schema.js';
 export * from './activity.schema.js';
 export * from './followup.schema.js';
 export * from './ai.schema.js';
+export * from './role.schema.js';
 export * from './invitation.schema.js';

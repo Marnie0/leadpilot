@@ -97,14 +97,34 @@ export async function createDemoSandbox(): Promise<DemoSandbox> {
        * where the template row predates the column.
        */
 
+      /*
+       * Roles come before users, because a user cannot exist without one.
+       *
+       * Cloned rather than re-seeded so a sandbox mirrors whatever the template
+       * workspace looks like — including any role the template has been given —
+       * and so `roleId` can be derived with the same deterministic hash the
+       * other clones use, without a second round trip to read the new ids back.
+       */
+      await tx.$executeRaw`
+        INSERT INTO "roles"
+          (id, "organizationId", "key", name, "nameAr", permissions, "isSystem", "order", "createdAt", "updatedAt")
+        SELECT 'd' || substr(md5(r.id || ${token}), 1, 24),
+               ${organizationId}, r."key", r.name, r."nameAr", r.permissions,
+               r."isSystem", r."order", r."createdAt", r."updatedAt"
+        FROM "roles" r
+        WHERE r."organizationId" = ${template.id}
+      `;
+
       // Emails are globally unique, so each clone gets a plus-addressed variant.
       await tx.$executeRaw`
         INSERT INTO "users"
-          (id, "organizationId", email, "passwordHash", name, role, locale, "avatarColor", "isActive", "lastLoginAt", "createdAt", "updatedAt")
+          (id, "organizationId", email, "passwordHash", name, "roleId", "isOwner", locale, "avatarColor", "isActive", "lastLoginAt", "createdAt", "updatedAt")
         SELECT 'd' || substr(md5(u.id || ${token}), 1, 24),
                ${organizationId},
                split_part(u.email, '@', 1) || '+' || ${handle} || '@' || split_part(u.email, '@', 2),
-               u."passwordHash", u.name, u.role, u.locale, u."avatarColor",
+               u."passwordHash", u.name,
+               'd' || substr(md5(u."roleId" || ${token}), 1, 24),
+               u."isOwner", u.locale, u."avatarColor",
                true, u."lastLoginAt", u."createdAt", u."updatedAt"
         FROM "users" u
         WHERE u."organizationId" = ${template.id}
@@ -172,7 +192,7 @@ export async function createDemoSandbox(): Promise<DemoSandbox> {
   );
 
   const owner = await prisma.user.findFirst({
-    where: { organizationId, role: 'OWNER' },
+    where: { organizationId, isOwner: true },
     orderBy: { createdAt: 'asc' },
     select: { id: true },
   });

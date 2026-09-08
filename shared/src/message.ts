@@ -120,6 +120,7 @@ export const VALIDATION_EN = {
   'validation.currency': 'Choose a supported currency',
   'validation.confirmRequired': 'Please confirm before continuing',
   'validation.confirmName': 'Type the customer’s name to confirm',
+  'validation.confirmEmail': 'Type your email address to confirm',
 
   'field.name': 'Your name',
   'field.companyName': 'Company name',
@@ -130,6 +131,7 @@ export const VALIDATION_EN = {
   'field.tag': 'Tag',
   'field.note': 'Note',
   'field.value': 'Value',
+  'field.roleName': 'Role name',
 } as const;
 
 export type MessageKey = keyof typeof VALIDATION_EN;

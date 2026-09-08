@@ -19,7 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
-import { useCurrentUser } from '@/features/auth/auth-context';
+import { useCan } from '@/lib/permissions';
 import { useFormat, useI18n, useT } from '@/lib/i18n';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { cn } from '@/lib/utils';
@@ -204,7 +204,6 @@ function WorkingState() {
 export function WorkspaceSummaryCard() {
   const t = useT();
   const { locale } = useI18n();
-  const user = useCurrentUser();
   const describeError = useApiErrorMessage();
 
   const query = useWorkspaceSummary();
@@ -213,7 +212,7 @@ export function WorkspaceSummaryCard() {
 
   const summary = query.data?.summary ?? null;
   const usage = query.data?.usage;
-  const isManager = user.role === 'OWNER' || user.role === 'ADMIN';
+  const canManageAi = useCan('MANAGE_AI');
   const isBusy = generate.isPending;
   const quotaSpent = (usage?.remaining ?? 0) <= 0;
 
@@ -276,7 +275,7 @@ export function WorkspaceSummaryCard() {
         description={t('ai.offBody')}
         className="py-8"
         action={
-          isManager ? (
+          canManageAi ? (
             <Button asChild variant="outline" size="sm">
               <Link to="/settings">{t('ai.offOwnerHint')}</Link>
             </Button>
@@ -405,7 +404,7 @@ export function WorkspaceSummaryCard() {
             {t('aiSummary.disclaimer')}
           </p>
           <div className="flex items-center gap-1">
-            {isManager && (
+            {canManageAi && (
               <Button
                 variant="ghost"
                 size="sm"

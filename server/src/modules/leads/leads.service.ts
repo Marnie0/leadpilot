@@ -20,7 +20,7 @@ import {
 } from '../../lib/money-totals.js';
 import { badRequest, forbidden, notFound } from '../../lib/errors.js';
 import { paginate, toPrismaPagination } from '../../lib/pagination.js';
-import { canMutateLead, isManager, type Viewer } from '../../lib/permissions.js';
+import { can, canMutateLead, type Viewer } from '../../lib/permissions.js';
 import {
   LEAD_DETAIL_SELECT,
   LEAD_LIST_SELECT,
@@ -494,8 +494,8 @@ export async function assignLead(
  * removing it from the team's pipeline is not the same kind of act.
  */
 export async function archiveLead(actor: Actor, leadId: string): Promise<void> {
-  if (!isManager(actor)) {
-    throw forbidden('Only an owner or admin can archive a lead');
+  if (!can(actor, 'DELETE_LEADS')) {
+    throw forbidden('Your role cannot archive leads');
   }
 
   const existing = await prisma.lead.findFirst({
@@ -513,8 +513,8 @@ export async function archiveLead(actor: Actor, leadId: string): Promise<void> {
 
 /** Puts an archived lead back into the active pipeline. */
 export async function restoreLead(actor: Actor, leadId: string): Promise<LeadDetailDto> {
-  if (!isManager(actor)) {
-    throw forbidden('Only an owner or admin can restore a lead');
+  if (!can(actor, 'DELETE_LEADS')) {
+    throw forbidden('Your role cannot restore leads');
   }
 
   const existing = await prisma.lead.findFirst({
@@ -542,7 +542,7 @@ export async function restoreLead(actor: Actor, leadId: string): Promise<LeadDet
  * ------------------------------------------------------------------ */
 
 export async function trashLead(actor: Actor, leadId: string): Promise<void> {
-  if (!isManager(actor)) throw forbidden('Only an owner or admin can delete a lead');
+  if (!can(actor, 'DELETE_LEADS')) throw forbidden('Your role cannot delete leads');
 
   const existing = await prisma.lead.findFirst({
     where: { id: leadId, organizationId: actor.organizationId, deletedAt: null },
@@ -559,7 +559,7 @@ export async function trashLead(actor: Actor, leadId: string): Promise<void> {
 }
 
 export async function restoreFromTrash(actor: Actor, leadId: string): Promise<LeadDetailDto> {
-  if (!isManager(actor)) throw forbidden('Only an owner or admin can restore a lead');
+  if (!can(actor, 'DELETE_LEADS')) throw forbidden('Your role cannot restore leads');
 
   const existing = await prisma.lead.findFirst({
     where: { id: leadId, organizationId: actor.organizationId, deletedAt: { not: null } },
@@ -591,8 +591,8 @@ export async function restoreFromTrash(actor: Actor, leadId: string): Promise<Le
  * means both sides apply the identical rule.
  */
 export async function purgeLead(actor: Actor, leadId: string, confirmName: string): Promise<void> {
-  if (!isManager(actor)) {
-    throw forbidden('Only an owner or admin can permanently delete a lead');
+  if (!can(actor, 'DELETE_LEADS')) {
+    throw forbidden('Your role cannot permanently delete leads');
   }
 
   const existing = await prisma.lead.findFirst({

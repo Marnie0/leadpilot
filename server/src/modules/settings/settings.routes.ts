@@ -7,7 +7,7 @@ import {
   type CurrencyPreviewInput,
   type UpdateOrganizationInput,
 } from '@leadpilot/shared';
-import { asyncHandler, getAuth, requireAuth, requireRole } from '../../middleware/auth.js';
+import { asyncHandler, getAuth, requireAuth, requirePermission } from '../../middleware/auth.js';
 import { validate, validatedQuery } from '../../middleware/validate.js';
 import type { Actor } from '../leads/leads.service.js';
 import * as settingsService from './settings.service.js';
@@ -17,7 +17,12 @@ settingsRouter.use(requireAuth);
 
 const actorFrom = (req: Parameters<typeof getAuth>[0]): Actor => {
   const auth = getAuth(req);
-  return { userId: auth.userId, organizationId: auth.organizationId, role: auth.role };
+  return {
+    userId: auth.userId,
+    organizationId: auth.organizationId,
+    permissions: auth.permissions,
+    isOwner: auth.isOwner,
+  };
 };
 
 /**
@@ -42,7 +47,7 @@ settingsRouter.get(
 
 settingsRouter.patch(
   '/organization',
-  requireRole('OWNER', 'ADMIN'),
+  requirePermission('MANAGE_WORKSPACE'),
   validate(updateOrganizationSchema),
   asyncHandler(async (req, res) => {
     const organization = await settingsService.updateOrganization(
@@ -61,7 +66,7 @@ settingsRouter.patch(
  */
 settingsRouter.get(
   '/currency/preview',
-  requireRole('OWNER'),
+  requirePermission('CHANGE_CURRENCY'),
   validate(currencyPreviewSchema, 'query'),
   asyncHandler(async (req, res) => {
     const { currency } = validatedQuery<CurrencyPreviewInput>(req);
@@ -71,7 +76,7 @@ settingsRouter.get(
 
 settingsRouter.post(
   '/currency',
-  requireRole('OWNER'),
+  requirePermission('CHANGE_CURRENCY'),
   validate(changeCurrencySchema),
   asyncHandler(async (req, res) => {
     const { currency } = req.body as ChangeCurrencyInput;

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Loader2, UserPlus, Users2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { MANAGER_ROLES } from '@leadpilot/shared';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,24 +24,36 @@ import {
 import { MemberActions, type ManageableMember } from '@/features/team/components/member-actions';
 import { InviteDialog } from '@/features/team/components/invite-dialog';
 import { InvitationList } from '@/features/team/components/invitation-list';
-import { useRemoveTeamMember, useTransferOwnership } from '@/features/team/api';
+import { RolesCard } from '@/features/team/components/roles-card';
+import { useRemoveTeamMember, useRoles, useTransferOwnership } from '@/features/team/api';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { initials } from '@/lib/format';
-import { useFormat, useT } from '@/lib/i18n';
+import { useFormat, useI18n, useT } from '@/lib/i18n';
+import { roleLabel, useCan, useIsOwner } from '@/lib/permissions';
 
-const ROLE_VARIANTS = {
-  OWNER: 'default',
-  ADMIN: 'secondary',
-  MEMBER: 'outline',
-} as const;
+/*
+ * A workspace can name its own roles, so the badge cannot be keyed off a fixed
+ * list any more: the owner reads as the strongest variant, the seeded roles keep
+ * the shades people are used to, and anything the workspace invented gets the
+ * neutral outline.
+ */
+function roleVariant(member: { isOwner: boolean; role: { key: string | null } }) {
+  if (member.isOwner) return 'default' as const;
+  if (member.role.key === 'ADMIN') return 'secondary' as const;
+  return 'outline' as const;
+}
 
 export function TeamPage() {
   const t = useT();
   const format = useFormat();
+  const { locale } = useI18n();
   const user = useCurrentUser();
   const teamQuery = useTeamMembers();
   const members = teamQuery.data ?? [];
-  const isManager = MANAGER_ROLES.includes(user.role);
+  const isManager = useCan('MANAGE_TEAM');
+  const isOwner = useIsOwner();
+  const rolesQuery = useRoles();
+  const roles = rolesQuery.data ?? [];
   const describeError = useApiErrorMessage();
 
   const [isInviteOpen, setInviteOpen] = useState(false);
@@ -85,7 +96,7 @@ export function TeamPage() {
         ) : members.length === 0 ? (
           <EmptyState icon={Users2} title={t('team.empty')} />
         ) : (
-          <ul className="divide-y">
+          <ul className="divide-y" aria-label={t('team.title')}>
             {members.map((member) => (
               <li key={member.id} className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
                 <Avatar className="size-10 shrink-0">
@@ -111,7 +122,9 @@ export function TeamPage() {
 
                 <div className="flex items-center gap-2">
                   {!member.isActive && <Badge variant="destructive">{t('team.deactivated')}</Badge>}
-                  <Badge variant={ROLE_VARIANTS[member.role]}>{t(`role.${member.role}`)}</Badge>
+                  <Badge variant={roleVariant(member)} dir="auto">
+                    {member.isOwner ? t('role.OWNER') : roleLabel(member.role, locale)}
+                  </Badge>
                 </div>
 
                 <p className="flex-1 text-xs text-muted-foreground sm:min-w-[140px] sm:flex-none sm:text-end">
@@ -124,7 +137,7 @@ export function TeamPage() {
                   <MemberActions
                     member={member}
                     viewerId={user.id}
-                    viewerRole={user.role}
+                    roles={roles}
                     onTransfer={(target) => {
                       setConfirmName('');
                       setTransferring(target);
@@ -140,15 +153,14 @@ export function TeamPage() {
 
       <InvitationList canManage={isManager} />
 
+      {/* Roles are the owner's alone — see the card's own note on why. */}
+      {isOwner && <RolesCard />}
+
       <p className="text-sm text-muted-foreground">
         {isManager ? t('team.footnote') : t('team.footnoteMember')}
       </p>
 
-      <InviteDialog
-        open={isInviteOpen}
-        onOpenChange={setInviteOpen}
-        canInviteAdmins={user.role === 'OWNER'}
-      />
+      <InviteDialog open={isInviteOpen} onOpenChange={setInviteOpen} roles={roles} />
 
       <Dialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
         <DialogContent className="sm:max-w-md">

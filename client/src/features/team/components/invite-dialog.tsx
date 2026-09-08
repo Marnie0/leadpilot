@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy, Link2, Loader2, Mail } from 'lucide-react';
 import { toast } from 'sonner';
-import type { InvitationDto, UserRole } from '@leadpilot/shared';
+import type { InvitationDto, RoleDto } from '@leadpilot/shared';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -20,7 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useT } from '@/lib/i18n';
+import { useI18n, useT } from '@/lib/i18n';
+import { useCurrentUser } from '@/features/auth/auth-context';
+import { roleLabel, useIsOwner } from '@/lib/permissions';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { useCreateInvitation } from '../api';
 
@@ -46,28 +48,60 @@ import { useCreateInvitation } from '../api';
 export function InviteDialog({
   open,
   onOpenChange,
-  canInviteAdmins,
+  roles,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Only the owner may issue an ADMIN invitation — the API refuses the rest. */
-  canInviteAdmins: boolean;
+  /** The workspace's roles. Which of them may be offered depends on the viewer. */
+  roles: RoleDto[];
 }) {
   const t = useT();
   const describeError = useApiErrorMessage();
   const createInvitation = useCreateInvitation();
 
+  const { locale } = useI18n();
+  const viewerIsOwner = useIsOwner();
+  const viewerPermissions = useCurrentUser().role.permissions;
+
+  /*
+   * The three rules `canGrantRole` enforces on the server, mirrored: ownership
+   * is never invited, granting team management is the owner's alone, and nobody
+   * hands out a permission they do not hold themselves. Offering a role that
+   * would be refused would teach the permission by rejection.
+   */
+  const grantable = roles.filter((entry) => {
+    if (entry.key === 'OWNER') return false;
+    if (viewerIsOwner) return true;
+    if (entry.permissions.includes('MANAGE_TEAM')) return false;
+    return entry.permissions.every((permission) => viewerPermissions.includes(permission));
+  });
+  const defaultRoleId =
+    grantable.find((entry) => entry.key === 'MEMBER')?.id ?? grantable[0]?.id ?? '';
+
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<Exclude<UserRole, 'OWNER'>>('MEMBER');
+  const [chosenRoleId, setChosenRoleId] = useState('');
   const [created, setCreated] = useState<InvitationDto | null>(null);
   const [copied, setCopied] = useState(false);
+
+  /*
+   * The selection is derived, not stored.
+   *
+   * The roles query can still be in flight when this mounts, and a `useState`
+   * initialiser runs exactly once — so seeding the state with the default left
+   * it permanently empty whenever the dialog rendered before the roles arrived,
+   * and "Create the link" then posted no role at all. Falling back here also
+   * covers a role deleted while the dialog was open.
+   */
+  const roleId = grantable.some((entry) => entry.id === chosenRoleId)
+    ? chosenRoleId
+    : defaultRoleId;
 
   // A dialog that reopens showing the previous invitation's link would be both
   // confusing and a small leak of something already dealt with.
   useEffect(() => {
     if (!open) {
       setEmail('');
-      setRole('MEMBER');
+      setChosenRoleId('');
       setCreated(null);
       setCopied(false);
     }
@@ -75,7 +109,7 @@ export function InviteDialog({
 
   const submit = () => {
     createInvitation.mutate(
-      { role, ...(email.trim() ? { email: email.trim() } : {}) },
+      { roleId, ...(email.trim() ? { email: email.trim() } : {}) },
       {
         onSuccess: (invitation) => setCreated(invitation),
         onError: (error) =>
@@ -163,18 +197,16 @@ export function InviteDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="invite-role">{t('team.role')}</Label>
-                <Select
-                  value={role}
-                  onValueChange={(value) => setRole(value as Exclude<UserRole, 'OWNER'>)}
-                >
+                <Select value={roleId} onValueChange={setChosenRoleId}>
                   <SelectTrigger id="invite-role" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="MEMBER">{t('role.MEMBER')}</SelectItem>
-                    {/* Only the owner may grant admin — offering the row to an
-                        admin would be offering something the API refuses. */}
-                    {canInviteAdmins && <SelectItem value="ADMIN">{t('role.ADMIN')}</SelectItem>}
+                    {grantable.map((entry) => (
+                      <SelectItem key={entry.id} value={entry.id}>
+                        {roleLabel(entry, locale)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -184,7 +216,7 @@ export function InviteDialog({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 {t('common.cancel')}
               </Button>
-              <Button onClick={submit} disabled={createInvitation.isPending}>
+              <Button onClick={submit} disabled={createInvitation.isPending || !roleId}>
                 {createInvitation.isPending && <Loader2 className="size-4 animate-spin" />}
                 {t('team.createInvite')}
               </Button>

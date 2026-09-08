@@ -10,7 +10,12 @@ export const boardRouter = Router();
 
 const actorFrom = (req: Parameters<typeof getAuth>[0]): Actor => {
   const auth = getAuth(req);
-  return { userId: auth.userId, organizationId: auth.organizationId, role: auth.role };
+  return {
+    userId: auth.userId,
+    organizationId: auth.organizationId,
+    permissions: auth.permissions,
+    isOwner: auth.isOwner,
+  };
 };
 
 boardRouter.use(requireAuth);

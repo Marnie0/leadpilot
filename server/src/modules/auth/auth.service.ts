@@ -27,6 +27,7 @@ import {
   verifyRefreshToken,
 } from '../../lib/tokens.js';
 import { DEFAULT_STAGE_PRESETS, pickAvatarColor } from '../../lib/stage-presets.js';
+import { DEFAULT_ROLES } from '../../lib/default-roles.js';
 import { logger } from '../../logger.js';
 import { createDemoSandbox, reapExpiredSandboxes } from './demo.service.js';
 
@@ -42,6 +43,7 @@ export interface AuthResult {
 }
 
 const AUTH_USER_INCLUDE = {
+  role: { select: { id: true, key: true, name: true, nameAr: true, permissions: true } },
   organization: {
     select: {
       id: true,
@@ -79,10 +81,17 @@ async function toAuthUser(user: AuthUserRow): Promise<AuthUser> {
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role,
+    role: {
+      id: user.role.id,
+      key: user.role.key,
+      name: user.role.name,
+      nameAr: user.role.nameAr,
+      permissions: user.role.permissions,
+    },
     locale: user.locale,
     displayCurrency: user.displayCurrency,
     avatarColor: user.avatarColor,
+    isOwner: user.isOwner,
     emailVerified: user.emailVerifiedAt !== null,
     createdAt: user.createdAt.toISOString(),
     organization: {
@@ -125,7 +134,7 @@ async function uniqueSlug(candidate: string): Promise<string> {
 
 async function createSession(user: User, context: SessionContext) {
   const [accessToken, refresh] = await Promise.all([
-    signAccessToken({ userId: user.id, organizationId: user.organizationId, role: user.role }),
+    signAccessToken({ userId: user.id, organizationId: user.organizationId }),
     issueRefreshToken(user.id),
   ]);
 
@@ -195,6 +204,8 @@ export async function signup(
       data: {
         name: input.organizationName,
         slug,
+        // Seeded with the same three roles every other workspace has.
+        roles: { create: DEFAULT_ROLES.map((role) => ({ ...role })) },
         // The founder's language becomes the workspace's default, which is what
         // a member invited later will start in.
         ...(input.locale && { defaultLocale: input.locale }),
@@ -211,13 +222,19 @@ export async function signup(
       },
     });
 
+    const ownerRole = await tx.role.findFirstOrThrow({
+      where: { organizationId: organization.id, key: 'OWNER' },
+      select: { id: true },
+    });
+
     return tx.user.create({
       data: {
-        organizationId: organization.id,
+        organization: { connect: { id: organization.id } },
         email: input.email,
         passwordHash,
         name: input.name,
-        role: 'OWNER',
+        isOwner: true,
+        role: { connect: { id: ownerRole.id } },
         ...(input.locale && { locale: input.locale }),
         avatarColor: pickAvatarColor(input.email),
       },
@@ -226,7 +243,7 @@ export async function signup(
   });
 
   logger.info({ userId: user.id, organizationId: user.organizationId }, 'organisation created');
-  await sendVerificationEmail(user.id, user.email, user.name, user.organization.name, user.locale);
+  await sendVerificationEmail(user.id, user.email, user.name, input.organizationName, user.locale);
 
   return { ok: true, emailConfigured: env.emailConfigured };
 }
@@ -315,7 +332,7 @@ export async function refreshSession(
   }
 
   const [accessToken, next] = await Promise.all([
-    signAccessToken({ userId: user.id, organizationId: user.organizationId, role: user.role }),
+    signAccessToken({ userId: user.id, organizationId: user.organizationId }),
     issueRefreshToken(user.id),
   ]);
 
@@ -409,7 +426,6 @@ export async function changePassword(userId: string, input: ChangePasswordInput)
       data: { revokedAt: new Date() },
     }),
   ]);
-
 }
 
 /**

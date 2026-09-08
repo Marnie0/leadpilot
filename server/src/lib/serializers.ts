@@ -29,7 +29,8 @@ export const TEAM_MEMBER_SELECT = {
   id: true,
   name: true,
   email: true,
-  role: true,
+  role: { select: { id: true, key: true, name: true, nameAr: true } },
+  isOwner: true,
   avatarColor: true,
   isActive: true,
 } satisfies Prisma.UserSelect;
@@ -54,7 +55,8 @@ export function toTeamMemberDto(user: TeamMemberRow | null): TeamMemberSummaryDt
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role,
+    role: { id: user.role.id, key: user.role.key, name: user.role.name, nameAr: user.role.nameAr },
+    isOwner: user.isOwner,
     avatarColor: user.avatarColor,
     isActive: user.isActive,
   };
@@ -180,10 +182,10 @@ type ActivityRow = Prisma.ActivityGetPayload<{ select: typeof ACTIVITY_SELECT }>
  */
 export function toActivityDto(
   activity: ActivityRow,
-  viewer: { userId: string; role: string },
+  viewer: { userId: string; permissions: readonly string[]; isOwner: boolean },
 ): ActivityDto {
   const isUserAuthored = activity.userId !== null;
-  const isManager = viewer.role === 'OWNER' || viewer.role === 'ADMIN';
+  const isManager = viewer.isOwner || viewer.permissions.includes('EDIT_ALL_LEADS');
   const isSystemEntry = !['NOTE', 'CALL', 'EMAIL', 'MEETING', 'WHATSAPP'].includes(activity.type);
 
   return {

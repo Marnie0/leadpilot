@@ -106,12 +106,11 @@ export const en = {
   'apiError.EMAIL_TAKEN': 'An account with that email already exists',
   'apiError.FORBIDDEN': 'You do not have permission to do that',
   'apiError.OWNER_ONLY': 'Only the workspace owner can change the owner account',
-  'apiError.OWNER_GRANT_ONLY': 'Only the workspace owner can grant the owner role',
   'apiError.FOLLOW_UP_ALREADY_COMPLETED': 'Somebody has already completed that follow-up',
   'apiError.FOLLOW_UP_NOT_PENDING': 'That follow-up is no longer open',
   'apiError.ALREADY_TRASHED': 'That follow-up is already in the trash',
   'apiError.NOT_TRASHED': 'Move it to the trash before deleting it permanently',
-  'apiError.CONFIRMATION_MISMATCH': 'The name you typed does not match this lead',
+  'apiError.CONFIRMATION_MISMATCH': 'What you typed does not match',
   'apiError.LAST_OWNER': 'A workspace must always have an owner',
   'apiError.CANNOT_DEACTIVATE_SELF': 'You cannot deactivate your own account',
   'apiError.FOLLOW_UP_NOT_YOURS': 'You can only change follow-ups on your own leads',
@@ -131,6 +130,14 @@ export const en = {
   'apiError.EMAIL_REQUIRED': 'An email address is required to accept this invitation',
   'apiError.INVALID_OR_EXPIRED_TOKEN': 'This link is no longer valid. Request a new one.',
   'apiError.CANNOT_CHANGE_OWN_ROLE': 'You cannot change your own role',
+  'apiError.ROLE_NAME_TAKEN': 'A role with that name already exists',
+  'apiError.ROLE_IN_USE': 'Choose a role to move this one’s members to first',
+  'apiError.SYSTEM_ROLE': 'The built-in roles cannot be deleted',
+  'apiError.OWNER_ROLE_FIXED': 'The owner role always has every permission',
+  'apiError.OWNER_MUST_TRANSFER':
+    'Hand the workspace over, or delete it, before deleting your account',
+  'apiError.CANNOT_GRANT_ROLE':
+    'You cannot grant a role that holds more than you do, or one that can manage the team',
   'apiError.NOT_FOUND': 'That record no longer exists',
   'apiError.VALIDATION_ERROR': 'Some fields need your attention',
   'apiError.RATE_LIMITED': 'Too many requests. Please try again shortly.',
@@ -708,7 +715,7 @@ export const en = {
   'team.activeAgo': 'Active {when}',
   'team.neverSignedIn': 'Never signed in',
   'team.footnote':
-    'Everyone here can see the whole pipeline. Owners and admins decide who joins and what they can change.',
+    'Everyone here can see the whole pipeline. What each person may change comes from their role.',
   'team.footnoteMember': 'Ask an owner or an admin if someone else needs access.',
   'team.manage': 'Manage {name}',
   'team.changeRole': 'Role',
@@ -962,6 +969,11 @@ export const en = {
   'settings.eventInviteRevoked': 'The invitation for {name} was revoked',
   'settings.eventRoleChanged': '{name} is now {role}',
   'settings.eventMemberRemoved': '{name} was removed from the workspace',
+  'settings.eventRoleCreated': 'The role {name} was created',
+  'settings.eventRoleUpdated': 'The role {name} was changed',
+  'settings.eventRoleDeleted': 'The role {name} was deleted',
+  'settings.eventRoleDeletedMoved': 'The role {name} was deleted, and its members became {role}',
+  'settings.eventAccountDeleted': '{name} deleted their account',
   'settings.eventUnknown': 'Workspace change',
   'settings.eventByRemovedMember': 'A former member',
   'settings.couldNotLoadHistory': 'Could not load the workspace history',
@@ -1190,4 +1202,91 @@ export const en = {
   'due.today': 'Today, {time}',
   'due.tomorrow': 'Tomorrow, {time}',
   'relative.justNow': 'just now',
+
+  /* -------------------------------------------------------------- *
+   * Roles and permissions
+   * -------------------------------------------------------------- */
+  'common.listSeparator': ', ',
+
+  'roles.title': 'Roles',
+  'roles.body': 'What each role in this workspace is allowed to do. Only you can change these.',
+  'roles.new': 'New role',
+  'roles.empty': 'No roles yet',
+  'roles.builtIn': 'Built-in',
+  'roles.everything': 'Everything, including the things that cannot be delegated.',
+  'roles.nonePermissions': 'Can work on their own leads, and nothing else.',
+  'roles.memberCount_one': '{count} person',
+  'roles.memberCount_other': '{count} people',
+  'roles.manage': 'Manage {name}',
+  'roles.edit': 'Edit',
+  'roles.rename': 'Rename',
+  'roles.delete': 'Delete role',
+  'roles.newTitle': 'New role',
+  'roles.editTitle': 'Edit role',
+  'roles.dialogBody':
+    'Name it in both languages, and tick what it may do. Everyone holding this role is affected as soon as you save.',
+  'roles.ownerFixed':
+    'The owner role always has every permission, so there is nothing to tick. You can still rename it.',
+  'roles.fieldName': 'Name',
+  'roles.fieldNameAr': 'Name in Arabic',
+  'roles.permissionsLegend': 'This role can',
+  'roles.create': 'Create role',
+  'roles.save': 'Save role',
+  'roles.couldNotSave': 'Could not save that role',
+  'roles.deleteTitle': 'Delete {name}?',
+  'roles.deleteBody': 'Nobody holds this role, so nothing else changes.',
+  'roles.deleteBodyInUse_one':
+    '{count} person holds this role. Choose what they become before it goes.',
+  'roles.deleteBodyInUse_other':
+    '{count} people hold this role. Choose what they become before it goes.',
+  'roles.deleteBodyReferenced':
+    'Nobody holds this role, but past invitations still refer to it. Choose which role they should point to instead.',
+  'roles.moveTo': 'Move them to',
+  'roles.moveToPlaceholder': 'Pick a role',
+  'roles.couldNotDelete': 'Could not delete that role',
+
+  'permission.MANAGE_TEAM': 'Manage the team',
+  'permission.MANAGE_WORKSPACE': 'Change workspace settings',
+  'permission.CHANGE_CURRENCY': 'Change the base currency',
+  'permission.EDIT_ALL_LEADS': 'Edit every lead',
+  'permission.DELETE_LEADS': 'Archive and delete leads',
+  'permission.MANAGE_AI': 'Manage the AI assistant',
+  'permissionHint.MANAGE_TEAM': 'Invite people, change their role, and remove them.',
+  'permissionHint.MANAGE_WORKSPACE': 'Rename the workspace and edit its details.',
+  'permissionHint.CHANGE_CURRENCY': 'Restate every stored amount in another currency.',
+  'permissionHint.EDIT_ALL_LEADS': 'Not just the ones they own or created.',
+  'permissionHint.DELETE_LEADS': 'Move leads to the trash, and empty it.',
+  'permissionHint.MANAGE_AI': 'Switch the assistant on or off for everyone.',
+
+  /* -------------------------------------------------------------- *
+   * Closing an account, and closing the workspace
+   * -------------------------------------------------------------- */
+  'danger.title': 'Delete your account',
+  'danger.body': 'Permanent, and it cannot be undone from here.',
+  'danger.whatSurvives':
+    'Your sign-in goes. The leads you were working on stay with the workspace and become unassigned, and the notes you wrote keep their text but no longer carry your name.',
+  'danger.ownerBlocked_one':
+    'You own this workspace and {count} other person is in it. Hand it over on the Team screen, or delete the whole workspace below, before you can delete your account.',
+  'danger.ownerBlocked_other':
+    'You own this workspace and {count} other people are in it. Hand it over on the Team screen, or delete the whole workspace below, before you can delete your account.',
+  'danger.lastMemberNotice':
+    'You are the only person here, so deleting your account deletes this workspace and everything in it.',
+  'danger.deleteAccount': 'Delete my account',
+  'danger.deleteWorkspace': 'Delete the workspace',
+  'danger.accountDialogTitle': 'Delete your account?',
+  'danger.accountDialogBody':
+    'This cannot be undone. Your leads stay with the workspace and become unassigned; your notes keep their text and lose their author.',
+  'danger.accountDialogBodyLast':
+    'This cannot be undone, and you are the only person here — the workspace, its leads and its history go with your account.',
+  'danger.workspaceDialogTitle': 'Delete {name}?',
+  'danger.workspaceDialogBody':
+    'Everyone loses access immediately, and nothing here can be restored — not even from the trash, which lives inside the workspace it would be restored to.',
+  'danger.workspaceCounts': 'This deletes {members} and {leads}.',
+  'danger.typeEmail': 'Type {email} to confirm',
+  'danger.typeName': 'Type {name} to confirm',
+  'danger.yourPassword': 'Your password',
+  'danger.confirmAccount': 'Delete my account',
+  'danger.confirmWorkspace': 'Delete this workspace',
+  'danger.couldNotDeleteAccount': 'Could not delete your account',
+  'danger.couldNotDeleteWorkspace': 'Could not delete the workspace',
 } as const;

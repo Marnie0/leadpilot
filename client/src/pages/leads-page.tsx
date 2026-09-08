@@ -18,6 +18,7 @@ import { ErrorState } from '@/components/common/error-state';
 import { PaginationBar } from '@/components/common/pagination-bar';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useT, type StaticKey } from '@/lib/i18n';
+import { useCan } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import { useLeadFilters } from '@/features/leads/hooks/use-lead-filters';
 import { useLeadStats, useLeads, useStages, useTeamMembers } from '@/features/leads/api';
@@ -46,7 +47,7 @@ export function LeadsPage() {
   // Selection is scoped to what is on screen, so it resets whenever the query
   // behind the table does — see `useLeadSelection` for why that is deliberate.
   /** Owners and admins only — the API enforces it, this just hides affordances. */
-  const canArchive = user.role === 'OWNER' || user.role === 'ADMIN';
+  const canArchive = useCan('DELETE_LEADS');
 
   /*
    * What can be picked depends on where you are.

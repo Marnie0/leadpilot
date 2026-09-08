@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { msg } from './message.js';
-import { LOCALES, USER_ROLES } from './enums.js';
+import { LOCALES, type Permission, type RoleKey } from './enums.js';
 import { idSchema, requiredTrimmed } from './common.js';
 import { displayCurrencySchema } from './currency.schema.js';
 
@@ -90,7 +90,22 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
-  role: (typeof USER_ROLES)[number];
+  /**
+   * The role this account holds, as a row rather than a tier.
+   *
+   * Carries its own labels because a workspace may rename it, and its
+   * permissions because the client gates its own UI on them — the same set the
+   * server enforces, sent once with the session rather than fetched per screen.
+   */
+  role: {
+    id: string;
+    key: RoleKey | null;
+    name: string;
+    nameAr: string;
+    permissions: Permission[];
+  };
+  /** Owning the workspace is not a permission. See `role.schema.ts`. */
+  isOwner: boolean;
   locale: 'en' | 'ar';
   /** Display-only currency override. `null` means the workspace's own. */
   displayCurrency: string | null;
@@ -182,4 +197,63 @@ export interface AuthAcknowledgementDto {
    * that will never receive anything.
    */
   emailConfigured: boolean;
+}
+
+/* ------------------------------------------------------------------ *
+ * Deleting your own account
+ * ------------------------------------------------------------------ */
+
+/**
+ * What happens to the work of somebody who leaves.
+ *
+ * The account row goes; the workspace's record of what happened does not. Leads
+ * they were assigned become unassigned, leads and notes they authored keep
+ * their text and lose their author — the schema already sets those references
+ * to null rather than cascading, precisely so a person leaving does not delete
+ * the history of the deals they worked.
+ *
+ * That is the honest trade. Erasing the notes would take a colleague's context
+ * with them; keeping the name on a deleted account would be a record of
+ * somebody who asked to be removed.
+ */
+export const deleteAccountSchema = z.object({
+  /** The account's own password. Proof it is really them, not a live session. */
+  password: z.string().min(1, { message: msg('validation.passwordRequired') }),
+  /** Typed confirmation, matched against the account's email address. */
+  confirmEmail: z
+    .string()
+    .min(1, { message: msg('validation.confirmEmail') })
+    .max(160),
+});
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
+
+/**
+ * Deleting the whole workspace. Owner only, and it takes everything with it.
+ */
+export const deleteWorkspaceSchema = z.object({
+  password: z.string().min(1, { message: msg('validation.passwordRequired') }),
+  /** Matched against the workspace's name. */
+  confirmName: z
+    .string()
+    .min(1, { message: msg('validation.confirmName') })
+    .max(160),
+});
+export type DeleteWorkspaceInput = z.infer<typeof deleteWorkspaceSchema>;
+
+/**
+ * Why an account cannot be deleted yet, if it cannot.
+ *
+ * The owner is blocked until they hand the workspace over or delete it — a
+ * workspace with no owner is not a state the product has, and the database
+ * would refuse it anyway. Sent ahead of the attempt so the screen can explain
+ * the two ways out instead of presenting a button that only fails.
+ */
+export interface AccountDeletionStatusDto {
+  canDelete: boolean;
+  /** `OWNER_MUST_TRANSFER` when they own a workspace with other people in it. */
+  reason: 'OWNER_MUST_TRANSFER' | null;
+  /** How many other active accounts are in the workspace. */
+  otherMembers: number;
+  /** True when deleting the account would also delete the workspace. */
+  isLastMember: boolean;
 }

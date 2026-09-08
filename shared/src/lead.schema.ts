@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import { msg } from './message.js';
 import { currencySchema, type MoneyTotalDto } from './currency.schema.js';
-import { LEAD_PRIORITIES, LEAD_SOURCES, STAGE_KEYS, STAGE_TYPES, type Currency } from './enums.js';
+import {
+  LEAD_PRIORITIES,
+  LEAD_SOURCES,
+  STAGE_KEYS,
+  STAGE_TYPES,
+  type Currency,
+  type RoleKey,
+} from './enums.js';
 import {
   csvArray,
   idSchema,
@@ -288,7 +295,10 @@ export interface TeamMemberSummaryDto {
   id: string;
   name: string;
   email: string;
-  role: 'OWNER' | 'ADMIN' | 'MEMBER';
+  /** The workspace's own role row, so a renamed role reads correctly. */
+  role: { id: string; key: RoleKey | null; name: string; nameAr: string };
+  /** Ownership is not a role, and the UI treats it separately. */
+  isOwner: boolean;
   avatarColor: string;
   isActive: boolean;
 }

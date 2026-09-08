@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
-import type { UserRole } from '@prisma/client';
+import type { Permission } from '@leadpilot/shared';
 import { prisma } from '../db.js';
 import { ACCESS_COOKIE } from '../lib/cookies.js';
 import { forbidden, unauthorized } from '../lib/errors.js';
@@ -55,10 +55,13 @@ export const requireAuth: RequestHandler = async (
         id: true,
         email: true,
         name: true,
-        role: true,
         isActive: true,
+        isOwner: true,
         organizationId: true,
         sessionsValidFrom: true,
+        // One join for the permission set. The user row was already being read
+        // on every request; this rides along rather than adding a round trip.
+        role: { select: { id: true, key: true, name: true, nameAr: true, permissions: true } },
       },
     });
 
@@ -99,7 +102,14 @@ export const requireAuth: RequestHandler = async (
     req.auth = {
       userId: user.id,
       organizationId: user.organizationId,
-      role: user.role,
+      permissions: user.role.permissions as Permission[],
+      isOwner: user.isOwner,
+      role: {
+        id: user.role.id,
+        key: user.role.key,
+        name: user.role.name,
+        nameAr: user.role.nameAr,
+      },
       email: user.email,
       name: user.name,
     };
@@ -118,24 +128,47 @@ export function getAuth(req: Request): Express.AuthContext {
   return req.auth;
 }
 
-/** Route guard for organisation administration (team management, settings). */
-export function requireRole(...roles: UserRole[]): RequestHandler {
+/**
+ * Route guard for a single permission.
+ *
+ * Replaces `requireRole('OWNER', 'ADMIN')`. The difference matters: a workspace
+ * can now define its own roles, so a guard phrased against a fixed tier cannot
+ * answer for a role somebody created this morning.
+ */
+export function requirePermission(permission: Permission): RequestHandler {
   return (req, _res, next) => {
     const auth = req.auth;
     if (!auth) {
       next(unauthorized());
       return;
     }
-    if (!roles.includes(auth.role)) {
-      // Worded from the roles this route actually takes: an admin refused by an
-      // owner-only route was being told "only an owner or admin can do that",
-      // which reads as a bug rather than a rule.
-      next(forbidden(`This action is restricted to: ${roles.join(', ').toLowerCase()}`));
+    if (!auth.isOwner && !auth.permissions.includes(permission)) {
+      next(forbidden('You do not have permission to do that'));
       return;
     }
     next();
   };
 }
+
+/**
+ * Route guard for the workspace owner.
+ *
+ * For the three powers that are deliberately not permissions — managing roles,
+ * transferring ownership, deleting the workspace — because anyone who could
+ * grant themselves those could grant themselves everything else.
+ */
+export const requireOwner: RequestHandler = (req, _res, next) => {
+  const auth = req.auth;
+  if (!auth) {
+    next(unauthorized());
+    return;
+  }
+  if (!auth.isOwner) {
+    next(forbidden('Only the workspace owner can do that', 'OWNER_ONLY'));
+    return;
+  }
+  next();
+};
 
 /**
  * Wraps an async handler so a rejected promise reaches the error middleware.
