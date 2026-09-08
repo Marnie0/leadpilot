@@ -40,6 +40,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ErrorState } from '@/components/common/error-state';
+import { LeadInsightCard } from '@/features/ai/components/lead-insight-card';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { ApiError } from '@/lib/api-client';
 import { telHref } from '@/lib/format';
@@ -380,6 +381,16 @@ export function LeadDetailPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         {/* Activity column */}
         <div className="min-w-0 space-y-6">
+          {/*
+            First in the column, above the composer: the assistant's read of the
+            inquiry is what you want *before* deciding what to log, and its
+            draft is the thing most likely to become the next thing you send.
+          */}
+          <LeadInsightCard
+            leadId={lead.id}
+            block={!isEditable ? 'archived' : lead.canEdit ? null : 'notYours'}
+          />
+
           {/*
             A lead that is archived or in the trash takes no new writes — the
             API refuses them, and it always has for archived ones. Offering a

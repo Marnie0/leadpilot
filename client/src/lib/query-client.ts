@@ -12,6 +12,7 @@ export const queryKeys = {
   stages: ['stages'] as const,
   team: ['team'] as const,
   fxRates: ['fx-rates'] as const,
+  aiSettings: ['ai', 'settings'] as const,
   settings: {
     organization: ['settings', 'organization'] as const,
     events: ['settings', 'events'] as const,
@@ -26,6 +27,7 @@ export const queryKeys = {
     activities: (id: string, view: string) =>
       [...queryKeys.leads.detail(id), 'activities', view] as const,
     followUps: (id: string) => [...queryKeys.leads.detail(id), 'follow-ups'] as const,
+    insight: (id: string) => [...queryKeys.leads.detail(id), 'insight'] as const,
   },
   board: {
     all: ['board'] as const,

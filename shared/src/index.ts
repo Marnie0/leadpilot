@@ -9,3 +9,4 @@ export * from './board.schema.js';
 export * from './dashboard.schema.js';
 export * from './activity.schema.js';
 export * from './followup.schema.js';
+export * from './ai.schema.js';

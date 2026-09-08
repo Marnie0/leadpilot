@@ -11,6 +11,7 @@ import { useOrganizationSettings } from '@/features/settings/api';
 import { BaseCurrencyCard } from '@/features/settings/components/base-currency-card';
 import { PasswordCard } from '@/features/settings/components/password-card';
 import { ProfileCard } from '@/features/settings/components/profile-card';
+import { AiAssistantCard } from '@/features/settings/components/ai-assistant-card';
 import { WorkspaceCard } from '@/features/settings/components/workspace-card';
 import { WorkspaceHistoryCard } from '@/features/settings/components/workspace-history-card';
 import { useT } from '@/lib/i18n';
@@ -90,6 +91,7 @@ export function SettingsPage() {
             <>
               <WorkspaceCard organization={settingsQuery.data} canEdit={isManager} />
               <BaseCurrencyCard organization={settingsQuery.data} isOwner={isOwner} />
+              <AiAssistantCard canEdit={isManager} />
               <WorkspaceHistoryCard />
             </>
           )}

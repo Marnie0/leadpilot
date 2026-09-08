@@ -33,6 +33,7 @@ export const en = {
   'common.saving': 'Saving…',
   'common.tryAgain': 'Try again',
   'common.loading': 'Loading…',
+  'common.turnOff': 'Turn off',
   'common.clearAll': 'Clear all',
   'common.clearFilters': 'Clear filters',
   'common.clearSelection': 'Clear selection',
@@ -114,6 +115,15 @@ export const en = {
   'apiError.LAST_OWNER': 'A workspace must always have an owner',
   'apiError.CANNOT_DEACTIVATE_SELF': 'You cannot deactivate your own account',
   'apiError.FOLLOW_UP_NOT_YOURS': 'You can only change follow-ups on your own leads',
+  'apiError.LEAD_NOT_ACTIVE': 'Restore this lead before asking the assistant about it',
+  'apiError.MANAGER_ONLY': 'Only an owner or admin can change that',
+  'apiError.AI_DISABLED': 'The assistant is switched off for this workspace',
+  'apiError.AI_NOT_CONFIGURED': 'The assistant is not set up on this deployment',
+  'apiError.AI_QUOTA_EXCEEDED':
+    'This workspace has used its analyses for today. Each one frees up 24 hours after it was run.',
+  'apiError.AI_RATE_LIMITED': 'The assistant is busy right now. Try again in a moment.',
+  'apiError.AI_UNAVAILABLE': 'The assistant is unavailable right now. Your lead is unchanged.',
+  'apiError.AI_INVALID_RESPONSE': 'The assistant returned an unusable answer. Try again.',
   'apiError.NOT_FOUND': 'That record no longer exists',
   'apiError.VALIDATION_ERROR': 'Some fields need your attention',
   'apiError.RATE_LIMITED': 'Too many requests. Please try again shortly.',
@@ -200,8 +210,11 @@ export const en = {
     'The total was down and nobody could say which stage stalled, which source dried up, or how much longer deals were taking to close.',
 
   'landing.featuresTitle': 'What it does about it',
-  'landing.featuresSubtitle': 'Six things, done properly, instead of forty half-built ones.',
+  'landing.featuresSubtitle': 'Seven things, done properly, instead of forty half-built ones.',
 
+  'landing.featureAiTitle': 'It reads the enquiry before you do',
+  'landing.featureAiBody':
+    'Point the assistant at an inbound enquiry and it comes back with what the customer actually wants, how strong the opportunity looks and why, what to do next, and a reply you can send. Off until a workspace turns it on.',
   'landing.featurePipelineTitle': 'A pipeline everyone can see',
   'landing.featurePipelineBody':
     'Drag a deal between stages and it moves everywhere at once — the table, the detail view and the activity trail. Stages are per workspace, so you can name them the way your team already talks.',
@@ -953,6 +966,81 @@ export const en = {
   'settings.currencyUnchanged': 'That is already the workspace currency',
   'settings.demoNotice':
     'This is a demo workspace. Change anything you like — it is yours alone, and it disappears when the sandbox does.',
+
+  /* -------------------------------------------------------------- *
+   * AI lead assistant
+   * -------------------------------------------------------------- */
+  'ai.title': 'AI assistant',
+  'ai.emptyTitle': 'Read this inquiry for me',
+  'ai.emptyBody':
+    'Summarise what the customer is asking for, score the opportunity, and draft a reply you can send.',
+  'ai.analyze': 'Analyse this lead',
+  'ai.analyzing': 'Reading the inquiry…',
+  'ai.reanalyze': 'Analyse again',
+  'ai.quality': 'Lead quality',
+  'ai.scoreOutOf': '{score} out of 100',
+  'ai.urgencyLabel': 'Urgency',
+  // Separate from `priority.*` on purpose: the rep's priority flag and the
+  // assistant's urgency are two different opinions about the same lead, and the
+  // page shows both. Sharing one label set would imply they always agree.
+  'aiUrgency.LOW': 'Can wait',
+  'aiUrgency.MEDIUM': 'This week',
+  'aiUrgency.HIGH': 'Soon',
+  'aiUrgency.CRITICAL': 'Today',
+  'ai.signals': 'What this rests on',
+  'ai.nextStep': 'Recommended next step',
+  'ai.draftVia': 'Draft reply · {channel}',
+  'ai.copy': 'Copy',
+  'ai.copied': 'Draft copied',
+  'ai.copyFailed': 'Could not copy — select the text and copy it manually',
+  'ai.discard': 'Discard analysis',
+  'ai.discarded': 'Analysis discarded',
+  'ai.couldNotDiscard': 'Could not discard the analysis',
+  'ai.by': 'Analysed {time} by {name}',
+  'ai.byUnknown': 'Analysed {time}',
+  'ai.model': 'Model: {model}',
+  'ai.disclaimer': 'Written by AI from what is on this lead. Check it before you act on it.',
+  'ai.staleTitle': 'This lead has changed since it was analysed',
+  'ai.staleBody': 'Run it again to take the newer details into account.',
+  'ai.otherLanguageTitle': 'This analysis was written in another language',
+  'ai.otherLanguageBody': 'Run it again to get it in the language you are reading.',
+  'ai.failedTitle': 'Could not analyse this lead',
+  'ai.remaining_one': '{count} analysis left today',
+  'ai.remaining_other': '{count} analyses left today',
+  'ai.quotaSpentTitle': 'No analyses left today',
+  'ai.quotaSpentBody':
+    'This workspace can run {count} a day. Each one frees up 24 hours after it was run.',
+  'ai.offTitle': 'The assistant is switched off',
+  'ai.offBody': 'It sends lead details to an outside service, so a workspace has to opt in first.',
+  'ai.offOwnerHint': 'Turn it on in workspace settings.',
+  'ai.unconfiguredTitle': 'The assistant is not set up',
+  'ai.unconfiguredBody':
+    'This deployment has no AI provider configured, so analysis is unavailable.',
+  'ai.notYours': 'Only the rep this lead is assigned to, or a manager, can analyse it.',
+  'ai.notForArchived': 'Restore this lead to analyse it.',
+
+  /* -------------------------------------------------------------- *
+   * AI settings
+   * -------------------------------------------------------------- */
+  'settings.aiTitle': 'AI assistant',
+  'settings.aiDescription':
+    'Summarises an inquiry, scores it, and drafts a reply — on the lead page, when someone asks for it.',
+  'settings.aiEnable': 'Enable the AI assistant',
+  'settings.aiEnabled': 'The assistant is on for this workspace',
+  'settings.aiDisabled': 'The assistant is off. Nothing is sent anywhere.',
+  'settings.aiPrivacyTitle': 'What leaves this workspace',
+  'settings.aiPrivacyBody':
+    'Turning this on sends the lead’s details — the customer’s name, what they asked for, and recent notes — to {provider} when someone runs an analysis. Nothing is sent until they do.',
+  'settings.aiTrainingWarning':
+    '{provider}’s free tier uses what it receives to improve their products. Do not enable this for a workspace holding customer data you cannot share.',
+  'settings.aiUsage': '{used} of {limit} analyses used in the last 24 hours',
+  'settings.aiModel': 'Model: {model}',
+  'settings.aiUnconfigured':
+    'No AI provider is configured on this deployment, so the assistant cannot run even when enabled.',
+  'settings.aiTurnedOn': 'The AI assistant is on',
+  'settings.aiTurnedOff': 'The AI assistant is off',
+  'settings.couldNotChangeAi': 'Could not change the assistant setting',
+  'settings.aiManagerOnly': 'Only an owner or admin can change this.',
 
   /* -------------------------------------------------------------- *
    * Dates

@@ -56,6 +56,44 @@ const envSchema = z.object({
   CRON_SECRET: z.string().min(16).optional(),
 
   /**
+   * Google AI Studio key for the lead assistant (Phase 5).
+   *
+   * Optional on purpose: the whole feature degrades to a clearly-labelled
+   * "unavailable" state without it, so the app boots and every other screen
+   * works on a deployment that has never had one. A feature that takes the
+   * server down when its third party is unconfigured is a worse feature.
+   */
+  GEMINI_API_KEY: z
+    .string()
+    // An empty or whitespace-only value means "not set", not "invalid". A
+    // hosting dashboard makes `GEMINI_API_KEY=` very easy to end up with, and a
+    // boot-time crash over an *optional* integration would take down every
+    // other screen in the product along with it.
+    .transform((value) => (value.trim().length > 0 ? value.trim() : undefined))
+    .optional(),
+
+  /**
+   * Which model to call. Pinned by default rather than tracking an alias, so a
+   * provider-side default moving does not silently change what the product
+   * says about somebody's leads.
+   */
+  AI_MODEL: z
+    .string()
+    .transform((value) => value.trim())
+    .pipe(z.string().min(1))
+    .default('gemini-3.5-flash-lite'),
+
+  /**
+   * Analyses one workspace may generate per rolling day.
+   *
+   * This is the number that keeps a shared free-tier key alive: reading a
+   * stored analysis is free, so only deliberate re-runs count against it, and
+   * no single workspace — a demo sandbox included — can spend the day's quota
+   * on its own.
+   */
+  AI_DAILY_LIMIT_PER_ORG: z.coerce.number().int().min(1).max(1000).default(25),
+
+  /**
    * Returns the real error message and stack to the client in production too.
    * Off by default: on a public deployment that is information disclosure.
    * Useful on a portfolio demo where you are the only one reading it.
@@ -88,6 +126,8 @@ export const env = {
   cookieSecure: raw.COOKIE_SECURE ?? raw.NODE_ENV === 'production',
   /** Non-production always shows details; production requires the opt-in. */
   exposeErrorDetails: raw.EXPOSE_ERROR_DETAILS || raw.NODE_ENV !== 'production',
+  /** True when a provider key is present — the assistant's on/off switch. */
+  aiConfigured: Boolean(raw.GEMINI_API_KEY),
   corsOrigins: raw.CORS_ORIGINS.split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),

@@ -1,4 +1,4 @@
-import type { LeadPriority, Locale } from '@leadpilot/shared';
+import type { AiQualityBand, AiUrgency, LeadPriority, Locale } from '@leadpilot/shared';
 import type { StaticKey, Translator } from './i18n/translate';
 
 /**
@@ -17,6 +17,29 @@ export const PRIORITY_STYLES: Record<LeadPriority, string> = {
   MEDIUM: 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20',
   HIGH: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20',
   URGENT: 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/25',
+};
+
+/**
+ * Tailwind classes per AI urgency, mirroring `PRIORITY_STYLES`.
+ *
+ * Deliberately the same visual language as the rep-set priority above, because
+ * the two sit near each other on the lead page and a reader comparing "the rep
+ * said MEDIUM, the assistant says HIGH" should not have to decode two colour
+ * schemes to see the disagreement.
+ */
+export const AI_URGENCY_STYLES: Record<AiUrgency, string> = {
+  LOW: 'bg-muted text-muted-foreground border-transparent',
+  MEDIUM: 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20',
+  HIGH: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20',
+  CRITICAL: 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/25',
+};
+
+/** Score-bar and figure colour per quality band. */
+export const AI_BAND_STYLES: Record<AiQualityBand, { bar: string; text: string }> = {
+  WEAK: { bar: 'bg-muted-foreground/40', text: 'text-muted-foreground' },
+  MODERATE: { bar: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-300' },
+  STRONG: { bar: 'bg-sky-500', text: 'text-sky-700 dark:text-sky-300' },
+  EXCELLENT: { bar: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-300' },
 };
 
 /**

@@ -189,6 +189,12 @@ async function createOrganization(
       // The demo workspace is a template: "Start demo" clones it per visitor and
       // nobody signs into it directly, so it stays pristine.
       isDemoTemplate: isDemo,
+      // On for the demo so a visitor can actually try the assistant, off for a
+      // real workspace, which has to opt in knowingly. Sandboxes inherit this
+      // from the template when they are cloned. No analyses are cloned with
+      // them: every sandbox starts empty, so the visitor sees the feature run
+      // rather than a result somebody else generated.
+      aiEnabled: isDemo,
       isDemo: false,
       stages: {
         create: DEFAULT_STAGE_PRESETS.map((preset) => ({ ...preset })),

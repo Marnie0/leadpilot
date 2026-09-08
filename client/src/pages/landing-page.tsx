@@ -12,6 +12,7 @@ import {
   Loader2,
   MessageSquareOff,
   ShieldCheck,
+  Sparkles,
   TrendingDown,
   type LucideIcon,
 } from 'lucide-react';
@@ -50,6 +51,12 @@ const FAQS: { q: StaticKey; a: StaticKey }[] = [
 ];
 
 const FEATURES: { icon: LucideIcon; title: StaticKey; body: StaticKey }[] = [
+  // First, because it is the one thing here a spreadsheet cannot do at all.
+  {
+    icon: Sparkles,
+    title: 'landing.featureAiTitle',
+    body: 'landing.featureAiBody',
+  },
   {
     icon: KanbanSquare,
     title: 'landing.featurePipelineTitle',

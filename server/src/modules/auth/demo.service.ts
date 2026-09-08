@@ -74,9 +74,9 @@ export async function createDemoSandbox(): Promise<DemoSandbox> {
     async (tx) => {
       await tx.$executeRaw`
         INSERT INTO "organizations"
-          (id, name, slug, "defaultCurrency", "defaultLocale", "isDemo", "isDemoTemplate", "expiresAt", "createdAt", "updatedAt")
+          (id, name, slug, "defaultCurrency", "defaultLocale", "aiEnabled", "isDemo", "isDemoTemplate", "expiresAt", "createdAt", "updatedAt")
         SELECT ${organizationId}, o.name, ${slug}, o."defaultCurrency", o."defaultLocale",
-               true, false, ${expiresAt}, now(), now()
+               o."aiEnabled", true, false, ${expiresAt}, now(), now()
         FROM "organizations" o
         WHERE o.id = ${template.id}
       `;

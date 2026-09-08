@@ -101,6 +101,14 @@ enum FollowUpStatus {
   CANCELLED
 }
 
+/// How soon an analysed lead needs a human. Mirrors AI_URGENCIES.
+enum AiUrgency {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 /// Workspace-level events, distinct from a lead's activity trail.
 /// Currently one member; the enum exists so adding the next is a migration
 /// rather than a redesign.
@@ -119,6 +127,13 @@ model Organization {
   /// Fallback currency for new leads; each lead may override it.
   defaultCurrency String   @default("USD")
   defaultLocale   Locale   @default(en)
+  /// Whether the AI lead assistant is switched on for this workspace.
+  ///
+  /// Off by default, and only an owner can turn it on. The assistant sends lead
+  /// text to a third party whose free tier trains on what it receives, so
+  /// enabling it is a decision about somebody's customer data — not a default
+  /// the product gets to make on their behalf.
+  aiEnabled       Boolean  @default(false)
   /// A throwaway sandbox created by "Start demo". Cloned from the template.
   isDemo          Boolean  @default(false)
   /// The pristine workspace every demo sandbox is cloned from. Nobody signs into
@@ -135,6 +150,8 @@ model Organization {
   activities Activity[]
   followUps  FollowUp[]
   events     WorkspaceEvent[]
+  insights   LeadInsight[]
+  aiUsage    AiUsageEvent[]
 
   // Drives the daily reaper, which scans for sandboxes past their expiry.
   @@index([expiresAt])
@@ -168,6 +185,7 @@ model User {
   followUps     FollowUp[]     @relation("FollowUpAssignee")
   createdFollowUps FollowUp[]  @relation("FollowUpCreator")
   workspaceEvents  WorkspaceEvent[]
+  generatedInsights LeadInsight[]
 
   @@index([organizationId, isActive])
   @@map("users")
@@ -300,6 +318,7 @@ model Lead {
   createdBy    User?         @relation("LeadCreator", fields: [createdById], references: [id], onDelete: SetNull)
   activities   Activity[]
   followUps    FollowUp[]
+  insight      LeadInsight?
 
   // Ordered organisation-first: every list query is tenant-scoped, then sorted.
   // archivedAt leads each index because every list filters archived rows out.
@@ -361,6 +380,80 @@ model WorkspaceEvent {
 
   @@index([organizationId, createdAt(sort: Desc)])
   @@map("workspace_events")
+}
+
+/// One AI assessment of one lead.
+///
+/// `@unique` on `leadId` rather than a history table: the assistant answers a
+/// question ("what should we do about this lead"), and only the current answer
+/// is actionable. A regeneration replaces the previous one, and the row carries
+/// who asked for it and when, which is the audit that actually gets read.
+model LeadInsight {
+  id             String   @id @default(cuid())
+  organizationId String
+  leadId         String   @unique
+  /// Language the prose was written in, so the reader can be told when the
+  /// stored analysis is not in the language they are reading the app in.
+  locale         Locale   @default(en)
+
+  summary        String
+  /// 0-100. The band is derived, not stored — see `qualityBand()`.
+  qualityScore   Int
+  urgency        AiUrgency
+  rationale      String
+  nextAction     String
+  nextActionChannel FollowUpChannel @default(CALL)
+  draftMessage   String
+  signals        String[] @default([])
+
+  /// Provider model id, recorded so an assessment can be attributed to the
+  /// thing that made it once the default has moved on.
+  model          String
+  /// Fingerprint of the lead fields fed to the model. Compared on read to tell
+  /// the user their analysis predates the lead's current state.
+  inputHash      String
+  generatedById  String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  generatedBy  User?        @relation(fields: [generatedById], references: [id], onDelete: SetNull)
+
+  // Drives the per-workspace daily budget, which counts rows written since a
+  // cutoff. Organisation-first so that count stays index-covered.
+  @@index([organizationId, updatedAt])
+  @@map("lead_insights")
+}
+
+/// One row per provider call that actually happened.
+///
+/// Deliberately not derived from `LeadInsight`. The two answer different
+/// questions: a `LeadInsight` is the *current* analysis of a lead and vanishes
+/// when somebody discards it or deletes the lead, whereas this is what the
+/// workspace **spent**, which nothing a user does should be able to give back.
+/// Counting the daily budget off `LeadInsight` meant generate-then-discard
+/// refunded the quota, which is exactly the loop the budget exists to stop.
+///
+/// No relation to `Lead` for the same reason: deleting a lead must not erase
+/// the record of the call it cost. `leadId` is kept as a plain column so a run
+/// can still be traced back.
+model AiUsageEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  leadId         String?
+  model          String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Covers the budget count, which is always "this org, since this instant".
+  @@index([organizationId, createdAt])
+  // Drives the housekeeping sweep, which drops rows past the counting window.
+  @@index([createdAt])
+  @@map("ai_usage_events")
 }
 
 model FollowUp {
