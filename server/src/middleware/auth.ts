@@ -104,7 +104,10 @@ export function requireRole(...roles: UserRole[]): RequestHandler {
       return;
     }
     if (!roles.includes(auth.role)) {
-      next(forbidden('Only an owner or admin can do that'));
+      // Worded from the roles this route actually takes: an admin refused by an
+      // owner-only route was being told "only an owner or admin can do that",
+      // which reads as a bug rather than a rule.
+      next(forbidden(`This action is restricted to: ${roles.join(', ').toLowerCase()}`));
       return;
     }
     next();

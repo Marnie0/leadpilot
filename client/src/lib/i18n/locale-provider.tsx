@@ -115,11 +115,29 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     onError: () => undefined,
   });
 
-  // Adopt the account's language on sign-in, unless this device has its own.
+  /*
+   * Reconcile the device and the account on sign-in.
+   *
+   * Without a local choice, the account wins: signing in on a second machine
+   * brings your language with you.
+   *
+   * With one, it wins — and is written back. That second half was missing, and
+   * the gap was visible: someone who picked Arabic on the sign-in screen and
+   * then signed into an account recorded as English got an Arabic interface
+   * whose own settings page said "Language: English", and the choice never
+   * followed them to another device.
+   */
   useEffect(() => {
-    if (!user || hasLocalChoice.current) return;
-    setLocaleState((current) => (current === user.locale ? current : user.locale));
-  }, [user]);
+    if (!user) return;
+    if (!hasLocalChoice.current) {
+      setLocaleState((current) => (current === user.locale ? current : user.locale));
+      return;
+    }
+    if (user.locale !== locale && !saveProfileLocale.isPending) saveProfileLocale.mutate(locale);
+    // `saveProfileLocale` is a stable mutation object; including it would re-run
+    // this on every render of the provider.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, locale]);
 
   const setLocale = useCallback(
     (next: Locale) => {
