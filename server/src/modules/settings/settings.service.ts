@@ -84,26 +84,28 @@ async function loadCurrencyContext(actor: Actor, target: Currency) {
   if (!organization) throw notFound('Workspace');
 
   const from = organization.defaultCurrency as Currency;
-  const { rates, asOf } = await getRates();
+  const { rates, asOf, source } = await getRates();
   if (!rates[from]) {
     // A workspace sitting on a currency the product no longer supports: refuse
     // rather than convert at a rate of one and quietly halve someone's pipeline.
     throw badRequest(`No exchange rate is available for ${from}`);
   }
 
-  return { from, rate: convertCurrency(1, from, target, rates), asOf };
+  return { from, rate: convertCurrency(1, from, target, rates), asOf, source };
 }
 
 export async function previewCurrencyChange(
   actor: Actor,
   target: Currency,
 ): Promise<CurrencyPreviewDto> {
-  const { from, rate, asOf } = await loadCurrencyContext(actor, target);
+  const { from, rate, asOf, source } = await loadCurrencyContext(actor, target);
 
-  // Archived leads are included: they are restorable, so leaving them behind
-  // would reintroduce the mixed-currency column the conversion exists to avoid.
+  // Scoped to the currency being converted *from*, so "leads affected" is
+  // exactly the set the update will touch rather than a superset. Archived
+  // leads are included: they are restorable, so leaving them behind would
+  // reintroduce the mixed-currency column the conversion exists to avoid.
   const totals = await prisma.lead.aggregate({
-    where: { organizationId: actor.organizationId },
+    where: { organizationId: actor.organizationId, currency: from },
     _count: { _all: true },
     _sum: { estimatedValue: true },
   });
@@ -117,6 +119,7 @@ export async function previewCurrencyChange(
     totalBefore,
     totalAfter: totalBefore * rate,
     asOf,
+    source,
   };
 }
 
@@ -128,23 +131,35 @@ export async function changeCurrency(
   if (from === target) return { currency: target, converted: 0, rate: 1 };
 
   const converted = await prisma.$transaction(async (tx) => {
+    /*
+     * Compare and swap, not read then write.
+     *
+     * The currency this conversion is *from* was read before the transaction
+     * opened. Claiming it here — updating only if the workspace is still in it
+     * — is what makes the operation safe to issue twice. Without this, two
+     * requests arriving together both read AED, both multiplied, and a lead
+     * worth 625,000 AED became 120,148,024 EGP: the rate applied squared, on a
+     * write that cannot be undone.
+     *
+     * A loser sees zero rows matched and changes nothing.
+     */
+    const claimed = await tx.organization.updateMany({
+      where: { id: actor.organizationId, defaultCurrency: from },
+      data: { defaultCurrency: target },
+    });
+    if (claimed.count === 0) return 0;
+
     // One statement rather than a read-modify-write per lead: the multiplication
     // happens in the database, so a workspace with fifty thousand leads costs
-    // the same round-trip as one with five.
-    const affected = await tx.$executeRaw`
+    // the same round-trip as one with five. Scoped by the old currency as well
+    // as the tenant, so it can only ever touch rows the claim above covers.
+    return tx.$executeRaw`
       UPDATE "leads"
       SET "estimatedValue" = ROUND("estimatedValue" * ${new Prisma.Decimal(rate)}::numeric, 2),
           "currency" = ${target},
           "updatedAt" = "updatedAt"
-      WHERE "organizationId" = ${actor.organizationId}
+      WHERE "organizationId" = ${actor.organizationId} AND "currency" = ${from}
     `;
-
-    await tx.organization.update({
-      where: { id: actor.organizationId },
-      data: { defaultCurrency: target },
-    });
-
-    return affected;
   });
 
   return { currency: target, converted, rate };

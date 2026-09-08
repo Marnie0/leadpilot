@@ -101,7 +101,12 @@ export function MemberActions({
           value={member.role}
           onValueChange={(value) => setRole(value as UserRole)}
         >
-          {USER_ROLES.map((role) => (
+          {USER_ROLES.filter(
+            // Granting the owner role is the owner's alone — the API refuses it
+            // from anyone else, and an admin should not have to discover that
+            // by picking a row that then fails.
+            (role) => role !== 'OWNER' || viewerRole === 'OWNER',
+          ).map((role) => (
             <DropdownMenuRadioItem key={role} value={role}>
               <ShieldCheck className="size-4" aria-hidden /> {t(`role.${role}`)}
             </DropdownMenuRadioItem>

@@ -64,6 +64,13 @@ teamRouter.patch(
     if (target.role === 'OWNER' && auth.role !== 'OWNER') {
       throw forbidden('Only the workspace owner can change the owner account', 'OWNER_ONLY');
     }
+    // Granting the role is as consequential as editing the account that holds
+    // it. Without this an admin could promote *themselves* — the guard above
+    // only protects an existing owner — and walk straight into the owner-only
+    // powers, which now include restating every stored amount in the workspace.
+    if (body.role === 'OWNER' && auth.role !== 'OWNER') {
+      throw forbidden('Only the workspace owner can grant the owner role', 'OWNER_GRANT_ONLY');
+    }
     if (target.id === auth.userId && body.isActive === false) {
       throw badRequest('You cannot deactivate your own account', 'CANNOT_DEACTIVATE_SELF');
     }
