@@ -48,10 +48,17 @@ export function canMutateFollowUp(
   viewer: Viewer,
   followUp: {
     assignedToId: string | null;
+    createdById?: string | null;
     lead: { assignedToId: string | null; createdById?: string | null };
   },
 ): boolean {
   if (isManager(viewer)) return true;
   if (followUp.assignedToId === viewer.userId) return true;
+  // The creator too, exactly as `canMutateLead` counts a lead's creator.
+  // Booking a follow-up is open to any member — the same as leaving a note —
+  // so without this a rep could schedule a call on a colleague's lead, assign
+  // it to a third person, and then be unable to cancel the thing they had just
+  // created.
+  if (followUp.createdById === viewer.userId) return true;
   return canMutateLead(viewer, followUp.lead);
 }

@@ -87,9 +87,11 @@ followUpsRouter.post(
   validate(rescheduleFollowUpSchema),
   asyncHandler(async (req, res) => {
     const { dueAt } = req.body as z.infer<typeof rescheduleFollowUpSchema>;
-    const followUp = await followUpsService.updateFollowUp(actorFrom(req), param(req, 'id'), {
+    const followUp = await followUpsService.rescheduleFollowUp(
+      actorFrom(req),
+      param(req, 'id'),
       dueAt,
-    });
+    );
     res.json({ followUp });
   }),
 );

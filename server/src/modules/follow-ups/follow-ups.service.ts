@@ -216,6 +216,7 @@ async function getWritableFollowUp(actor: Actor, followUpId: string) {
       title: true,
       status: true,
       assignedToId: true,
+      createdById: true,
       lead: { select: { assignedToId: true, createdById: true } },
     },
   });
@@ -233,6 +234,12 @@ export async function updateFollowUp(
 ): Promise<FollowUpDto> {
   const existing = await getWritableFollowUp(actor, followUpId);
   if (input.assignedToId) await assertAssigneeInOrg(actor.organizationId, input.assignedToId);
+  // Correcting a title or a note on a finished task is reasonable; moving its
+  // due date is not, and the guard belongs here as well as on the reschedule
+  // route or the generic PATCH is a way around it.
+  if (input.dueAt !== undefined && existing.status !== 'PENDING') {
+    throw badRequest('Only a pending follow-up can be rescheduled', 'FOLLOW_UP_NOT_PENDING');
+  }
 
   const data: Prisma.FollowUpUpdateInput = {};
   if (input.title !== undefined) data.title = input.title;
@@ -272,8 +279,12 @@ export async function completeFollowUp(
   input: CompleteFollowUpInput,
 ): Promise<FollowUpDto> {
   const existing = await getWritableFollowUp(actor, followUpId);
-  if (existing.status === 'COMPLETED') {
-    throw badRequest('That follow-up is already completed');
+  if (existing.status !== 'PENDING') {
+    // Codes rather than prose, because the browser translates by code and this
+    // is a message two people working the same list will actually meet.
+    throw existing.status === 'COMPLETED'
+      ? badRequest('That follow-up is already completed', 'FOLLOW_UP_ALREADY_COMPLETED')
+      : badRequest('That follow-up was cancelled', 'FOLLOW_UP_NOT_PENDING');
   }
 
   const completed = await prisma.$transaction(async (tx) => {
@@ -299,8 +310,44 @@ export async function completeFollowUp(
   return toFollowUpDto(completed, actor);
 }
 
+/**
+ * Moves the due date of a *pending* follow-up.
+ *
+ * A separate function rather than a thin wrapper over `updateFollowUp`, because
+ * the guard is the point: rescheduling something already completed or cancelled
+ * left a task with a future due date and a terminal status, which no screen in
+ * the app knows how to describe.
+ */
+export async function rescheduleFollowUp(
+  actor: Actor,
+  followUpId: string,
+  dueAt: string,
+): Promise<FollowUpDto> {
+  const existing = await getWritableFollowUp(actor, followUpId);
+  if (existing.status !== 'PENDING') {
+    throw badRequest('Only a pending follow-up can be rescheduled', 'FOLLOW_UP_NOT_PENDING');
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.followUp.update({
+      where: { id: followUpId },
+      data: { dueAt: new Date(dueAt) },
+      select: FOLLOW_UP_SELECT,
+    });
+    await syncNextFollowUp(tx, existing.leadId);
+    return row;
+  });
+
+  return toFollowUpDto(updated, actor);
+}
+
 export async function cancelFollowUp(actor: Actor, followUpId: string): Promise<FollowUpDto> {
   const existing = await getWritableFollowUp(actor, followUpId);
+  if (existing.status !== 'PENDING') {
+    throw existing.status === 'COMPLETED'
+      ? badRequest('That follow-up is already completed', 'FOLLOW_UP_ALREADY_COMPLETED')
+      : badRequest('That follow-up is already cancelled', 'FOLLOW_UP_NOT_PENDING');
+  }
 
   const cancelled = await prisma.$transaction(async (tx) => {
     const row = await tx.followUp.update({

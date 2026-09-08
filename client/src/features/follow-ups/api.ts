@@ -4,7 +4,6 @@ import type {
   FollowUpDto,
   FollowUpQueryInput,
   Paginated,
-  UpdateFollowUpInput,
 } from '@leadpilot/shared';
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
@@ -77,15 +76,6 @@ export function useRescheduleFollowUp() {
     mutationFn: async ({ id, dueAt }: { id: string; dueAt: string }) =>
       (await api.post<{ followUp: FollowUpDto }>(`/follow-ups/${id}/reschedule`, { dueAt }))
         .followUp,
-    onSuccess: invalidate,
-  });
-}
-
-export function useUpdateFollowUp() {
-  const invalidate = useInvalidateFollowUps();
-  return useMutation({
-    mutationFn: async ({ id, ...input }: UpdateFollowUpInput & { id: string }) =>
-      (await api.patch<{ followUp: FollowUpDto }>(`/follow-ups/${id}`, input)).followUp,
     onSuccess: invalidate,
   });
 }

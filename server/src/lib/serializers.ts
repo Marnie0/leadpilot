@@ -215,6 +215,7 @@ export const FOLLOW_UP_SELECT = {
   completedAt: true,
   createdAt: true,
   assignedToId: true,
+  createdById: true,
   assignedTo: { select: TEAM_MEMBER_SELECT },
   lead: { select: { assignedToId: true, createdById: true } },
 } satisfies Prisma.FollowUpSelect;
