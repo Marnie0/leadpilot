@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, Cell, Tooltip, XAxis, YAxis } from 'recharts';
 import type { DashboardStageDto } from '@leadpilot/shared';
+import { BarChart3 } from 'lucide-react';
+import { EmptyState } from '@/components/common/empty-state';
 import { stageName } from '@/lib/labels';
 import { useFormat, useI18n } from '@/lib/i18n';
 import { useMoney } from '@/lib/money';
@@ -33,100 +35,116 @@ export function StagePerformance({
     .filter((stage) => stage.type === 'OPEN')
     .map((stage) => ({ ...stage, label: stageName(stage, locale) }));
 
+  // Bars of length zero against an axis reading US$0 – US$1 – US$2 is a chart
+  // that looks broken rather than one that says "nothing here yet". The table
+  // underneath still lists the stages, which is the useful half.
+  const hasOpenLeads = openStages.some((stage) => stage.count > 0);
+
   return (
     <div className="space-y-4">
-      <ChartFrame height={200}>
-        <BarChart
-          data={openStages}
-          layout="vertical"
-          margin={{ top: 0, right: 8, bottom: 0, left: 0 }}
-          barGap={2}
-        >
-          <XAxis
-            type="number"
-            {...AXIS_PROPS}
-            // The value axis grows away from the reading-start edge, so in
-            // Arabic the bars run right to left like everything beside them.
-            {...direction.categoryAxis}
-            // Three ticks: currency labels are wide, and five of them collide
-            // into an unreadable smear at phone widths.
-            tickCount={3}
-            tickFormatter={(value: number) => money.format(value, currency)}
-          />
-          <YAxis
-            type="category"
-            dataKey="label"
-            {...AXIS_PROPS}
-            orientation={direction.valueAxisSide}
-            width={80}
-          />
-          <Tooltip
-            cursor={{ fill: 'currentColor', fillOpacity: 0.06 }}
-            content={({ active, payload }) => {
-              if (!active || !payload?.length) return null;
-              const stage = payload[0]?.payload as (typeof openStages)[number];
-              return (
-                <ChartTooltip
-                  title={stage.label}
-                  rows={[
-                    { label: t('dashboard.tableLeads'), value: format.number(stage.count) },
-                    {
-                      label: t('dashboard.pipelineValue'),
-                      value: money.format(stage.value, currency),
-                      color: stage.color,
-                    },
-                    {
-                      label: t('dashboard.weightedAt', { percent: stage.winProbability }),
-                      value: money.format(stage.weightedValue, currency),
-                      color: stage.color,
-                    },
-                    {
-                      label: t('dashboard.averageAge'),
-                      value:
-                        stage.avgAgeDays === null
-                          ? t('common.dash')
-                          : t('common.days', { count: stage.avgAgeDays }),
-                    },
-                  ]}
-                />
-              );
-            }}
-          />
-          <Bar
-            dataKey="value"
-            name={t('dashboard.pipelineValue')}
-            radius={direction.horizontalBarRadius}
-            maxBarSize={14}
+      {hasOpenLeads ? (
+        <ChartFrame height={200}>
+          <BarChart
+            data={openStages}
+            layout="vertical"
+            margin={{ top: 0, right: 8, bottom: 0, left: 0 }}
+            barGap={2}
           >
-            {openStages.map((stage) => (
-              <Cell key={stage.key} fill={stage.color} fillOpacity={0.28} />
-            ))}
-          </Bar>
-          <Bar
-            dataKey="weightedValue"
-            name={t('dashboard.weightedLegend')}
-            radius={direction.horizontalBarRadius}
-            maxBarSize={14}
-          >
-            {openStages.map((stage) => (
-              <Cell key={stage.key} fill={stage.color} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ChartFrame>
+            <XAxis
+              type="number"
+              {...AXIS_PROPS}
+              // The value axis grows away from the reading-start edge, so in
+              // Arabic the bars run right to left like everything beside them.
+              {...direction.categoryAxis}
+              // Three ticks: currency labels are wide, and five of them collide
+              // into an unreadable smear at phone widths.
+              tickCount={3}
+              tickFormatter={(value: number) => money.format(value, currency)}
+            />
+            <YAxis
+              type="category"
+              dataKey="label"
+              {...AXIS_PROPS}
+              orientation={direction.valueAxisSide}
+              width={80}
+            />
+            <Tooltip
+              cursor={{ fill: 'currentColor', fillOpacity: 0.06 }}
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const stage = payload[0]?.payload as (typeof openStages)[number];
+                return (
+                  <ChartTooltip
+                    title={stage.label}
+                    rows={[
+                      { label: t('dashboard.tableLeads'), value: format.number(stage.count) },
+                      {
+                        label: t('dashboard.pipelineValue'),
+                        value: money.format(stage.value, currency),
+                        color: stage.color,
+                      },
+                      {
+                        label: t('dashboard.weightedAt', { percent: stage.winProbability }),
+                        value: money.format(stage.weightedValue, currency),
+                        color: stage.color,
+                      },
+                      {
+                        label: t('dashboard.averageAge'),
+                        value:
+                          stage.avgAgeDays === null
+                            ? t('common.dash')
+                            : t('common.days', { count: stage.avgAgeDays }),
+                      },
+                    ]}
+                  />
+                );
+              }}
+            />
+            <Bar
+              dataKey="value"
+              name={t('dashboard.pipelineValue')}
+              radius={direction.horizontalBarRadius}
+              maxBarSize={14}
+            >
+              {openStages.map((stage) => (
+                <Cell key={stage.key} fill={stage.color} fillOpacity={0.28} />
+              ))}
+            </Bar>
+            <Bar
+              dataKey="weightedValue"
+              name={t('dashboard.weightedLegend')}
+              radius={direction.horizontalBarRadius}
+              maxBarSize={14}
+            >
+              {openStages.map((stage) => (
+                <Cell key={stage.key} fill={stage.color} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ChartFrame>
+      ) : (
+        <EmptyState
+          icon={BarChart3}
+          title={t('dashboard.stagesEmpty')}
+          description={t('dashboard.stagesEmptyBody')}
+          className="py-10"
+        />
+      )}
 
       {/* Without this the two bars per stage are just "a big one and a small
           one", which is the opposite of the point they are making. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-foreground/25" aria-hidden />
-          {t('dashboard.pipelineValue')}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-foreground/70" aria-hidden />
-          {t('dashboard.weightedLegend')}
-        </span>
-      </div>
+      {hasOpenLeads && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-foreground/25" aria-hidden />
+            {t('dashboard.pipelineValue')}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-foreground/70" aria-hidden />
+            {t('dashboard.weightedLegend')}
+          </span>
+        </div>
+      )}
 
       {/* The numbers behind the bars, including the closed stages the chart omits. */}
       <div className="-mx-2 overflow-x-auto">

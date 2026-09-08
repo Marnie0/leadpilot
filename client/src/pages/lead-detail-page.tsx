@@ -74,10 +74,22 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
+/**
+ * The only screen whose placeholder carries no words at all — a lead's name is
+ * exactly what is not known yet. The back link is real rather than a skeleton,
+ * so a slow load still leaves somewhere to go.
+ */
 function LeadDetailSkeleton() {
+  const t = useT();
   return (
     <div className="mx-auto w-full max-w-[1400px] space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <Skeleton className="h-5 w-24" />
+      <Link
+        to="/leads"
+        className="inline-flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <ArrowLeft className="icon-directional size-4" aria-hidden />
+        {t('lead.backToLeads')}
+      </Link>
       <div className="space-y-3">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-40" />

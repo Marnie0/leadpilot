@@ -13,7 +13,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { BOARD_MAX_LIMIT, type BoardDto, type StageKey } from '@leadpilot/shared';
+import { BOARD_MAX_LIMIT, STAGE_KEYS, type BoardDto, type StageKey } from '@leadpilot/shared';
 import { Plus, SearchX } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/page-header';
@@ -36,7 +36,10 @@ import {
 } from '@/features/board/api';
 import { useBoardFilters } from '@/features/board/hooks/use-board-filters';
 import { isSamePosition, positionOf, resolveDrop } from '@/features/board/lib/resolve-drop';
-import { BoardColumn } from '@/features/board/components/board-column';
+
+/** Uneven card counts, so the placeholder board reads as a board rather than a grid. */
+const SKELETON_DEPTH = [3, 2, 4];
+import { BoardColumn, BoardColumnSkeleton } from '@/features/board/components/board-column';
 import { BoardToolbar } from '@/features/board/components/board-toolbar';
 import { BoardCardOverlay } from '@/features/board/components/board-card';
 import { LostReasonDialog } from '@/features/board/components/lost-reason-dialog';
@@ -316,6 +319,12 @@ export function PipelinePage() {
             */}
             <div className="scrollbar-slim -mx-4 snap-x snap-mandatory overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
               <div className="flex min-h-[60svh] items-stretch gap-3 sm:gap-4">
+                {/* Until the first response there are no columns to skeleton
+                    per-column, so the shape of the board stands in for it. */}
+                {board === undefined &&
+                  STAGE_KEYS.map((key, index) => (
+                    <BoardColumnSkeleton key={key} cards={SKELETON_DEPTH[index % 3] ?? 2} />
+                  ))}
                 {(board?.columns ?? []).map((column) => (
                   <BoardColumn
                     key={column.stage.id}

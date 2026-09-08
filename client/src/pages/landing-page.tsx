@@ -1,12 +1,21 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   BarChart3,
   CalendarClock,
+  Check,
+  CircleDollarSign,
+  Inbox,
   KanbanSquare,
   Languages,
+  Loader2,
+  MessageSquareOff,
+  ShieldCheck,
+  TrendingDown,
   type LucideIcon,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { STAGE_KEYS, type StageKey } from '@leadpilot/shared';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,7 +23,31 @@ import { Logo } from '@/components/common/logo';
 import { AppearanceControls } from '@/components/layout/appearance-controls';
 import { useAuth } from '@/features/auth/auth-context';
 import { useT, type StaticKey } from '@/lib/i18n';
+import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { DEMO_LEAD_COUNT } from '@/lib/constants';
+
+/** Where deals actually go quiet. Named before the product is mentioned. */
+const PROBLEMS: { icon: LucideIcon; title: StaticKey; body: StaticKey }[] = [
+  { icon: Inbox, title: 'landing.problem1Title', body: 'landing.problem1Body' },
+  { icon: MessageSquareOff, title: 'landing.problem2Title', body: 'landing.problem2Body' },
+  { icon: TrendingDown, title: 'landing.problem3Title', body: 'landing.problem3Body' },
+];
+
+/** The honest comparison: against a spreadsheet and a chat thread, which is
+ *  what these teams genuinely use, rather than against a strawman competitor. */
+const REPLACES: { before: StaticKey; after: StaticKey }[] = [
+  { before: 'landing.replace1Before', after: 'landing.replace1After' },
+  { before: 'landing.replace2Before', after: 'landing.replace2After' },
+  { before: 'landing.replace3Before', after: 'landing.replace3After' },
+  { before: 'landing.replace4Before', after: 'landing.replace4After' },
+];
+
+const FAQS: { q: StaticKey; a: StaticKey }[] = [
+  { q: 'landing.faq1Q', a: 'landing.faq1A' },
+  { q: 'landing.faq2Q', a: 'landing.faq2A' },
+  { q: 'landing.faq3Q', a: 'landing.faq3A' },
+  { q: 'landing.faq4Q', a: 'landing.faq4A' },
+];
 
 const FEATURES: { icon: LucideIcon; title: StaticKey; body: StaticKey }[] = [
   {
@@ -36,6 +69,16 @@ const FEATURES: { icon: LucideIcon; title: StaticKey; body: StaticKey }[] = [
     icon: Languages,
     title: 'landing.featureBilingualTitle',
     body: 'landing.featureBilingualBody',
+  },
+  {
+    icon: CircleDollarSign,
+    title: 'landing.featureCurrencyTitle',
+    body: 'landing.featureCurrencyBody',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'landing.featureOwnershipTitle',
+    body: 'landing.featureOwnershipBody',
   },
 ];
 
@@ -125,23 +168,55 @@ function BoardPreview() {
  */
 export function LandingPage() {
   const t = useT();
-  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const { isAuthenticated, startDemo } = useAuth();
+  const describeError = useApiErrorMessage();
+  const [isStarting, setStarting] = useState(false);
 
-  const primaryCta = isAuthenticated ? (
-    <Button asChild size="lg">
-      <Link to="/leads">
-        {t('landing.openWorkspace')}
-        <ArrowRight className="icon-directional size-4" aria-hidden />
-      </Link>
-    </Button>
-  ) : (
-    <Button asChild size="lg">
-      <Link to="/login">
-        {t('landing.startDemo')}
-        <ArrowRight className="icon-directional size-4" aria-hidden />
-      </Link>
-    </Button>
-  );
+  /**
+   * The demo starts from here rather than sending the visitor to the sign-in
+   * screen to find the button again. Somebody who has decided to look around
+   * should not have to pass a login form to do it.
+   */
+  const handleStartDemo = async () => {
+    setStarting(true);
+    try {
+      await startDemo();
+      navigate('/leads', { replace: true });
+    } catch (error) {
+      toast.error(t('auth.demoFailed'), { description: describeError(error) });
+      setStarting(false);
+    }
+  };
+
+  const cta = (size: 'lg' | 'default', variant?: 'secondary') =>
+    isAuthenticated ? (
+      <Button asChild size={size} {...(variant && { variant })}>
+        <Link to="/leads">
+          {t('landing.openWorkspace')}
+          <ArrowRight className="icon-directional size-4" aria-hidden />
+        </Link>
+      </Button>
+    ) : (
+      <Button
+        size={size}
+        {...(variant && { variant })}
+        disabled={isStarting}
+        onClick={handleStartDemo}
+      >
+        {isStarting ? (
+          <>
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            {t('auth.demoPreparing')}
+          </>
+        ) : (
+          <>
+            {t('landing.startDemo')}
+            <ArrowRight className="icon-directional size-4" aria-hidden />
+          </>
+        )}
+      </Button>
+    );
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
@@ -161,7 +236,13 @@ export function LandingPage() {
             <AppearanceControls className="flex items-center gap-1" />
             {isAuthenticated ? (
               <Button asChild size="sm">
-                <Link to="/leads">{t('landing.openWorkspace')}</Link>
+                <Link to="/leads">
+                  {/* "Open your workspace" and the language toggle together run
+                      off the side of a 390px phone. The short label is the same
+                      destination, not a different one. */}
+                  <span className="sm:hidden">{t('landing.openWorkspaceShort')}</span>
+                  <span className="hidden sm:inline">{t('landing.openWorkspace')}</span>
+                </Link>
               </Button>
             ) : (
               <>
@@ -192,7 +273,7 @@ export function LandingPage() {
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              {primaryCta}
+              {cta('lg')}
               {!isAuthenticated && (
                 <Button asChild variant="outline" size="lg">
                   <Link to="/signup">{t('auth.createWorkspace')}</Link>
@@ -200,11 +281,47 @@ export function LandingPage() {
               )}
             </div>
             <p className="mt-3 text-sm text-muted-foreground">{t('landing.heroNote')}</p>
+
+            {/* Three claims that are checkable in under a minute, rather than
+                logos and testimonials this product has not earned. */}
+            <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+              {(
+                ['landing.trustBilingual', 'landing.trustNoCard', 'landing.trustPrivate'] as const
+              ).map((key) => (
+                <li key={key} className="flex items-center gap-1.5">
+                  <Check className="size-4 shrink-0 text-primary" aria-hidden />
+                  {t(key)}
+                </li>
+              ))}
+            </ul>
           </div>
 
           <Card className="mt-12 overflow-hidden p-4 sm:p-5">
             <BoardPreview />
           </Card>
+        </section>
+
+        {/* --- The problem --------------------------------------------- */}
+        <section className="mx-auto w-full max-w-6xl px-4 pb-14 sm:px-6 sm:pb-20">
+          <h2 className="text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-3xl">
+            {t('landing.problemTitle')}
+          </h2>
+          <p className="mt-2 text-muted-foreground">{t('landing.problemSubtitle')}</p>
+
+          <div className="mt-8 grid gap-6 sm:grid-cols-3">
+            {PROBLEMS.map(({ icon: Icon, title, body }) => (
+              <div key={title} className="space-y-2">
+                <span
+                  className="flex size-9 items-center justify-center rounded-lg bg-destructive/10 text-destructive"
+                  aria-hidden
+                >
+                  <Icon className="size-4.5" />
+                </span>
+                <h3 className="font-medium text-foreground">{t(title)}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{t(body)}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* --- Features ------------------------------------------------ */}
@@ -215,7 +332,7 @@ export function LandingPage() {
             </h2>
             <p className="mt-2 text-muted-foreground">{t('landing.featuresSubtitle')}</p>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map(({ icon: Icon, title, body }) => (
                 <Card key={title} className="gap-3 p-5">
                   <span
@@ -229,6 +346,30 @@ export function LandingPage() {
                 </Card>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* --- What it replaces ---------------------------------------- */}
+        <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            {t('landing.replaceTitle')}
+          </h2>
+          <p className="mt-2 max-w-2xl text-muted-foreground">{t('landing.replaceSubtitle')}</p>
+
+          <div className="mt-8 overflow-hidden rounded-xl border">
+            <div className="grid grid-cols-2 border-b bg-muted/40 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <div className="px-4 py-2.5 sm:px-5">{t('landing.replaceBefore')}</div>
+              <div className="border-s px-4 py-2.5 sm:px-5">{t('landing.replaceAfter')}</div>
+            </div>
+            {REPLACES.map(({ before, after }) => (
+              <div key={before} className="grid grid-cols-2 border-b text-sm last:border-b-0">
+                <p className="px-4 py-3.5 text-muted-foreground sm:px-5">{t(before)}</p>
+                <p className="flex items-start gap-2 border-s px-4 py-3.5 text-foreground sm:px-5">
+                  <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                  <span>{t(after)}</span>
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -250,6 +391,23 @@ export function LandingPage() {
           </ol>
         </section>
 
+        {/* --- Objections ---------------------------------------------- */}
+        <section className="border-t bg-muted/30">
+          <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              {t('landing.faqTitle')}
+            </h2>
+            <dl className="mt-8 grid gap-x-10 gap-y-7 sm:grid-cols-2">
+              {FAQS.map(({ q, a }) => (
+                <div key={q} className="space-y-1.5">
+                  <dt className="font-medium text-foreground">{t(q)}</dt>
+                  <dd className="text-sm leading-relaxed text-muted-foreground">{t(a)}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
         {/* --- Closing call to action ---------------------------------- */}
         <section className="border-t">
           <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
@@ -265,12 +423,7 @@ export function LandingPage() {
                 <p className="mt-3 text-base leading-relaxed text-primary-foreground/85">
                   {t('landing.ctaBody', { count: DEMO_LEAD_COUNT })}
                 </p>
-                <Button asChild size="lg" variant="secondary" className="mt-7">
-                  <Link to={isAuthenticated ? '/leads' : '/login'}>
-                    {isAuthenticated ? t('landing.openWorkspace') : t('landing.startDemo')}
-                    <ArrowRight className="icon-directional size-4" aria-hidden />
-                  </Link>
-                </Button>
+                <div className="mt-7">{cta('lg', 'secondary')}</div>
               </div>
             </div>
           </div>

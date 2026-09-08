@@ -103,6 +103,10 @@ export const en = {
   'apiError.CURRENT_PASSWORD_INCORRECT': 'Your current password is incorrect',
   'apiError.EMAIL_TAKEN': 'An account with that email already exists',
   'apiError.FORBIDDEN': 'You do not have permission to do that',
+  'apiError.OWNER_ONLY': 'Only the workspace owner can change the owner account',
+  'apiError.LAST_OWNER': 'A workspace must always have an owner',
+  'apiError.CANNOT_DEACTIVATE_SELF': 'You cannot deactivate your own account',
+  'apiError.FOLLOW_UP_NOT_YOURS': 'You can only change follow-ups on your own leads',
   'apiError.NOT_FOUND': 'That record no longer exists',
   'apiError.VALIDATION_ERROR': 'Some fields need your attention',
   'apiError.RATE_LIMITED': 'Too many requests. Please try again shortly.',
@@ -144,6 +148,7 @@ export const en = {
     'Opens your own private workspace with {count} leads and a full activity history. Change anything you like — nobody else sees it, and it is removed after a day.',
   'auth.demoStart': 'Start a demo',
   'auth.demoPreparing': 'Preparing your workspace…',
+  'auth.demoFailed': 'Could not open a demo workspace',
 
   'auth.brandEyebrow': 'Lead management',
   'auth.brandHeadline': 'Stop losing deals in a spreadsheet.',
@@ -160,17 +165,34 @@ export const en = {
   'landing.signIn': 'Sign in',
   'landing.startDemo': 'Start a demo',
   'landing.openWorkspace': 'Open your workspace',
+  'landing.openWorkspaceShort': 'Workspace',
 
   'landing.heroEyebrow': 'Lead management for service businesses',
   'landing.heroTitle': 'Every enquiry, followed up.',
   'landing.heroSubtitle':
-    'LeadPilot gives a small sales team one shared place to capture enquiries, assign them, chase them and close them — in English or Arabic, on any device.',
+    'Small teams rarely lose a deal to a better competitor. They lose it to a message nobody answered. LeadPilot is one shared place to capture every enquiry, give it an owner, and make sure somebody actually follows up.',
   'landing.heroNote': 'No card, no signup. The demo opens a private workspace with real data.',
+  'landing.trustBilingual': 'English and Arabic, properly',
+  'landing.trustNoCard': 'No card, no signup',
+  'landing.trustPrivate': 'A private workspace, yours alone',
 
   'landing.previewLabel': 'A pipeline board, one column per stage',
 
-  'landing.featuresTitle': 'What it does',
-  'landing.featuresSubtitle': 'Four things, done properly, instead of forty half-built ones.',
+  /* The problem, before the product. */
+  'landing.problemTitle': 'Deals rarely die loudly.',
+  'landing.problemSubtitle': 'They go quiet. Almost always in one of three places.',
+  'landing.problem1Title': 'The enquiry nobody owned',
+  'landing.problem1Body':
+    'It landed in a shared inbox on a Thursday. Two people each assumed the other had picked it up. By Monday the customer had booked somebody else.',
+  'landing.problem2Title': 'The follow-up nobody made',
+  'landing.problem2Body':
+    '“Call them next week” lives in someone’s head, a notebook, or a chat message that scrolled away. Next week arrives and nothing happens.',
+  'landing.problem3Title': 'The month nobody could explain',
+  'landing.problem3Body':
+    'The total was down and nobody could say which stage stalled, which source dried up, or how much longer deals were taking to close.',
+
+  'landing.featuresTitle': 'What it does about it',
+  'landing.featuresSubtitle': 'Six things, done properly, instead of forty half-built ones.',
 
   'landing.featurePipelineTitle': 'A pipeline everyone can see',
   'landing.featurePipelineBody':
@@ -183,7 +205,29 @@ export const en = {
     'Book the next touchpoint on a lead and it shows up as overdue, due today or due this week — so the deals that need a call are the ones you see first.',
   'landing.featureBilingualTitle': 'Genuinely bilingual',
   'landing.featureBilingualBody':
-    'Not translated strings in a left-to-right frame. Arabic mirrors the whole interface — navigation, tables, charts and drag-and-drop — with the dates, numbers and currency to match.',
+    'Not translated strings in a left-to-right frame. Arabic mirrors the whole interface — navigation, tables, charts and drag-and-drop — with the dates, numbers and plural rules to match.',
+  'landing.featureCurrencyTitle': 'Money in the currency you think in',
+  'landing.featureCurrencyBody':
+    'The workspace records deals in one currency; each person reads every figure in theirs, converted at today’s rate and labelled as converted. Nobody does arithmetic in their head during a meeting.',
+  'landing.featureOwnershipTitle': 'Everyone can see it, owners change it',
+  'landing.featureOwnershipBody':
+    'Reps read the whole pipeline and edit the leads that are theirs; managers edit anything. Nothing is hidden from the team, and nothing gets overwritten by accident.',
+
+  /* What it replaces — the honest comparison, against the tools people
+     genuinely use rather than against a strawman competitor. */
+  'landing.replaceTitle': 'What it replaces',
+  'landing.replaceSubtitle':
+    'Nothing here is exotic. It is the work your team already does, somewhere that remembers it.',
+  'landing.replaceBefore': 'Today',
+  'landing.replaceAfter': 'With LeadPilot',
+  'landing.replace1Before': 'A spreadsheet only one person edits confidently',
+  'landing.replace1After': 'A shared pipeline the whole team reads the same way',
+  'landing.replace2Before': 'Follow-ups split across a notebook and three chat threads',
+  'landing.replace2After': 'One overdue list, with whoever has waited longest at the top',
+  'landing.replace3Before': 'A monthly total nobody can break down',
+  'landing.replace3After': 'Conversion, sources and stage ageing, computed rather than guessed',
+  'landing.replace4Before': 'An English-only tool your Arabic-speaking team puts up with',
+  'landing.replace4After': 'A fully mirrored Arabic interface, not a translated one',
 
   'landing.howTitle': 'How it works',
   'landing.howStep1Title': 'Capture the enquiry',
@@ -195,6 +239,20 @@ export const en = {
   'landing.howStep3Title': 'Close and learn',
   'landing.howStep3Body':
     'Move it to Won, or to Lost with a reason. The dashboard turns both into something you can use.',
+
+  'landing.faqTitle': 'Questions people actually ask',
+  'landing.faq1Q': 'Do I have to install anything?',
+  'landing.faq1A':
+    'No. It runs in a browser, on a phone as readily as on a laptop, and the demo opens in a few seconds.',
+  'landing.faq2Q': 'Is the demo data really mine?',
+  'landing.faq2A':
+    'Yes. Starting a demo clones a fresh workspace for you alone. Nothing you change reaches anybody else, and the whole sandbox is deleted afterwards.',
+  'landing.faq3Q': 'Does Arabic genuinely work, or is it just translated?',
+  'landing.faq3A':
+    'The entire interface mirrors — navigation, tables, charts, drag-and-drop — with Arabic dates and its six plural forms. Switch it in the top corner and judge for yourself before signing up for anything.',
+  'landing.faq4Q': 'Can the whole team use it at once?',
+  'landing.faq4A':
+    'That is the point. Every lead has one owner, every change is on the record, and a rep sees the shared pipeline while editing only what is theirs.',
 
   'landing.ctaTitle': 'Have a look around first.',
   'landing.ctaBody':
@@ -552,8 +610,12 @@ export const en = {
   'dashboard.conversionOfClosed': '{rate}% of {closed} closed',
   'dashboard.leadsWithShare': '{count} ({share}%)',
 
+  'dashboard.figuresIn': 'Figures are in {currency}, the workspace currency.',
+  'dashboard.figuresConverted': 'Figures are in {currency}, converted from {base}.',
   'dashboard.footnote':
-    'Figures are in {currency}, the workspace currency. Pipeline and follow-up panels show the current state; everything else covers the selected period.',
+    'Pipeline and follow-up panels show the current state; everything else covers the selected period.',
+  'dashboard.stagesEmpty': 'No open leads',
+  'dashboard.stagesEmptyBody': 'Stage occupancy appears once there are deals still in play.',
 
   /* -------------------------------------------------------------- *
    * Team
@@ -565,7 +627,15 @@ export const en = {
   'team.activeAgo': 'Active {when}',
   'team.neverSignedIn': 'Never signed in',
   'team.footnote':
-    'Inviting new teammates and changing roles arrives with the admin settings in a later release.',
+    'Invitations are not built yet — a new member joins by creating an account against this workspace.',
+  'team.manage': 'Manage {name}',
+  'team.changeRole': 'Role',
+  'team.deactivate': 'Deactivate',
+  'team.reactivate': 'Reactivate',
+  'team.roleChanged': '{name} is now {role}',
+  'team.deactivated_action': '{name} was deactivated and signed out',
+  'team.reactivated': '{name} can sign in again',
+  'team.couldNotUpdate': 'Could not update that member',
 
   /* -------------------------------------------------------------- *
    * Enumerations returned by the API
@@ -672,11 +742,10 @@ export const en = {
    * -------------------------------------------------------------- */
   'followUp.inboxTitle': 'Follow-ups',
   'followUp.inboxDescription': 'Everything owed to a lead, soonest first.',
+  'followUp.itemLabel': 'follow-ups',
   'followUp.searchPlaceholder': 'Search follow-ups or customers…',
   'followUp.assigneeAll': 'Everyone',
   'followUp.assigneeMine': 'Assigned to me',
-  'followUp.countLabel_one': '{count} follow-up',
-  'followUp.countLabel_other': '{count} follow-ups',
 
   'bucket.overdue': 'Overdue',
   'bucket.today': 'Today',
@@ -711,19 +780,12 @@ export const en = {
   'followUp.outcome': 'Outcome (optional)',
   'followUp.outcomePlaceholder': 'Spoke to Layla — sending the revised quote on Monday.',
   'followUp.completeAction': 'Mark complete',
-  'followUp.cancelTitle': 'Cancel “{title}”?',
-  'followUp.cancelBody': 'It stays on the lead’s record as cancelled rather than disappearing.',
   'followUp.cancelAction': 'Cancel follow-up',
-  'followUp.keepIt': 'Keep it',
 
   'followUp.locked': 'Only the lead’s owner or a manager can change this',
-  'followUp.openLead': 'Open lead',
-  'followUp.forLead': 'For {name}',
   'followUp.assignedToLabel': 'Assigned to {name}',
-  'followUp.dueLabel': 'Due {when}',
   'followUp.wasCompletedBy': 'Completed {when}',
   'followUp.wasCancelledOn': 'Cancelled',
-  'followUp.actions': 'Follow-up actions',
 
   /* -------------------------------------------------------------- *
    * Settings
@@ -741,8 +803,6 @@ export const en = {
   'settings.emailHint': 'Sign-in email. Changing it is not supported yet.',
   'settings.fieldRole': 'Role',
   'settings.roleHint': 'Only a workspace owner can change roles, on the Team screen.',
-  'settings.preferencesTitle': 'Preferences',
-  'settings.preferencesBody': 'These follow your account, not this browser.',
   'settings.save': 'Save changes',
   'settings.saved': 'Saved',
   'settings.noChanges': 'Nothing to save',
@@ -755,16 +815,12 @@ export const en = {
   'settings.newPassword': 'New password',
   'settings.changePassword': 'Change password',
   'settings.passwordChanged': 'Password changed. Sign in again with your new one.',
-  'settings.couldNotChangePassword': 'Could not change your password',
 
   'settings.workspaceTitle': 'Workspace',
   'settings.workspaceBody': 'Settings everyone in {organization} shares.',
   'settings.fieldWorkspaceName': 'Workspace name',
   'settings.fieldSlug': 'Workspace address',
   'settings.slugHint': 'Set when the workspace was created, and fixed after that.',
-  'settings.defaultLocale': 'Default language',
-  'settings.defaultLocaleHint':
-    'The language a new team member starts in, before they choose their own.',
   'settings.createdOn': 'Created {date}',
   'settings.statMembers_one': '{count} member',
   'settings.statMembers_other': '{count} members',

@@ -135,6 +135,9 @@ export async function signup(input: SignupInput, context: SessionContext): Promi
       data: {
         name: input.organizationName,
         slug,
+        // The founder's language becomes the workspace's default, which is what
+        // a member invited later will start in.
+        ...(input.locale && { defaultLocale: input.locale }),
         stages: {
           create: DEFAULT_STAGE_PRESETS.map((preset) => ({
             key: preset.key,
@@ -155,6 +158,7 @@ export async function signup(input: SignupInput, context: SessionContext): Promi
         passwordHash,
         name: input.name,
         role: 'OWNER',
+        ...(input.locale && { locale: input.locale }),
         avatarColor: pickAvatarColor(input.email),
         lastLoginAt: new Date(),
       },

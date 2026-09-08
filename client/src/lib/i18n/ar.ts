@@ -158,6 +158,10 @@ export const ar: Dictionary = {
   'apiError.ACCOUNT_INACTIVE': 'لم يعد حسابك نشطًا',
   'apiError.CURRENT_PASSWORD_INCORRECT': 'كلمة المرور الحالية غير صحيحة',
   'apiError.EMAIL_TAKEN': 'يوجد حساب مسجَّل بهذا البريد الإلكتروني',
+  'apiError.OWNER_ONLY': 'لا يغيّر حساب المالك إلا مالك مساحة العمل',
+  'apiError.LAST_OWNER': 'لا بد أن يكون لمساحة العمل مالك دائمًا',
+  'apiError.CANNOT_DEACTIVATE_SELF': 'لا يمكنك إلغاء تنشيط حسابك',
+  'apiError.FOLLOW_UP_NOT_YOURS': 'لا تستطيع تغيير إلا متابعات عملائك',
   'apiError.FORBIDDEN': 'ليست لديك صلاحية القيام بذلك',
   'apiError.NOT_FOUND': 'لم يعد هذا السجل موجودًا',
   'apiError.VALIDATION_ERROR': 'بعض الحقول بحاجة إلى مراجعة',
@@ -204,6 +208,7 @@ export const ar: Dictionary = {
     'يفتح مساحة عمل خاصة بك تضم {count} عميلًا محتملًا وسجل نشاط كاملًا. غيّر ما تشاء — لا يراه أحد غيرك، وسيُحذف بعد يوم.',
   'auth.demoStart': 'ابدأ العرض التجريبي',
   'auth.demoPreparing': 'جارٍ تجهيز مساحة عملك…',
+  'auth.demoFailed': 'تعذّر فتح مساحة عمل تجريبية',
 
   'auth.brandEyebrow': 'إدارة العملاء المحتملين',
   'auth.brandHeadline': 'لا تدع الصفقات تضيع في جدول بيانات.',
@@ -220,17 +225,33 @@ export const ar: Dictionary = {
   'landing.signIn': 'تسجيل الدخول',
   'landing.startDemo': 'ابدأ العرض التجريبي',
   'landing.openWorkspace': 'افتح مساحة عملك',
+  'landing.openWorkspaceShort': 'مساحة العمل',
 
   'landing.heroEyebrow': 'إدارة العملاء المحتملين لشركات الخدمات',
   'landing.heroTitle': 'كل استفسار تتم متابعته.',
   'landing.heroSubtitle':
-    'يمنح ليدبايلوت فريق المبيعات الصغير مكانًا مشتركًا واحدًا لتسجيل الاستفسارات وإسنادها ومتابعتها وإغلاقها — بالعربية أو الإنجليزية، على أي جهاز.',
+    'نادرًا ما تخسر الفرق الصغيرة صفقة أمام منافس أفضل؛ إنما تخسرها بسبب رسالة لم يردّ عليها أحد. «ليدبايلوت» مكان واحد مشترك لتسجيل كل استفسار، وإسناده إلى مسؤول، والتأكد من أن أحدًا ما يتابعه فعلًا.',
   'landing.heroNote': 'دون بطاقة ودون تسجيل. يفتح العرض التجريبي مساحة عمل خاصة ببيانات حقيقية.',
+  'landing.trustBilingual': 'بالعربية والإنجليزية، كما ينبغي',
+  'landing.trustNoCard': 'دون بطاقة ودون تسجيل',
+  'landing.trustPrivate': 'مساحة عمل خاصة بك وحدك',
 
   'landing.previewLabel': 'لوحة مسار المبيعات، عمود لكل مرحلة',
 
-  'landing.featuresTitle': 'ماذا يقدّم',
-  'landing.featuresSubtitle': 'أربعة أشياء منجزة كما ينبغي، بدلًا من أربعين نصف منجزة.',
+  'landing.problemTitle': 'الصفقات لا تموت بضجيج.',
+  'landing.problemSubtitle': 'بل تخفت. وغالبًا في واحد من ثلاثة مواضع.',
+  'landing.problem1Title': 'استفسار بلا مسؤول',
+  'landing.problem1Body':
+    'وصل إلى بريد مشترك يوم الخميس، وظنّ كلٌّ من الاثنين أن الآخر تولّاه. وبحلول الإثنين كان العميل قد تعاقد مع غيركم.',
+  'landing.problem2Title': 'متابعة لم يقم بها أحد',
+  'landing.problem2Body':
+    '«نتصل بهم الأسبوع القادم» تبقى في ذهن أحدهم، أو في دفتر، أو في رسالة اختفت مع التمرير. ويأتي الأسبوع القادم ولا يحدث شيء.',
+  'landing.problem3Title': 'شهر لا أحد يفسّره',
+  'landing.problem3Body':
+    'انخفض الإجمالي ولم يستطع أحد تحديد المرحلة التي تعثّرت، ولا المصدر الذي نضب، ولا كم ازدادت مدة إغلاق الصفقة.',
+
+  'landing.featuresTitle': 'وماذا يفعل حيال ذلك',
+  'landing.featuresSubtitle': 'ستة أشياء منجزة كما ينبغي، بدلًا من أربعين نصف منجزة.',
 
   'landing.featurePipelineTitle': 'مسار مبيعات يراه الجميع',
   'landing.featurePipelineBody':
@@ -243,7 +264,28 @@ export const ar: Dictionary = {
     'احجز نقطة التواصل التالية على أي عميل، فتظهر متأخرة أو مستحقة اليوم أو خلال الأسبوع — لتكون الصفقات التي تحتاج اتصالًا أول ما تراه.',
   'landing.featureBilingualTitle': 'ثنائي اللغة فعلًا',
   'landing.featureBilingualBody':
-    'ليست مجرد نصوص مترجمة داخل واجهة من اليسار إلى اليمين. العربية تعكس الواجهة بالكامل — التنقل والجداول والرسوم البيانية والسحب والإفلات — مع التواريخ والأرقام والعملة المناسبة.',
+    'ليست نصوصًا مترجمة داخل إطار يعمل من اليسار إلى اليمين. العربية تعكس الواجهة بأكملها — التنقّل والجداول والرسوم والسحب والإفلات — بما يوافقها من تواريخ وأرقام وصيغ جمع.',
+
+  'landing.featureCurrencyTitle': 'المبالغ بالعملة التي تفكّر بها',
+  'landing.featureCurrencyBody':
+    'تسجّل مساحة العمل الصفقات بعملة واحدة، ويقرأ كل شخص الأرقام بعملته هو، محوَّلةً بسعر اليوم وموسومةً بأنها محوَّلة. فلا أحد يجري الحسابات في ذهنه أثناء اجتماع.',
+  'landing.featureOwnershipTitle': 'يراه الجميع، ويعدّله أصحابه',
+  'landing.featureOwnershipBody':
+    'يطّلع المندوبون على المسار كله ويعدّلون ما هو مسند إليهم، بينما يعدّل المديرون كل شيء. فلا شيء مخفيّ عن الفريق، ولا شيء يُطمس سهوًا.',
+
+  'landing.replaceTitle': 'ما الذي يحلّ محلّه',
+  'landing.replaceSubtitle':
+    'لا شيء هنا غريب. إنه العمل الذي يقوم به فريقك أصلًا، لكن في مكان يتذكّره.',
+  'landing.replaceBefore': 'اليوم',
+  'landing.replaceAfter': 'مع ليدبايلوت',
+  'landing.replace1Before': 'جدول لا يعدّله بثقة إلا شخص واحد',
+  'landing.replace1After': 'مسار مشترك يقرأه الفريق كله بالطريقة نفسها',
+  'landing.replace2Before': 'متابعات موزَّعة بين دفتر وثلاث محادثات',
+  'landing.replace2After': 'قائمة متأخرات واحدة، وفي صدارتها من طال انتظاره',
+  'landing.replace3Before': 'إجمالي شهريّ لا يستطيع أحد تفصيله',
+  'landing.replace3After': 'معدّل التحويل والمصادر وأعمار المراحل، محسوبةً لا مقدَّرة',
+  'landing.replace4Before': 'أداة بالإنجليزية وحدها يتحمّلها فريقك العربي',
+  'landing.replace4After': 'واجهة عربية معكوسة بالكامل، لا مجرّد ترجمة',
 
   'landing.howTitle': 'كيف يعمل',
   'landing.howStep1Title': 'سجّل الاستفسار',
@@ -253,6 +295,20 @@ export const ar: Dictionary = {
   'landing.howStep3Title': 'أغلِق وتعلَّم',
   'landing.howStep3Body':
     'انقله إلى «تم الفوز»، أو إلى «خسارة» مع ذكر السبب. ولوحة التحكم تحوّل كليهما إلى معلومة مفيدة.',
+
+  'landing.faqTitle': 'أسئلة تُطرح فعلًا',
+  'landing.faq1Q': 'هل عليّ تثبيت شيء؟',
+  'landing.faq1A':
+    'لا. يعمل في المتصفح، على الهاتف بقدر ما يعمل على الحاسوب، ويفتح العرض التجريبي خلال ثوانٍ.',
+  'landing.faq2Q': 'هل بيانات العرض التجريبي لي وحدي حقًّا؟',
+  'landing.faq2A':
+    'نعم. بدء العرض التجريبي ينسخ لك مساحة عمل جديدة خاصة بك وحدك. ولا يصل شيء مما تغيّره إلى أحد، وتُحذف المساحة كلها بعدها.',
+  'landing.faq3Q': 'هل تعمل العربية فعلًا أم أنها ترجمة فحسب؟',
+  'landing.faq3A':
+    'الواجهة كلها معكوسة — التنقّل والجداول والرسوم والسحب والإفلات — بتواريخ عربية وبصيغ الجمع الست. بدّل اللغة من الزاوية العليا واحكم بنفسك قبل أن تسجّل في أي شيء.',
+  'landing.faq4Q': 'هل يمكن للفريق كله استخدامه معًا؟',
+  'landing.faq4A':
+    'هذا هو المقصود. لكل عميل محتمل مسؤول واحد، وكل تغيير موثَّق، ويرى المندوب المسار المشترك بينما يعدّل ما يخصّه وحده.',
 
   'landing.ctaTitle': 'ألقِ نظرة أولًا.',
   'landing.ctaBody':
@@ -628,8 +684,12 @@ export const ar: Dictionary = {
   'dashboard.conversionOfClosed': '{rate}٪ من {closed} صفقة مغلقة',
   'dashboard.leadsWithShare': '{count} ({share}٪)',
 
+  'dashboard.figuresIn': 'المبالغ بعملة {currency}، عملة مساحة العمل.',
+  'dashboard.figuresConverted': 'المبالغ بعملة {currency}، محوَّلةً من {base}.',
   'dashboard.footnote':
-    'الأرقام معروضة بعملة مساحة العمل ({currency}). تعرض لوحتا المسار والمتابعات الحالة الراهنة، بينما يغطي ما عداهما الفترة المحددة.',
+    'تعرض لوحتا المسار والمتابعات الحالة الراهنة، أما بقية الأرقام فتغطي الفترة المختارة.',
+  'dashboard.stagesEmpty': 'لا عملاء محتملون قيد التفاوض',
+  'dashboard.stagesEmptyBody': 'يظهر توزيع المراحل بمجرد وجود صفقات ما زالت قائمة.',
 
   /* -------------------------------------------------------------- *
    * Team
@@ -640,7 +700,15 @@ export const ar: Dictionary = {
   'team.deactivated': 'معطّل',
   'team.activeAgo': 'نشِط {when}',
   'team.neverSignedIn': 'لم يسجّل الدخول قط',
-  'team.footnote': 'ستصل دعوة الأعضاء وتغيير الأدوار مع إعدادات المسؤول في إصدار لاحق.',
+  'team.footnote': 'الدعوات غير مبنيّة بعد — ينضم العضو الجديد بإنشاء حساب على مساحة العمل هذه.',
+  'team.manage': 'إدارة {name}',
+  'team.changeRole': 'الدور',
+  'team.deactivate': 'إلغاء التنشيط',
+  'team.reactivate': 'إعادة التنشيط',
+  'team.roleChanged': 'أصبح دور {name} الآن {role}',
+  'team.deactivated_action': 'أُلغي تنشيط {name} وأُنهيت جلساته',
+  'team.reactivated': 'يستطيع {name} تسجيل الدخول من جديد',
+  'team.couldNotUpdate': 'تعذّر تحديث بيانات هذا العضو',
 
   /* -------------------------------------------------------------- *
    * Enumerations
@@ -747,15 +815,10 @@ export const ar: Dictionary = {
    * -------------------------------------------------------------- */
   'followUp.inboxTitle': 'المتابعات',
   'followUp.inboxDescription': 'كل ما وعدت به عميلًا، الأقرب موعدًا أولًا.',
+  'followUp.itemLabel': 'متابعة',
   'followUp.searchPlaceholder': 'ابحث في المتابعات أو العملاء…',
   'followUp.assigneeAll': 'الجميع',
   'followUp.assigneeMine': 'المسندة إليّ',
-  'followUp.countLabel_zero': 'لا توجد متابعات',
-  'followUp.countLabel_one': 'متابعة واحدة',
-  'followUp.countLabel_two': 'متابعتان',
-  'followUp.countLabel_few': '{count} متابعات',
-  'followUp.countLabel_many': '{count} متابعة',
-  'followUp.countLabel_other': '{count} متابعة',
 
   'bucket.overdue': 'متأخرة',
   'bucket.today': 'اليوم',
@@ -789,19 +852,12 @@ export const ar: Dictionary = {
   'followUp.outcome': 'النتيجة (اختياري)',
   'followUp.outcomePlaceholder': 'تحدثت مع ليلى — سأرسل العرض المعدّل يوم الاثنين.',
   'followUp.completeAction': 'تعليمها كمنتهية',
-  'followUp.cancelTitle': 'إلغاء «{title}»؟',
-  'followUp.cancelBody': 'تبقى في سجل العميل بوصفها ملغاة بدلًا من أن تختفي.',
   'followUp.cancelAction': 'إلغاء المتابعة',
-  'followUp.keepIt': 'الإبقاء عليها',
 
   'followUp.locked': 'لا يغيّرها إلا صاحب العميل أو مدير',
-  'followUp.openLead': 'فتح العميل',
-  'followUp.forLead': 'لـ{name}',
   'followUp.assignedToLabel': 'مسندة إلى {name}',
-  'followUp.dueLabel': 'مستحقة {when}',
   'followUp.wasCompletedBy': 'انتهت {when}',
   'followUp.wasCancelledOn': 'ملغاة',
-  'followUp.actions': 'إجراءات المتابعة',
 
   /* -------------------------------------------------------------- *
    * الإعدادات
@@ -819,8 +875,6 @@ export const ar: Dictionary = {
   'settings.emailHint': 'بريد تسجيل الدخول. تغييره غير متاح بعد.',
   'settings.fieldRole': 'الدور',
   'settings.roleHint': 'لا يغيّر الأدوار إلا مالك مساحة العمل، من شاشة الفريق.',
-  'settings.preferencesTitle': 'التفضيلات',
-  'settings.preferencesBody': 'تتبع حسابك، لا هذا المتصفح.',
   'settings.save': 'حفظ التغييرات',
   'settings.saved': 'تم الحفظ',
   'settings.noChanges': 'لا جديد لحفظه',
@@ -833,15 +887,12 @@ export const ar: Dictionary = {
   'settings.newPassword': 'كلمة المرور الجديدة',
   'settings.changePassword': 'تغيير كلمة المرور',
   'settings.passwordChanged': 'تم تغيير كلمة المرور. سجّل الدخول بكلمتك الجديدة.',
-  'settings.couldNotChangePassword': 'تعذّر تغيير كلمة المرور',
 
   'settings.workspaceTitle': 'مساحة العمل',
   'settings.workspaceBody': 'إعدادات يشترك فيها كل من في {organization}.',
   'settings.fieldWorkspaceName': 'اسم مساحة العمل',
   'settings.fieldSlug': 'عنوان مساحة العمل',
   'settings.slugHint': 'يُحدَّد عند إنشاء مساحة العمل ولا يتغيّر بعدها.',
-  'settings.defaultLocale': 'اللغة الافتراضية',
-  'settings.defaultLocaleHint': 'اللغة التي يبدأ بها عضو جديد قبل أن يختار لغته.',
   'settings.createdOn': 'أُنشئت في {date}',
   'settings.statMembers_zero': 'لا أعضاء',
   'settings.statMembers_one': 'عضو واحد',

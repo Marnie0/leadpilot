@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { LOCALES, type Locale, type OrganizationSettingsDto } from '@leadpilot/shared';
+import type { OrganizationSettingsDto } from '@leadpilot/shared';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -13,19 +13,17 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useUpdateOrganization } from '@/features/settings/api';
 import { useFormat, useT } from '@/lib/i18n';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 
 /**
- * Workspace name and default language.
+ * Workspace name, address and headline counts.
+ *
+ * The organisation's default language lives in the schema and is set at sign-up
+ * from the founder's own, but it is not offered here: nothing reads it until
+ * there is an invite flow to apply it to, and a control that changes a value
+ * with no consumer is worse than no control.
  *
  * Visible to everybody, editable by managers. A rep who cannot see the
  * workspace's settings cannot tell whether the figures they are reading are in
@@ -45,13 +43,9 @@ export function WorkspaceCard({
   const updateOrganization = useUpdateOrganization();
 
   const [name, setName] = useState(organization.name);
-  const [defaultLocale, setDefaultLocale] = useState<Locale>(organization.defaultLocale);
 
   const trimmedName = name.trim();
-  const patch = {
-    ...(trimmedName !== organization.name && { name: trimmedName }),
-    ...(defaultLocale !== organization.defaultLocale && { defaultLocale }),
-  };
+  const patch = { ...(trimmedName !== organization.name && { name: trimmedName }) };
   const isDirty = Object.keys(patch).length > 0;
 
   const onSubmit = (event: React.FormEvent) => {
@@ -100,27 +94,6 @@ export function WorkspaceCard({
             <Label htmlFor="workspace-slug">{t('settings.fieldSlug')}</Label>
             <Input id="workspace-slug" value={organization.slug} disabled dir="ltr" />
             <p className="text-xs text-muted-foreground">{t('settings.slugHint')}</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="workspace-locale">{t('settings.defaultLocale')}</Label>
-            <Select
-              value={defaultLocale}
-              disabled={!canEdit}
-              onValueChange={(value) => setDefaultLocale(value as Locale)}
-            >
-              <SelectTrigger id="workspace-locale" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LOCALES.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {t(`language.${option}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">{t('settings.defaultLocaleHint')}</p>
           </div>
 
           <div className="space-y-2 sm:col-span-2">

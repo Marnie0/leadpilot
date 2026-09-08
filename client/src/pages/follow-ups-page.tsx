@@ -214,7 +214,7 @@ export function FollowUpsPage() {
                 meta={listQuery.data.meta}
                 onPageChange={(page) => setFilters({ page })}
                 onPageSizeChange={(pageSize) => setFilters({ pageSize, page: 1 })}
-                itemLabel={t('followUp.inboxTitle').toLocaleLowerCase()}
+                itemLabel={t('followUp.itemLabel')}
               />
             )}
           </>

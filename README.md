@@ -24,17 +24,18 @@ move opportunities through a shared pipeline: **New → Contacted → Qualified 
 
 ## Status
 
-**Phases 1 to 3 — complete.** Auth, the full data model, the leads table with bulk actions, the
+**Phases 1 to 4 — complete.** Auth, the full data model, the leads table with bulk actions, the
 lead detail view with activity timeline and follow-ups, a drag-and-drop pipeline board, a business
-dashboard built on real aggregates, a public landing page, and the whole product in English or
-Arabic with a mirrored right-to-left layout and a light/dark theme.
+dashboard built on real aggregates, a follow-up inbox, per-reader currency display with FX
+conversion, profile and workspace settings, a marketing landing page, and the whole product in
+English or Arabic with a mirrored right-to-left layout and a light/dark theme.
 
 | Phase | Scope                                                                     | State   |
 | ----- | ------------------------------------------------------------------------- | ------- |
 | 1     | Setup · auth · data model · leads table · lead detail · seed data         | ✅ Done |
 | 2     | Drag-and-drop pipeline board · dashboard with charts                      | ✅ Done |
 | 3     | Landing page · EN/AR with full RTL · light and dark themes · bulk actions | ✅ Done |
-| 4     | Follow-up management · polish                                             | Planned |
+| 4     | Follow-up inbox · display currency · settings · marketing page            | ✅ Done |
 | 5     | AI lead assistant (stretch)                                               | Planned |
 
 ---
@@ -359,6 +360,29 @@ selectable and then quietly dropped server-side.
 
 ---
 
+## The follow-up inbox
+
+`/follow-ups` is organised by **when**, not by lead: the question it answers is "what do I owe
+somebody today", and that cuts across the pipeline. Grouping by lead would rebuild the leads table
+with worse sorting.
+
+Five buckets — overdue, today, next 7 days, later, done — are computed **on the server**, in
+`bucketWhere()`. The client could do the date arithmetic itself, but then the tab reading "3
+overdue" and the list it opens would be drawn by two different clocks, and they disagree for
+anybody whose machine is a few minutes out. The counts for all five come back in one batched
+transaction so the strip always adds up.
+
+Completing a follow-up asks what happened and writes it to the lead's timeline. That is the whole
+point of the prompt: this is the one moment somebody knows the answer, and "left a voicemail,
+trying again Thursday" written nowhere means the next person to open that lead starts from scratch.
+
+Write access is `canMutateFollowUp`, which is deliberately **wider** than the task's own
+assignment. A rep may act on a follow-up booked for a colleague when the lead is theirs, and on one
+booked for them when the lead is not — because the person working the lead is the person who finds
+out whether the call happened. Anything narrower produces the case where the only person who knows
+cannot say so. `canEdit` ships on the DTO so the UI disables the buttons rather than letting
+somebody discover the rule by being refused.
+
 ## The dashboard
 
 Every figure is aggregated in Postgres — nine queries in two batches — rather than by loading leads
@@ -464,6 +488,31 @@ nicety. It is one constant in `locale-provider.tsx` if a workspace disagrees.
 
 Stage names come from the database (`PipelineStage.name` / `nameAr`), not the dictionary, because
 a workspace can rename "Proposal" to "Quote sent" — they are tenant data, not UI copy.
+
+### Two currencies, and why only one of them is real
+
+A workspace has a **base currency**. Every lead's `estimatedValue` is stored in it, and the API
+refuses a per-lead currency (`createLeadSchema` says so in a comment) — which is exactly what lets
+every pipeline total be a plain `SUM()` rather than a fold over mixed units.
+
+On top of that, each person picks a **display currency**. That is a reading preference and nothing
+more: the conversion happens in `useMoney()` at render time, no stored amount is ever written back
+converted, and two people looking at the same workspace in different currencies are looking at the
+same data. Any screen showing converted figures carries a `<ConversionNote />` saying what it was
+converted from and how old the rate is — a converted number that does not admit it is worse than
+no conversion at all.
+
+Rates come from `open.er-api.com` (free, no key, daily), cached in a Postgres table, with a table
+compiled into the build behind that. The response says which tier answered — `live`, `cache` or
+`fallback` — and the UI labels a fallback as indicative. There is no scheduled refresh job: rates
+refresh lazily on the first request after they go stale, which on serverless is the only kind of
+schedule that actually runs.
+
+The one place the two layers meet is an owner changing the base currency. That genuinely restates
+every stored amount, in one statement, inside a transaction, and the confirmation quotes the lead
+count, the rate and what the pipeline total becomes before it will proceed. The alternatives are
+worse: relabelling turns 250,000 AED into 250,000 USD, and converting only new leads leaves two
+currencies in one column — the same broken sum with a longer fuse.
 
 ### Arabic is not in the main bundle
 
@@ -722,30 +771,37 @@ filter on them without a correlated subquery per row. They are maintained in exa
 
 All routes are under `/api` and all except the first three require authentication.
 
-| Method           | Route                                          | Purpose                                                      |
-| ---------------- | ---------------------------------------------- | ------------------------------------------------------------ |
-| `POST`           | `/auth/signup`                                 | Create an organisation and its owner                         |
-| `POST`           | `/auth/demo`                                   | Clone the demo template into a private sandbox and sign in   |
-| `POST`           | `/auth/login`                                  | Sign in                                                      |
-| `POST`           | `/auth/refresh`                                | Rotate the session                                           |
-| `POST`           | `/auth/logout`                                 | Revoke this session                                          |
-| `GET`/`PATCH`    | `/auth/me`                                     | Current user; `PATCH` accepts `name` and `locale`            |
-| `POST`           | `/auth/change-password`                        | Revokes all sessions                                         |
-| `GET`            | `/stages`                                      | The organisation's pipeline stages                           |
-| `GET`            | `/team` · `PATCH /team/:id`                    | Members (edit is owner/admin only)                           |
-| `GET`            | `/leads`                                       | List — search, filter, sort, paginate                        |
-| `GET`            | `/leads/stats`                                 | Aggregates over the _filtered_ set                           |
-| `POST`           | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id` | CRUD                                                         |
-| `POST`           | `/leads/bulk/{archive,restore,stage,assign}`   | Bulk actions; returns `{ updated, unchanged, notPermitted }` |
-| `POST`           | `/leads/:id/stage` · `/leads/:id/assign`       | Audited stage move and reassignment                          |
-| `POST`           | `/leads/:id/board-position`                    | Drag-and-drop: stage **and** rank within the column          |
-| `GET`            | `/board?limit=`                                | Every stage with its cards, plus per-stage totals and value  |
-| `GET`            | `/dashboard?range=30d\|90d\|12m`               | Every dashboard figure, aggregated in Postgres               |
-| `GET`/`POST`     | `/leads/:id/activities`                        | Timeline                                                     |
-| `PATCH`/`DELETE` | `/activities/:id`                              | Edit or remove your own note                                 |
-| `GET`/`POST`     | `/leads/:id/follow-ups`                        | Follow-ups for a lead                                        |
-| `GET`            | `/follow-ups`                                  | Organisation-wide task list                                  |
-| `POST`           | `/follow-ups/:id/complete` · `/cancel`         | Complete or cancel                                           |
+| Method           | Route                                          | Purpose                                                         |
+| ---------------- | ---------------------------------------------- | --------------------------------------------------------------- |
+| `POST`           | `/auth/signup`                                 | Create an organisation and its owner                            |
+| `POST`           | `/auth/demo`                                   | Clone the demo template into a private sandbox and sign in      |
+| `POST`           | `/auth/login`                                  | Sign in                                                         |
+| `POST`           | `/auth/refresh`                                | Rotate the session                                              |
+| `POST`           | `/auth/logout`                                 | Revoke this session                                             |
+| `GET`/`PATCH`    | `/auth/me`                                     | Current user; `PATCH` takes `name`, `locale`, `displayCurrency` |
+| `POST`           | `/auth/change-password`                        | Revokes all sessions                                            |
+| `GET`            | `/stages`                                      | The organisation's pipeline stages                              |
+| `GET`            | `/team` · `PATCH /team/:id`                    | Members (edit is owner/admin only)                              |
+| `GET`            | `/leads`                                       | List — search, filter, sort, paginate                           |
+| `GET`            | `/leads/stats`                                 | Aggregates over the _filtered_ set                              |
+| `POST`           | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id` | CRUD                                                            |
+| `POST`           | `/leads/bulk/{archive,restore,stage,assign}`   | Bulk actions; returns `{ updated, unchanged, notPermitted }`    |
+| `POST`           | `/leads/:id/stage` · `/leads/:id/assign`       | Audited stage move and reassignment                             |
+| `POST`           | `/leads/:id/board-position`                    | Drag-and-drop: stage **and** rank within the column             |
+| `GET`            | `/board?limit=`                                | Every stage with its cards, plus per-stage totals and value     |
+| `GET`            | `/dashboard?range=30d\|90d\|12m`               | Every dashboard figure, aggregated in Postgres                  |
+| `GET`/`POST`     | `/leads/:id/activities`                        | Timeline                                                        |
+| `PATCH`/`DELETE` | `/activities/:id`                              | Edit or remove your own note                                    |
+| `GET`/`POST`     | `/leads/:id/follow-ups`                        | Follow-ups for a lead                                           |
+| `GET`            | `/follow-ups`                                  | The inbox — bucket, search, assignee, paging                    |
+| `GET`            | `/follow-ups/counts`                           | Per-bucket counts under the same filters                        |
+| `POST`           | `/follow-ups/:id/complete` · `/cancel`         | Complete or cancel                                              |
+| `POST`           | `/follow-ups/:id/reschedule`                   | Move the due date                                               |
+| `PATCH`/`DELETE` | `/follow-ups/:id`                              | Edit or remove one                                              |
+| `GET`            | `/fx/rates`                                    | Reference rates, `live` \| `cache` \| `fallback`                |
+| `GET`/`PATCH`    | `/settings/organization`                       | Workspace settings (edit is owner/admin only)                   |
+| `GET`            | `/settings/currency/preview?currency=`         | What a base-currency change would restate — owner only          |
+| `POST`           | `/settings/currency`                           | Restate every stored amount — owner only, `confirm: true`       |
 
 ---
 

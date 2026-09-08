@@ -221,7 +221,7 @@ async function getWritableFollowUp(actor: Actor, followUpId: string) {
   });
   if (!followUp) throw notFound('Follow-up');
   if (!canMutateFollowUp(actor, followUp)) {
-    throw forbidden('You can only change follow-ups on your own leads');
+    throw forbidden('You can only change follow-ups on your own leads', 'FOLLOW_UP_NOT_YOURS');
   }
   return followUp;
 }

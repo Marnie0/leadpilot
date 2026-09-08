@@ -11,11 +11,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useT } from '@/lib/i18n';
+import { useI18n } from '@/lib/i18n';
 import { useLocalizedResolver } from '@/lib/i18n/zod-resolver';
 
 export function SignupPage() {
-  const t = useT();
+  const { t, locale } = useI18n();
   const { signup } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -38,7 +38,9 @@ export function SignupPage() {
     try {
       // `confirmPassword` is a client-only field; the API never sees it.
       const { confirmPassword: _confirmPassword, ...payload } = values;
-      await signup(payload);
+      // The account is created in the language this form was filled in, so the
+      // interface does not flip the moment the session loads.
+      await signup({ ...payload, locale });
       navigate('/leads', { replace: true });
     } catch (error) {
       handleError(error);

@@ -268,7 +268,18 @@ export function DashboardPage() {
       {data && (
         <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
           <CalendarClock className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          {t('dashboard.footnote', { currency })}
+          <span>
+            {/* The currency clause is assembled rather than baked into one
+                string: "in AED, the workspace currency" is a lie the moment a
+                reader picks a display currency of their own. */}
+            {money.isConverted
+              ? t('dashboard.figuresConverted', {
+                  currency: money.displayCurrency,
+                  base: money.baseCurrency,
+                })
+              : t('dashboard.figuresIn', { currency: money.displayCurrency })}{' '}
+            {t('dashboard.footnote')}
+          </span>
         </p>
       )}
     </div>

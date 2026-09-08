@@ -1,4 +1,5 @@
 import { Users2 } from 'lucide-react';
+import { MANAGER_ROLES } from '@leadpilot/shared';
 import { PageHeader } from '@/components/layout/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,7 @@ import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useTeamMembers } from '@/features/leads/api';
+import { MemberActions } from '@/features/team/components/member-actions';
 import { initials } from '@/lib/format';
 import { useFormat, useT } from '@/lib/i18n';
 
@@ -23,6 +25,7 @@ export function TeamPage() {
   const user = useCurrentUser();
   const teamQuery = useTeamMembers();
   const members = teamQuery.data ?? [];
+  const isManager = MANAGER_ROLES.includes(user.role);
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -78,11 +81,15 @@ export function TeamPage() {
                   <Badge variant={ROLE_VARIANTS[member.role]}>{t(`role.${member.role}`)}</Badge>
                 </div>
 
-                <p className="w-full text-xs text-muted-foreground sm:w-auto sm:min-w-[140px] sm:text-end">
+                <p className="flex-1 text-xs text-muted-foreground sm:min-w-[140px] sm:flex-none sm:text-end">
                   {member.lastLoginAt
                     ? t('team.activeAgo', { when: format.relative(member.lastLoginAt) })
                     : t('team.neverSignedIn')}
                 </p>
+
+                {isManager && (
+                  <MemberActions member={member} viewerId={user.id} viewerRole={user.role} />
+                )}
               </li>
             ))}
           </ul>

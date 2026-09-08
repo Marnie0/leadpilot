@@ -4,6 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { BoardColumnDto, PipelineStageDto, StageKey } from '@leadpilot/shared';
 import { ArrowUpRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { stageName } from '@/lib/labels';
 import { useFormat, useI18n } from '@/lib/i18n';
 import { useMoney } from '@/lib/money';
@@ -130,6 +131,32 @@ export function BoardColumn({
               </Link>
             </Button>
           ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * A column before the board has answered.
+ *
+ * The board's own column skeletons only appear once the response defines which
+ * columns exist, which left the whole board area blank on a cold load — the one
+ * screen in the app with nothing to look at while it waited. These stand in
+ * from the first paint, using the stage list the client already knows.
+ */
+export function BoardColumnSkeleton({ cards }: { cards: number }) {
+  return (
+    <section className="flex w-[280px] shrink-0 snap-start flex-col sm:w-[300px]" aria-hidden>
+      <header className="mb-2 flex items-center gap-2 px-1">
+        <Skeleton className="size-2.5 shrink-0 rounded-full" />
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-4 w-7 rounded-full" />
+        <Skeleton className="ms-auto h-4 w-14" />
+      </header>
+      <div className="flex min-h-[140px] flex-1 flex-col gap-2 rounded-xl bg-muted/40 p-2">
+        {Array.from({ length: cards }, (_, index) => (
+          <BoardCardSkeleton key={index} />
+        ))}
       </div>
     </section>
   );

@@ -36,6 +36,15 @@ export const signupSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   organizationName: requiredTrimmed('field.companyName', 80, 2),
+  /**
+   * The language the sign-up form was read in.
+   *
+   * Optional, because it is a courtesy rather than a credential. Without it a
+   * visitor who arrived with an Arabic browser gets an account recorded as
+   * English, and the interface flips out from under them the moment the session
+   * loads — having just been filled in, in Arabic.
+   */
+  locale: z.enum(LOCALES).optional(),
 });
 export type SignupInput = z.infer<typeof signupSchema>;
 

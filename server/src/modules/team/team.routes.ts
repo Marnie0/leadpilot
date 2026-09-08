@@ -62,16 +62,18 @@ teamRouter.patch(
     // The owner is the account of last resort: only an owner may change an
     // owner, and nobody may lock themselves out of their own workspace.
     if (target.role === 'OWNER' && auth.role !== 'OWNER') {
-      throw forbidden('Only the workspace owner can change the owner account');
+      throw forbidden('Only the workspace owner can change the owner account', 'OWNER_ONLY');
     }
     if (target.id === auth.userId && body.isActive === false) {
-      throw badRequest('You cannot deactivate your own account');
+      throw badRequest('You cannot deactivate your own account', 'CANNOT_DEACTIVATE_SELF');
     }
     if (target.role === 'OWNER' && body.role !== undefined && body.role !== 'OWNER') {
       const otherOwners = await prisma.user.count({
         where: { organizationId: auth.organizationId, role: 'OWNER', id: { not: target.id } },
       });
-      if (otherOwners === 0) throw badRequest('A workspace must always have an owner');
+      if (otherOwners === 0) {
+        throw badRequest('A workspace must always have an owner', 'LAST_OWNER');
+      }
     }
 
     const updated = await prisma.user.update({

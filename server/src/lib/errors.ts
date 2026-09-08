@@ -26,8 +26,17 @@ export class AppError extends Error {
   }
 }
 
-export const badRequest = (message: string, details?: Record<string, string[]>) =>
-  new AppError(400, 'BAD_REQUEST', message, { details });
+/**
+ * `code` follows the same convention as the helpers below: the generic one is
+ * enough for a guard the UI already prevents, and a specific one is worth
+ * adding when the browser has to say something particular about *this* failure
+ * — because the client translates by code, not by matching English prose.
+ */
+export const badRequest = (
+  message: string,
+  code = 'BAD_REQUEST',
+  details?: Record<string, string[]>,
+) => new AppError(400, code, message, { details });
 
 export const validationError = (details: Record<string, string[]>) =>
   new AppError(422, 'VALIDATION_ERROR', 'Some fields need your attention', { details });
