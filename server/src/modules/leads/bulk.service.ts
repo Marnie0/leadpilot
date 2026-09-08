@@ -54,13 +54,18 @@ const SELECT = {
 /**
  * Splits the leftovers into the two answers the UI needs to tell apart.
  *
- * `notPermitted` is counted from the rows that were loaded *and* did need the
- * change — anything missing, archived or already in the requested state falls
- * into `unchanged`, which is the harmless bucket.
+ * `notPermitted` carries ids, not a count, so the caller can point at the rows
+ * it refused. It is collected from the leads that were loaded *and* did need
+ * the change — anything missing, archived or already in the requested state
+ * falls into `unchanged`, which is the harmless bucket and needs no names.
  */
-const outcome = (updated: number, requested: number, notPermitted = 0): BulkLeadResultDto => ({
+const outcome = (
+  updated: number,
+  requested: number,
+  notPermitted: string[] = [],
+): BulkLeadResultDto => ({
   updated,
-  unchanged: requested - updated - notPermitted,
+  unchanged: requested - updated - notPermitted.length,
   notPermitted,
 });
 
@@ -108,7 +113,9 @@ export async function bulkMoveStage(
   // timeline would be a lie, and it would reset its closing date.
   const needsMove = leads.filter((lead) => lead.stageId !== stage.id);
   const movable = needsMove.filter((lead) => canMutateLead(actor, lead));
-  const notPermitted = needsMove.length - movable.length;
+  const notPermitted = needsMove
+    .filter((lead) => !canMutateLead(actor, lead))
+    .map((lead) => lead.id);
 
   if (movable.length === 0) return outcome(0, input.ids.length, notPermitted);
 
@@ -172,7 +179,9 @@ export async function bulkAssign(actor: Actor, input: BulkAssignInput): Promise<
 
   const needsChange = leads.filter((lead) => lead.assignedToId !== input.assignedToId);
   const changeable = needsChange.filter((lead) => canMutateLead(actor, lead));
-  const notPermitted = needsChange.length - changeable.length;
+  const notPermitted = needsChange
+    .filter((lead) => !canMutateLead(actor, lead))
+    .map((lead) => lead.id);
 
   if (changeable.length === 0) return outcome(0, input.ids.length, notPermitted);
 

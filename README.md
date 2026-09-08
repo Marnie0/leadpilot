@@ -338,12 +338,19 @@ the table is showing, so it can contain leads the caller may not touch, or ones 
 requested state. The result separates them:
 
 ```jsonc
-{ "updated": 12, "unchanged": 2, "notPermitted": 1 }
+{ "updated": 12, "unchanged": 2, "notPermitted": ["cm…7a", "cm…c1"] }
 ```
 
 Reporting a single `skipped` count was worse than useless — the UI had to guess why, and it told
-an owner they could "only change leads assigned to you", which is not true of an owner. Only
-`notPermitted` is worth a line under the toast.
+an owner they could "only change leads assigned to you", which is not true of an owner.
+
+`notPermitted` carries **ids, not a count**, because "3 skipped" is not an answer to "which
+three?". Those rows stay selected after the action while everything else clears, so the refusal is
+visible on the table rather than only in a toast that disappears. It is reachable when a lead is
+reassigned between the browser listing it and the action being sent — the list carries `canEdit`
+per row, so a stale cache is the ordinary way a client asks for something it can no longer do. For
+the same reason the selection prunes on _presence_ rather than editability: a row that stops being
+yours mid-selection is exactly the one you need to keep seeing.
 
 **Selection is page-scoped and permission-scoped.** It clears when the filters or the page change,
 because carrying ids across pages ends with you archiving thirty leads having looked at ten. Rows

@@ -173,7 +173,7 @@ export function LeadsPage() {
           members={teamQuery.data ?? []}
           canArchive={canArchive}
           viewingArchived={Boolean(filters.archived)}
-          onDone={selection.clear}
+          onDone={selection.retain}
           onClear={selection.clear}
         />
       )}

@@ -143,8 +143,17 @@ export interface BulkLeadResultDto {
   updated: number;
   /** Already in the requested state, archived, or no longer there. */
   unchanged: number;
-  /** Present and different, but not the caller's to change. */
-  notPermitted: number;
+  /**
+   * Ids that were present and needed the change, but were not the caller's to
+   * make. Ids rather than a count so the UI can keep exactly those rows
+   * selected — "3 skipped" is not an answer to "which three?", and clearing the
+   * selection threw away the only record of it.
+   *
+   * Reachable when a lead is reassigned between the browser listing it and the
+   * action being sent: the list carries `canEdit` per row, so a stale cache is
+   * the usual way a caller asks for something it can no longer do.
+   */
+  notPermitted: string[];
 }
 
 export const LEAD_SORT_FIELDS = [

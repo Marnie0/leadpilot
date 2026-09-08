@@ -255,7 +255,14 @@ export function LeadsTable({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className="inline-flex">
-                        <Checkbox disabled aria-label={t('bulk.locked')} />
+                        {/* Still shows its state: a row can be selected and
+                            then stop being yours to edit, and that is exactly
+                            the row a bulk action reports back as refused. */}
+                        <Checkbox
+                          disabled
+                          checked={selection.isSelected(lead.id)}
+                          aria-label={t('bulk.locked')}
+                        />
                       </span>
                     </TooltipTrigger>
                     <TooltipContent>{t('bulk.locked')}</TooltipContent>

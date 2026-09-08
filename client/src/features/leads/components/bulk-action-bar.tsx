@@ -57,7 +57,8 @@ export function BulkActionBar({
   members: TeamMemberDetail[];
   canArchive: boolean;
   viewingArchived: boolean;
-  onDone: () => void;
+  /** Called with the ids to keep selected — empty clears the selection. */
+  onDone: (keepSelected: string[]) => void;
   onClear: () => void;
 }) {
   const { t, locale } = useI18n();
@@ -78,32 +79,41 @@ export function BulkActionBar({
   /**
    * Reports what the server actually did.
    *
-   * A bulk action can partly apply, and the two reasons for that are different
-   * answers: "these were not yours to change" is worth knowing about, "these
-   * were already like that" is not really. Only the first is worth a line under
-   * the toast — reporting both as one "skipped" count told an owner they could
-   * only edit their own leads, which is not true of an owner.
+   * A bulk action can partly apply, and the two reasons are different answers.
+   * "These were not yours to change" is worth acting on, and those rows stay
+   * selected so the user can see which they were. "These were already like
+   * that" needs no action, but it does need saying: selecting ten and being
+   * told seven were updated, with nothing about the other three, reads as a
+   * failure rather than as three rows that were already correct.
    */
   const report = (result: BulkLeadResultDto) => {
+    const refused = result.notPermitted.length;
+
     if (result.updated === 0) {
-      toast.info(result.notPermitted > 0 ? t('bulk.noneAllowed') : t('bulk.nothingToDo'));
+      toast.info(refused > 0 ? t('bulk.noneAllowed') : t('bulk.nothingToDo'));
       return;
     }
+
+    const detail = refused
+      ? t('bulk.notPermitted', { count: format.number(refused) })
+      : result.unchanged
+        ? t('bulk.alreadyDone', { count: format.number(result.unchanged) })
+        : null;
+
     toast.success(t('bulk.updated', { count: result.updated }), {
-      ...(result.notPermitted > 0 && {
-        description: t('bulk.notPermitted', { count: format.number(result.notPermitted) }),
-      }),
+      ...(detail && { description: detail }),
     });
   };
 
   const fail = (error: unknown) =>
     toast.error(t('bulk.failed'), { description: describeError(error) });
 
-  /** Shared callbacks, so every action reports and clears the same way. */
+  /** Shared callbacks, so every action reports and settles the same way. */
   const handlers = {
     onSuccess: (result: BulkLeadResultDto) => {
       report(result);
-      onDone();
+      // Rows the server refused stay selected; everything else clears.
+      onDone(result.notPermitted);
     },
     onError: fail,
   };
