@@ -45,8 +45,25 @@ export function LeadsPage() {
 
   // Selection is scoped to what is on screen, so it resets whenever the query
   // behind the table does — see `useLeadSelection` for why that is deliberate.
-  const selection = useLeadSelection(leads, filters);
+  /** Owners and admins only — the API enforces it, this just hides affordances. */
   const canArchive = user.role === 'OWNER' || user.role === 'ADMIN';
+
+  /*
+   * What can be picked depends on where you are.
+   *
+   * In the working lists it is the rows you may edit. In the trash nothing is
+   * editable at all — the only thing on offer there is restoring, which is a
+   * manager's action on any row, so a rep gets no checkboxes rather than
+   * checkboxes leading to an empty action bar.
+   *
+   * `canArchive` has to be declared above this: the predicate is called inside
+   * `useLeadSelection`'s memo during the same render, so reading it from below
+   * would hit the temporal dead zone — legal to the compiler, a ReferenceError
+   * at run time.
+   */
+  const selection = useLeadSelection(leads, filters, (lead) =>
+    filters.view === 'trash' ? canArchive : lead.canEdit,
+  );
 
   /** Clicking the active sort column flips direction; a new column starts descending. */
   const handleSort = (field: LeadSortField) => {
@@ -178,7 +195,9 @@ export function LeadsPage() {
                     lead={lead}
                     selected={selection.isSelected(lead.id)}
                     selectionActive={selection.isActive}
-                    {...(lead.canEdit && { onToggleSelected: () => selection.toggle(lead.id) })}
+                    {...(selection.isSelectable(lead.id) && {
+                      onToggleSelected: () => selection.toggle(lead.id),
+                    })}
                   />
                 ))}
             {meta && (

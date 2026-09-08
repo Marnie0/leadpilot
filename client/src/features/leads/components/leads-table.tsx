@@ -148,7 +148,7 @@ export function LeadsTable({
       // A locked row cannot join the selection, and navigating away from it
       // would throw away everything picked so far. Doing nothing is the least
       // surprising answer; the checkbox tooltip says why.
-      if (!lead.canEdit) return;
+      if (!selection.isSelectable(lead.id)) return;
       selectRow(lead.id, event.shiftKey);
       return;
     }
@@ -232,7 +232,9 @@ export function LeadsTable({
                 'group',
                 // A locked row promises nothing while a selection is live,
                 // because clicking it does nothing.
-                selection.isActive && !lead.canEdit ? 'cursor-default' : 'cursor-pointer',
+                selection.isActive && !selection.isSelectable(lead.id)
+                  ? 'cursor-default'
+                  : 'cursor-pointer',
                 // `bg-muted` is the table's own hover colour, so a selected row
                 // was indistinguishable from the one under the pointer.
                 'data-[state=selected]:bg-primary/8',
@@ -246,7 +248,7 @@ export function LeadsTable({
                 than a checkbox that is merely dead.
               */}
               <TableCell>
-                {lead.canEdit ? (
+                {selection.isSelectable(lead.id) ? (
                   <Checkbox
                     checked={selection.isSelected(lead.id)}
                     onClick={(event) => selectRow(lead.id, event.shiftKey)}
@@ -280,7 +282,7 @@ export function LeadsTable({
                     // out of it — except via the browser's own new-tab gesture.
                     if (!selection.isActive || event.metaKey || event.ctrlKey) return;
                     event.preventDefault();
-                    if (lead.canEdit) selectRow(lead.id, event.shiftKey);
+                    if (selection.isSelectable(lead.id)) selectRow(lead.id, event.shiftKey);
                   }}
                   className="block rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >

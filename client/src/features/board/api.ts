@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BoardDto, LeadDetailDto, MoveLeadOnBoardInput, StageKey } from '@leadpilot/shared';
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
+import { timeZoneParam } from '@/lib/time-zone';
 import type { BoardFilterState } from './hooks/use-board-filters';
 
 /** Cards shown per column initially, and the step each "Show more" adds. */
@@ -16,7 +17,13 @@ export const BOARD_PAGE_SIZE = 40;
 export function useBoard(filters: BoardFilterState, limit: number) {
   return useQuery({
     queryKey: queryKeys.board.view({ ...filters, limit }),
-    queryFn: () => api.get<BoardDto>('/board', { params: { ...filters, limit } }),
+    queryFn: () =>
+      api.get<BoardDto>('/board', {
+        // The board carries the same follow-up filter as the table, so it needs
+        // the same day boundaries — otherwise "overdue" means one thing on one
+        // screen and something else on the other.
+        params: { ...filters, limit, ...timeZoneParam },
+      }),
     // Keeps the previous board on screen while a filter change or a deeper page
     // loads, so the columns never collapse to empty and back.
     placeholderData: (previous) => previous,

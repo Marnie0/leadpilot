@@ -11,6 +11,8 @@ export interface LeadSelection {
    */
   isActive: boolean;
   isSelected: (id: string) => boolean;
+  /** Whether this row can be picked at all, given the view and the viewer. */
+  isSelectable: (id: string) => boolean;
   /**
    * Toggles one row, or with `extend` selects everything between the last row
    * touched and this one.
@@ -40,14 +42,24 @@ export interface LeadSelection {
  * leads you cannot see, having only ever looked at ten. Everything the bulk bar
  * offers to do is visible on screen at the moment you ask for it.
  *
- * ## Only what the viewer may change
+ * ## Only what the viewer may act on *here*
  *
  * A rep can read every lead in the workspace but only edit their own, so rows
  * they cannot act on are not selectable at all. The alternative — letting them
  * select anything and quietly dropping most of it server-side — teaches people
  * their selection means less than it says.
+ *
+ * Which rows those are depends on the view, not only on the row: nothing in the
+ * trash can be *edited* by anyone, but a manager can restore any of it, and a
+ * rep can do neither. Hence the predicate rather than a bare `canEdit` — a rep
+ * was being handed checkboxes in the trash that led to an action bar with
+ * nothing in it.
  */
-export function useLeadSelection(leads: LeadListItemDto[], resetKey: unknown): LeadSelection {
+export function useLeadSelection(
+  leads: LeadListItemDto[],
+  resetKey: unknown,
+  isSelectable: (lead: LeadListItemDto) => boolean = (lead) => lead.canEdit,
+): LeadSelection {
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
 
   /** Where a shift-click measures from. */
@@ -58,9 +70,13 @@ export function useLeadSelection(leads: LeadListItemDto[], resetKey: unknown): L
   }, [resetKey]);
 
   const selectableIds = useMemo(
-    () => leads.filter((lead) => lead.canEdit).map((lead) => lead.id),
+    () => leads.filter(isSelectable).map((lead) => lead.id),
+    // `isSelectable` is rebuilt per render by the caller; the lead list is what
+    // actually decides the result, so that is what this tracks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [leads],
   );
+  const selectableSet = useMemo(() => new Set(selectableIds), [selectableIds]);
 
   /*
    * Drop anything no longer on the page.
@@ -173,6 +189,7 @@ export function useLeadSelection(leads: LeadListItemDto[], resetKey: unknown): L
     isActive: selected.size > 0,
     ids: useMemo(() => [...selected], [selected]),
     isSelected: useCallback((id: string) => selected.has(id), [selected]),
+    isSelectable: useCallback((id: string) => selectableSet.has(id), [selectableSet]),
     toggle,
     clear,
     retain,
