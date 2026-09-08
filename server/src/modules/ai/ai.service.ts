@@ -85,11 +85,23 @@ function releaseProviderSlot(token: number): void {
 async function loadOrganization(actor: Actor) {
   const organization = await prisma.organization.findUnique({
     where: { id: actor.organizationId },
-    select: { aiEnabled: true },
+    select: { aiEnabled: true, isDemo: true },
   });
   if (!organization) throw notFound('Workspace');
   return organization;
 }
+
+/**
+ * The daily allowance for a workspace.
+ *
+ * A demo sandbox gets a fraction of a real workspace's, because every visitor
+ * gets a sandbox of their own and all of them draw on one free-tier key. The
+ * limit is per workspace either way; this is what stops "per workspace" from
+ * meaning "unbounded in total" on the one deployment where workspaces are
+ * created by strangers.
+ */
+const limitFor = (organization: { isDemo: boolean }): number =>
+  organization.isDemo ? env.AI_DEMO_DAILY_LIMIT : env.AI_DAILY_LIMIT_PER_ORG;
 
 /** The caller's own language preference, for a request that did not name one. */
 async function resolveLocale(actor: Actor): Promise<Locale> {
@@ -138,16 +150,17 @@ export async function purgeExpiredAiUsage(now = new Date()): Promise<number> {
  * whatever you used, you get back 24 hours later.
  */
 export async function getUsage(actor: Actor): Promise<AiUsageDto> {
-  const [{ aiEnabled }, usedToday] = await Promise.all([
+  const [organization, usedToday] = await Promise.all([
     loadOrganization(actor),
     countToday(actor.organizationId),
   ]);
+  const dailyLimit = limitFor(organization);
   return {
-    enabled: aiEnabled,
+    enabled: organization.aiEnabled,
     configured: env.aiConfigured,
     usedToday,
-    dailyLimit: env.AI_DAILY_LIMIT_PER_ORG,
-    remaining: Math.max(0, env.AI_DAILY_LIMIT_PER_ORG - usedToday),
+    dailyLimit,
+    remaining: Math.max(0, dailyLimit - usedToday),
   };
 }
 
@@ -361,8 +374,8 @@ export async function generateInsight(
     );
   }
 
-  const { aiEnabled } = await loadOrganization(actor);
-  if (!aiEnabled) {
+  const organization = await loadOrganization(actor);
+  if (!organization.aiEnabled) {
     throw forbidden('The assistant is switched off for this workspace', 'AI_DISABLED');
   }
   if (!env.aiConfigured) {
@@ -370,7 +383,7 @@ export async function generateInsight(
   }
 
   const usedToday = await countToday(actor.organizationId);
-  if (usedToday >= env.AI_DAILY_LIMIT_PER_ORG) {
+  if (usedToday >= limitFor(organization)) {
     throw new AppError(
       429,
       'AI_QUOTA_EXCEEDED',

@@ -76,10 +76,26 @@ export async function createDemoSandbox(): Promise<DemoSandbox> {
         INSERT INTO "organizations"
           (id, name, slug, "defaultCurrency", "defaultLocale", "aiEnabled", "isDemo", "isDemoTemplate", "expiresAt", "createdAt", "updatedAt")
         SELECT ${organizationId}, o.name, ${slug}, o."defaultCurrency", o."defaultLocale",
-               o."aiEnabled", true, false, ${expiresAt}, now(), now()
+               true, true, false, ${expiresAt}, now(), now()
         FROM "organizations" o
         WHERE o.id = ${template.id}
       `;
+
+      /*
+       * `aiEnabled` is forced on rather than inherited from the template.
+       *
+       * A sandbox exists to show what the product does, and a visitor who has
+       * to find a settings page before the headline feature will do anything
+       * has been shown the opt-in instead of the feature. It is safe here in a
+       * way it is not for a real workspace: the data is synthetic, the whole
+       * organisation is destroyed within the day, and demo sandboxes are held
+       * to a much smaller analysis budget than a real workspace (see
+       * `AI_DEMO_DAILY_LIMIT`) so one shared free-tier key spreads across many
+       * visitors rather than being spent by a handful.
+       *
+       * It also means the demo needs no manual database step in an environment
+       * where the template row predates the column.
+       */
 
       // Emails are globally unique, so each clone gets a plus-addressed variant.
       await tx.$executeRaw`

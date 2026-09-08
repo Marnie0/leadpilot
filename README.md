@@ -86,7 +86,7 @@ The provider boundary is one file (`server/src/modules/ai/ai.provider.ts`), so r
 change to that file rather than to the feature.
 
 One deployment detail that is easy to get wrong: the function's `maxDuration` in `vercel.json` has
-to sit *above* the provider timeout in that file. It did not at first — 15 seconds against a 20
+to sit _above_ the provider timeout in that file. It did not at first — 15 seconds against a 20
 second timeout — which meant a slow analysis would have been killed by the platform and surfaced as
 an opaque 504 instead of the translated "the assistant took too long" the code goes to the trouble
 of producing. It is 30 against 20 now, so our own error path always wins.
@@ -96,6 +96,16 @@ improve Google's products — the paid tier does not. That is a decision about s
 data, so it is not a default the product gets to make: `Organization.aiEnabled` starts `false`, only
 an owner or admin can change it, and the settings screen states plainly what leaves the workspace
 and what the provider does with it. Nothing is sent until a person presses the button.
+
+**The demo gets the assistant switched on, and a much smaller budget.** A sandbox exists to show
+what the product does, and a visitor who has to find a settings page before the headline feature
+does anything has been shown the opt-in rather than the feature — so `createDemoSandbox` forces
+`aiEnabled` on rather than inheriting it. That is safe where it would not be for a real workspace:
+the data is synthetic and the whole organisation is destroyed within the day. It comes with a
+catch worth naming, though — every visitor gets a workspace of their own, and "25 per workspace"
+means nothing in total when workspaces are created by strangers. At the real-workspace limit forty
+visitors could exhaust the provider's day between them; demo sandboxes are capped at five instead,
+which takes two hundred, and nobody needs twenty-five analyses to see what the feature does.
 
 **Analyses are stored, not streamed per view.** Reading a lead costs nothing; only an explicit
 re-run spends a call. That is what makes the quota structural rather than hopeful — a visitor

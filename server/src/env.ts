@@ -94,6 +94,17 @@ const envSchema = z.object({
   AI_DAILY_LIMIT_PER_ORG: z.coerce.number().int().min(1).max(1000).default(25),
 
   /**
+   * The same budget for a throwaway demo sandbox.
+   *
+   * Much smaller, because every visitor gets their own workspace and they all
+   * draw on one free-tier key. At the real-workspace limit, forty visitors
+   * could in principle exhaust the provider's whole day between them; at this
+   * one it takes two hundred, and nobody needs twenty-five analyses to see what
+   * the feature does.
+   */
+  AI_DEMO_DAILY_LIMIT: z.coerce.number().int().min(1).max(1000).default(5),
+
+  /**
    * Returns the real error message and stack to the client in production too.
    * Off by default: on a public deployment that is information disclosure.
    * Useful on a portfolio demo where you are the only one reading it.
