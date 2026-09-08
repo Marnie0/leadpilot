@@ -225,11 +225,14 @@ export const en = {
     'The total was down and nobody could say which stage stalled, which source dried up, or how much longer deals were taking to close.',
 
   'landing.featuresTitle': 'What it does about it',
-  'landing.featuresSubtitle': 'Seven things, done properly, instead of forty half-built ones.',
+  'landing.featuresSubtitle': 'Nine things, done properly, instead of forty half-built ones.',
 
   'landing.featureAiTitle': 'It reads the enquiry before you do',
   'landing.featureAiBody':
     'Point the assistant at an inbound enquiry and it comes back with what the customer actually wants, how strong the opportunity looks and why, what to do next, and a reply you can send. Off until a workspace turns it on.',
+  'landing.featureBriefingTitle': 'And briefs you on all of it',
+  'landing.featureBriefingBody':
+    'Ask the same assistant about the whole workspace and it answers in one screen: where the pipeline stands, what needs attention today and how badly, what is trending up or down, and the one thing to do next. It tells you when it has gone out of date.',
   'landing.featurePipelineTitle': 'A pipeline everyone can see',
   'landing.featurePipelineBody':
     'Drag a deal between stages and it moves everywhere at once — the table, the detail view and the activity trail. Stages are per workspace, so you can name them the way your team already talks.',
@@ -245,9 +248,12 @@ export const en = {
   'landing.featureCurrencyTitle': 'Money in the currency you think in',
   'landing.featureCurrencyBody':
     'The workspace records deals in one currency; each person reads every figure in theirs, converted at today’s rate and labelled as converted. Nobody does arithmetic in their head during a meeting.',
-  'landing.featureOwnershipTitle': 'Everyone can see it, owners change it',
+  'landing.featureRolesTitle': 'Roles you define, not roles you inherit',
+  'landing.featureRolesBody':
+    'A role is a name and a set of ticks — edit every lead, manage the team, change the currency, run the assistant. Build a “regional manager” or a read-only auditor if that is how your team actually works. Everyone still reads the whole pipeline; what they can change is up to you.',
+  'landing.featureOwnershipTitle': 'The account is yours to close',
   'landing.featureOwnershipBody':
-    'Reps read the whole pipeline and edit the leads that are theirs; managers edit anything. Nothing is hidden from the team, and nothing gets overwritten by accident.',
+    'Delete your account whenever you like, and the workspace keeps the work: leads become unassigned, notes keep their text and lose their author. An owner hands the workspace over first — or deletes the whole thing, which is one typed confirmation and genuinely gone.',
 
   /* What it replaces — the honest comparison, against the tools people
      genuinely use rather than against a strawman competitor. */
@@ -286,6 +292,9 @@ export const en = {
   'landing.faq3Q': 'Does Arabic genuinely work, or is it just translated?',
   'landing.faq3A':
     'The entire interface mirrors — navigation, tables, charts, drag-and-drop — with Arabic dates and its six plural forms. Switch it in the top corner and judge for yourself before signing up for anything.',
+  'landing.faq5Q': 'What does the AI see, and can I turn it off?',
+  'landing.faq5A':
+    'It is off until an owner turns it on, and off again the moment they turn it back. When it runs it is sent the lead’s own fields — the enquiry, service, value, stage and dates — or, for the briefing, the workspace’s figures rather than its customers. No passwords, no other workspace, and nothing is used to train anything.',
   'landing.faq4Q': 'Can the whole team use it at once?',
   'landing.faq4A':
     'That is the point. A lead can be assigned to one person, every change is on the record, and a rep sees the shared pipeline while editing only what is theirs.',
@@ -294,8 +303,43 @@ export const en = {
   'landing.ctaBody':
     'The demo opens a workspace that is yours alone — {count} leads and a year of history to change however you like. Nobody else sees it, and it is removed after a day.',
 
+  /* The assistant, in its own section: what it is asked, and what it is not
+     allowed to do. The feature grid says what it produces. */
+  'landing.aiEyebrow': 'The AI assistant',
+  'landing.aiTitle': 'Two questions, one assistant.',
+  'landing.aiSubtitle':
+    'One about the enquiry in front of you, one about everything at once. Both answer in the language you are reading, and both stay off until somebody turns them on.',
+
+  'landing.aiLeadTitle': 'Ask it about one lead',
+  'landing.aiLeadBody':
+    'It reads what the customer wrote and comes back with the enquiry in two or three sentences, a quality score out of 100 with the reasoning that produced it, how urgent it looks, and a follow-up written for you to send.',
+  'landing.aiLeadPoint1': 'A score you can argue with, because it shows its reasons',
+  'landing.aiLeadPoint2': 'One next action, on a named channel — call, email, WhatsApp',
+  'landing.aiLeadPoint3': 'A draft addressed to the customer, in their language',
+
+  'landing.aiWorkspaceTitle': 'Ask it about the whole workspace',
+  'landing.aiWorkspaceBody':
+    'The briefing that reads your pipeline the way a manager would on a Monday morning: the state of things in a short paragraph, then the specifics — ranked, with reasons, and never more than fits on one screen.',
+  'landing.aiWorkspacePoint1': 'Up to five things needing attention, most pressing first',
+  'landing.aiWorkspacePoint2': 'Up to three trends, each marked as improving or slipping',
+  'landing.aiWorkspacePoint3':
+    'One concrete step for today, and a warning when the briefing is stale',
+
+  /* The lead-in is a `{label}` rather than markup in the string, so Arabic can
+     put it where Arabic puts it. See `useRichT`. */
+  'landing.aiGuardOptInLabel': 'Off by default.',
+  'landing.aiGuardOptIn':
+    '{label} The assistant does nothing until an owner switches it on for the workspace, and switching it off again stops every part of it.',
+  'landing.aiGuardBudgetLabel': 'A daily budget, shared.',
+  'landing.aiGuardBudget':
+    '{label} Both kinds of analysis draw on one workspace allowance that resets every 24 hours, and what is left is on screen before you spend it.',
+  'landing.aiGuardStoredLabel': 'Written once, read free.',
+  'landing.aiGuardStored':
+    '{label} An answer is saved to the lead or the workspace, so re-reading costs nothing and everyone sees the same one. Delete any of them whenever you like.',
+
   'landing.footerTagline': 'Bilingual lead management for small and medium service businesses.',
   'landing.footerBuilt': 'A portfolio project, built to production standards.',
+  'landing.footerContact': 'Built by Ibrahim — see the portfolio',
 
   /* -------------------------------------------------------------- *
    * Bulk selection

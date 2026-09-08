@@ -8,6 +8,7 @@ export type { Formatters } from '@/lib/format';
 export { en } from './en';
 export { getLoadedBundle } from './locales';
 export { createTranslator } from './translate';
+export { useRichT } from './rich';
 
 /**
  * Number, currency and date formatters bound to the active locale.

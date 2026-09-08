@@ -6,6 +6,8 @@ import {
   CalendarClock,
   Check,
   CircleDollarSign,
+  ExternalLink,
+  Gauge,
   Inbox,
   KanbanSquare,
   Languages,
@@ -13,6 +15,7 @@ import {
   MessageSquareOff,
   ShieldCheck,
   Sparkles,
+  SlidersHorizontal,
   TrendingDown,
   type LucideIcon,
 } from 'lucide-react';
@@ -23,9 +26,12 @@ import { Card } from '@/components/ui/card';
 import { Logo } from '@/components/common/logo';
 import { AppearanceControls } from '@/components/layout/appearance-controls';
 import { useAuth } from '@/features/auth/auth-context';
-import { useT, type StaticKey } from '@/lib/i18n';
+import { useRichT, useT, type StaticKey } from '@/lib/i18n';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { DEMO_LEAD_COUNT } from '@/lib/constants';
+
+/** Where to reach the person who built this. */
+const PORTFOLIO_URL = 'https://portfolio-ih18.vercel.app/';
 
 /** Where deals actually go quiet. Named before the product is mentioned. */
 const PROBLEMS: { icon: LucideIcon; title: StaticKey; body: StaticKey }[] = [
@@ -46,6 +52,8 @@ const REPLACES: { before: StaticKey; after: StaticKey }[] = [
 const FAQS: { q: StaticKey; a: StaticKey }[] = [
   { q: 'landing.faq1Q', a: 'landing.faq1A' },
   { q: 'landing.faq2Q', a: 'landing.faq2A' },
+  // The data question, asked by everyone the moment an AI feature appears.
+  { q: 'landing.faq5Q', a: 'landing.faq5A' },
   { q: 'landing.faq3Q', a: 'landing.faq3A' },
   { q: 'landing.faq4Q', a: 'landing.faq4A' },
 ];
@@ -56,6 +64,13 @@ const FEATURES: { icon: LucideIcon; title: StaticKey; body: StaticKey }[] = [
     icon: Sparkles,
     title: 'landing.featureAiTitle',
     body: 'landing.featureAiBody',
+  },
+  // Second, because it is the same assistant asked a different question, and
+  // the two read as one idea when they sit together.
+  {
+    icon: Gauge,
+    title: 'landing.featureBriefingTitle',
+    body: 'landing.featureBriefingBody',
   },
   {
     icon: KanbanSquare,
@@ -83,10 +98,51 @@ const FEATURES: { icon: LucideIcon; title: StaticKey; body: StaticKey }[] = [
     body: 'landing.featureCurrencyBody',
   },
   {
+    icon: SlidersHorizontal,
+    title: 'landing.featureRolesTitle',
+    body: 'landing.featureRolesBody',
+  },
+  {
     icon: ShieldCheck,
     title: 'landing.featureOwnershipTitle',
     body: 'landing.featureOwnershipBody',
   },
+];
+
+/**
+ * What the assistant is asked, and what it is not allowed to do.
+ *
+ * The feature grid says what it produces; this says how it behaves — which is
+ * the part somebody weighing an AI feature actually wants, and the part most
+ * pages leave out.
+ */
+const AI_ANSWERS: { title: StaticKey; body: StaticKey; points: readonly StaticKey[] }[] = [
+  {
+    title: 'landing.aiLeadTitle',
+    body: 'landing.aiLeadBody',
+    points: ['landing.aiLeadPoint1', 'landing.aiLeadPoint2', 'landing.aiLeadPoint3'],
+  },
+  {
+    title: 'landing.aiWorkspaceTitle',
+    body: 'landing.aiWorkspaceBody',
+    points: ['landing.aiWorkspacePoint1', 'landing.aiWorkspacePoint2', 'landing.aiWorkspacePoint3'],
+  },
+];
+
+/**
+ * The limits, stated on the marketing page rather than discovered in settings.
+ *
+ * Each is one sentence whose opening phrase is emphasised, and that phrase is a
+ * `{label}` rather than markup inside the string — Arabic does not necessarily
+ * open the sentence where English does.
+ */
+const AI_GUARDRAILS: {
+  body: 'landing.aiGuardOptIn' | 'landing.aiGuardBudget' | 'landing.aiGuardStored';
+  label: StaticKey;
+}[] = [
+  { body: 'landing.aiGuardOptIn', label: 'landing.aiGuardOptInLabel' },
+  { body: 'landing.aiGuardBudget', label: 'landing.aiGuardBudgetLabel' },
+  { body: 'landing.aiGuardStored', label: 'landing.aiGuardStoredLabel' },
 ];
 
 const STEPS: { title: StaticKey; body: StaticKey }[] = [
@@ -175,6 +231,7 @@ function BoardPreview() {
  */
 export function LandingPage() {
   const t = useT();
+  const richT = useRichT();
   const navigate = useNavigate();
   const { isAuthenticated, startDemo } = useAuth();
   const describeError = useApiErrorMessage();
@@ -361,6 +418,45 @@ export function LandingPage() {
           </div>
         </section>
 
+        {/* --- The assistant, in more detail --------------------------- */}
+        <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <p className="text-xs font-medium tracking-[0.16em] text-primary uppercase">
+            {t('landing.aiEyebrow')}
+          </p>
+          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-3xl">
+            {t('landing.aiTitle')}
+          </h2>
+          <p className="mt-2 max-w-2xl text-muted-foreground">{t('landing.aiSubtitle')}</p>
+
+          <div className="mt-8 grid gap-4 lg:grid-cols-2">
+            {AI_ANSWERS.map(({ title, body, points }) => (
+              <Card key={title} className="gap-4 p-6">
+                <h3 className="text-lg font-medium text-foreground">{t(title)}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{t(body)}</p>
+                <ul className="space-y-2 border-t pt-4">
+                  {points.map((point) => (
+                    <li key={point} className="flex items-start gap-2 text-sm text-foreground">
+                      <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                      <span className="leading-relaxed">{t(point)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            ))}
+          </div>
+
+          {/* The limits, given the same weight as the capabilities. */}
+          <div className="mt-4 grid gap-4 rounded-xl border border-dashed p-5 sm:grid-cols-3 sm:p-6">
+            {AI_GUARDRAILS.map(({ body, label }) => (
+              <p key={body} className="text-sm leading-relaxed text-muted-foreground">
+                {richT(body, {
+                  label: <strong className="font-medium text-foreground">{t(label)}</strong>,
+                })}
+              </p>
+            ))}
+          </div>
+        </section>
+
         {/* --- What it replaces ---------------------------------------- */}
         <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
           <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
@@ -448,6 +544,22 @@ export function LandingPage() {
           <div className="text-sm text-muted-foreground sm:text-end">
             <p>{t('landing.footerTagline')}</p>
             <p className="mt-0.5">{t('landing.footerBuilt')}</p>
+            {/*
+              `rel="noreferrer"` alongside the target, and the URL written out
+              rather than hidden behind "here": the point of the link is that
+              somebody can see where it goes before they click it.
+            */}
+            <p className="mt-2">
+              <a
+                href={PORTFOLIO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                {t('landing.footerContact')}
+                <ExternalLink className="size-3.5" aria-hidden />
+              </a>
+            </p>
           </div>
         </div>
       </footer>
