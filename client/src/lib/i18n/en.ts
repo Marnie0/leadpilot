@@ -282,6 +282,31 @@ export const en = {
   'landing.howStep3Body':
     'Move it to Won, or to Lost with a reason. The dashboard turns both into something you can use.',
 
+  /* Adding people — the mechanics, not the permission model. The roles card
+     says what a role is; this says how somebody gets into the workspace. */
+  'landing.teamTitle': 'Getting your team in',
+  'landing.teamSubtitle':
+    'Three steps, and at no point do you invent a password for somebody else.',
+  'landing.teamStep1Title': 'Send them a link',
+  'landing.teamStep1Body':
+    'From the Team screen, create an invite and pick the role it grants. Give it an email address and only that address can redeem it — and we send the link there as well. Leave the address out and it is simply a link, redeemable once by whoever opens it first.',
+  'landing.teamStep2Title': 'They set their own password',
+  'landing.teamStep2Body':
+    'The link opens a short form: their name, a password they choose, and that is the account. Nothing temporary to pass along and nothing for you to type on their behalf — and if the invitation was addressed to them, their email is confirmed the moment they accept it.',
+  'landing.teamStep3Title': 'You stay in charge of what they can do',
+  'landing.teamStep3Body':
+    'Change somebody’s role from the same screen whenever it stops fitting. Deactivate an account and every session it holds ends on the next request. Remove it and the pipeline keeps the work — their leads simply become unassigned.',
+
+  'landing.teamFactsTitle': 'What an invite link actually is',
+  'landing.teamFact1': 'Single-use, and it expires after seven days',
+  'landing.teamFact2':
+    'Shown once, when you create it. Only a hash is stored, so nobody — including you — can look it up again',
+  'landing.teamFact3':
+    'Revocable at any moment, and every invitation is listed with what became of it',
+  'landing.teamFact4': 'Only the owner can hand out a role that manages the team',
+  'landing.teamFactsNote':
+    'Ownership itself is transferred rather than granted, and there is exactly one owner — the database enforces it, not a promise in the code.',
+
   'landing.faqTitle': 'Questions people actually ask',
   'landing.faq1Q': 'Do I have to install anything?',
   'landing.faq1A':
@@ -339,7 +364,20 @@ export const en = {
 
   'landing.footerTagline': 'Bilingual lead management for small and medium service businesses.',
   'landing.footerBuilt': 'A portfolio project, built to production standards.',
-  'landing.footerContact': 'Built by Ibrahim — see the portfolio',
+  'landing.footerExplore': 'On this page',
+  'landing.footerLinkFeatures': 'What it does',
+  'landing.footerLinkAssistant': 'The AI assistant',
+  'landing.footerLinkTeam': 'Adding your team',
+  'landing.footerLinkFaq': 'Questions',
+  'landing.footerStart': 'Get started',
+  'landing.footerLinkDemo': 'Start a demo',
+  'landing.footerLinkSignup': 'Create a workspace',
+  'landing.footerLinkSignin': 'Sign in',
+  'landing.footerContactTitle': 'Who built this',
+  'landing.footerContactBody':
+    'LeadPilot is the work of one developer. The portfolio has the rest of it, and the way to get in touch.',
+  'landing.footerContact': 'Visit the portfolio',
+  'landing.footerRights': '© {year} LeadPilot',
 
   /* -------------------------------------------------------------- *
    * Bulk selection

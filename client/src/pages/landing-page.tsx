@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -8,6 +8,7 @@ import {
   CircleDollarSign,
   ExternalLink,
   Gauge,
+  Link2,
   Inbox,
   KanbanSquare,
   Languages,
@@ -129,6 +130,21 @@ const AI_ANSWERS: { title: StaticKey; body: StaticKey; points: readonly StaticKe
   },
 ];
 
+/** How somebody actually gets into the workspace, in the order it happens. */
+const TEAM_STEPS: { title: StaticKey; body: StaticKey }[] = [
+  { title: 'landing.teamStep1Title', body: 'landing.teamStep1Body' },
+  { title: 'landing.teamStep2Title', body: 'landing.teamStep2Body' },
+  { title: 'landing.teamStep3Title', body: 'landing.teamStep3Body' },
+];
+
+/** What the link is, for the person deciding whether to send one. */
+const TEAM_FACTS: StaticKey[] = [
+  'landing.teamFact1',
+  'landing.teamFact2',
+  'landing.teamFact3',
+  'landing.teamFact4',
+];
+
 /**
  * The limits, stated on the marketing page rather than discovered in settings.
  *
@@ -218,6 +234,31 @@ function BoardPreview() {
         </div>
       ))}
     </div>
+  );
+}
+
+/** Footer link styling, shared by the anchors and the routed links. */
+const FOOTER_LINK =
+  'text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
+
+function FooterColumn({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <nav aria-label={title}>
+      <h3 className="text-xs font-medium tracking-[0.12em] text-foreground uppercase">{title}</h3>
+      <ul className="mt-3 space-y-2">{children}</ul>
+    </nav>
+  );
+}
+
+/** An in-page jump. `scroll-mt` on each section keeps the heading clear of the
+ *  sticky header when one is followed. */
+function FooterAnchor({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <li>
+      <a href={href} className={FOOTER_LINK}>
+        {children}
+      </a>
+    </li>
   );
 }
 
@@ -394,7 +435,7 @@ export function LandingPage() {
         </section>
 
         {/* --- Features ------------------------------------------------ */}
-        <section className="border-t bg-muted/30">
+        <section id="features" className="scroll-mt-20 border-t bg-muted/30">
           <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
             <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               {t('landing.featuresTitle')}
@@ -419,7 +460,10 @@ export function LandingPage() {
         </section>
 
         {/* --- The assistant, in more detail --------------------------- */}
-        <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+        <section
+          id="assistant"
+          className="mx-auto w-full max-w-6xl scroll-mt-20 px-4 py-14 sm:px-6 sm:py-20"
+        >
           <p className="text-xs font-medium tracking-[0.16em] text-primary uppercase">
             {t('landing.aiEyebrow')}
           </p>
@@ -499,8 +543,57 @@ export function LandingPage() {
           </ol>
         </section>
 
+        {/* --- Adding the team ----------------------------------------- */}
+        <section id="team" className="scroll-mt-20 border-t">
+          <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+            <h2 className="text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-3xl">
+              {t('landing.teamTitle')}
+            </h2>
+            <p className="mt-2 max-w-2xl text-muted-foreground">{t('landing.teamSubtitle')}</p>
+
+            <div className="mt-8 grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:gap-12">
+              <ol className="space-y-6">
+                {TEAM_STEPS.map(({ title, body }, index) => (
+                  <li key={title} className="flex gap-4">
+                    <span
+                      className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground tabular-nums"
+                      aria-hidden
+                    >
+                      {index + 1}
+                    </span>
+                    <div className="space-y-1.5">
+                      <h3 className="font-medium text-foreground">{t(title)}</h3>
+                      <p className="text-sm leading-relaxed text-muted-foreground">{t(body)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+
+              {/* The properties of the link itself, which is the part somebody
+                  sending one to a colleague actually wants to know. */}
+              <Card className="h-fit gap-4 bg-muted/40 p-6">
+                <h3 className="flex items-center gap-2 font-medium text-foreground">
+                  <Link2 className="size-4 text-muted-foreground" aria-hidden />
+                  {t('landing.teamFactsTitle')}
+                </h3>
+                <ul className="space-y-2.5">
+                  {TEAM_FACTS.map((key) => (
+                    <li key={key} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                      <span className="leading-relaxed">{t(key)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="border-t pt-4 text-xs leading-relaxed text-muted-foreground">
+                  {t('landing.teamFactsNote')}
+                </p>
+              </Card>
+            </div>
+          </div>
+        </section>
+
         {/* --- Objections ---------------------------------------------- */}
-        <section className="border-t bg-muted/30">
+        <section id="faq" className="scroll-mt-20 border-t bg-muted/30">
           <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
             <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               {t('landing.faqTitle')}
@@ -538,28 +631,80 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <Logo />
-          <div className="text-sm text-muted-foreground sm:text-end">
-            <p>{t('landing.footerTagline')}</p>
-            <p className="mt-0.5">{t('landing.footerBuilt')}</p>
+      <footer className="border-t bg-muted/30">
+        <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-14">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1.4fr]">
+            <div>
+              <Logo />
+              <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
+                {t('landing.footerTagline')}
+              </p>
+            </div>
+
+            {/* In-page anchors rather than routes: everything they point at is
+                on this page, and a router link would reload it. */}
+            <FooterColumn title={t('landing.footerExplore')}>
+              <FooterAnchor href="#features">{t('landing.footerLinkFeatures')}</FooterAnchor>
+              <FooterAnchor href="#assistant">{t('landing.footerLinkAssistant')}</FooterAnchor>
+              <FooterAnchor href="#team">{t('landing.footerLinkTeam')}</FooterAnchor>
+              <FooterAnchor href="#faq">{t('landing.footerLinkFaq')}</FooterAnchor>
+            </FooterColumn>
+
+            <FooterColumn title={t('landing.footerStart')}>
+              {isAuthenticated ? (
+                <li>
+                  <Link to="/leads" className={FOOTER_LINK}>
+                    {t('landing.openWorkspace')}
+                  </Link>
+                </li>
+              ) : (
+                <>
+                  <li>
+                    <Link to="/login" className={FOOTER_LINK}>
+                      {t('landing.footerLinkDemo')}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/signup" className={FOOTER_LINK}>
+                      {t('landing.footerLinkSignup')}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/login" className={FOOTER_LINK}>
+                      {t('landing.footerLinkSignin')}
+                    </Link>
+                  </li>
+                </>
+              )}
+            </FooterColumn>
+
             {/*
-              `rel="noreferrer"` alongside the target, and the URL written out
-              rather than hidden behind "here": the point of the link is that
-              somebody can see where it goes before they click it.
+              The portfolio gets a card rather than a line of small print: it is
+              the one link on this page that leaves the site, and hiding that
+              behind "here" would tell nobody where they are going.
             */}
-            <p className="mt-2">
+            <div className="rounded-xl border bg-card p-5">
+              <h3 className="text-sm font-medium text-foreground">
+                {t('landing.footerContactTitle')}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {t('landing.footerContactBody')}
+              </p>
               <a
                 href={PORTFOLIO_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 {t('landing.footerContact')}
-                <ExternalLink className="size-3.5" aria-hidden />
+                <ExternalLink className="icon-directional size-3.5" aria-hidden />
               </a>
-            </p>
+            </div>
+          </div>
+
+          <div className="mt-10 flex flex-col gap-2 border-t pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <p>{t('landing.footerBuilt')}</p>
+            <p>{t('landing.footerRights', { year: new Date().getFullYear() })}</p>
           </div>
         </div>
       </footer>
