@@ -289,11 +289,16 @@ export function LandingPage() {
             </div>
             <p className="mt-3 text-sm text-muted-foreground">{t('landing.heroNote')}</p>
 
-            {/* Three claims that are checkable in under a minute, rather than
-                logos and testimonials this product has not earned. */}
+            {/* Claims that are checkable in under a minute, rather than logos
+                and testimonials this product has not earned. */}
             <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
               {(
-                ['landing.trustBilingual', 'landing.trustNoCard', 'landing.trustPrivate'] as const
+                [
+                  'landing.trustAi',
+                  'landing.trustBilingual',
+                  'landing.trustNoCard',
+                  'landing.trustPrivate',
+                ] as const
               ).map((key) => (
                 <li key={key} className="flex items-center gap-1.5">
                   <Check className="size-4 shrink-0 text-primary" aria-hidden />

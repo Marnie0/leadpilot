@@ -24,6 +24,7 @@ import type {
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
 import { timeZoneParam } from '@/lib/time-zone';
+import { useDisplayParam } from '@/lib/display-currency';
 
 /* ------------------------------------------------------------------ *
  * Reference data — stages and team members change rarely, so they are
@@ -63,6 +64,8 @@ export function useLeads(filters: LeadFilters) {
     queryFn: () =>
       api.get<Paginated<LeadListItemDto>>('/leads', {
         // The follow-up filter's "overdue today" is drawn in the reader's day.
+        // No `display` here: rows carry their own currency and are never
+        // converted, so keying the list on it would split the cache for nothing.
         params: { ...filters, ...timeZoneParam },
       }),
     // Keeps the previous page on screen while the next one loads, so paging and
@@ -72,12 +75,16 @@ export function useLeads(filters: LeadFilters) {
 }
 
 export function useLeadStats(filters: LeadFilters) {
+  // Totals *are* converted, so the display currency is part of the question and
+  // therefore part of the cache key — otherwise switching currency would serve
+  // a total drawn in the previous one.
+  const display = useDisplayParam();
   return useQuery({
-    queryKey: queryKeys.leads.stats(filters),
+    queryKey: queryKeys.leads.stats({ ...filters, ...display }),
     queryFn: async () =>
       (
         await api.get<{ stats: LeadStatsDto }>('/leads/stats', {
-          params: { ...filters, ...timeZoneParam },
+          params: { ...filters, ...timeZoneParam, ...display },
         })
       ).stats,
     placeholderData: (previous) => previous,

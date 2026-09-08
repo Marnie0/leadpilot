@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { timeZoneSchema } from './common.js';
+import { displayParamSchema, timeZoneSchema } from './common.js';
+import type { Currency, MoneyTotalDto } from './index.js';
 import type { LeadSource, StageKey, StageType } from './enums.js';
 import type { FollowUpDto } from './followup.schema.js';
 
@@ -24,6 +25,8 @@ export const dashboardQuerySchema = z.object({
   range: z.enum(DASHBOARD_RANGES).default('90d'),
   /** Draws the follow-up workload's day boundaries in the reader's timezone. */
   tz: timeZoneSchema,
+  /** Currency the aggregate totals should be converted into. */
+  display: displayParamSchema,
 });
 export type DashboardQueryInput = z.infer<typeof dashboardQuerySchema>;
 
@@ -55,15 +58,28 @@ export interface DashboardSummaryDto {
   /* Snapshot */
   totalLeads: number;
   openLeads: number;
-  /** Estimated value of every open lead. The optimistic number. */
-  pipelineValue: number;
-  /** Σ (open lead value × its stage's win probability). The honest number. */
+  /**
+   * Estimated value of every open lead. The optimistic number.
+   *
+   * A `MoneyTotalDto` because a workspace may quote in several currencies —
+   * this carries both the per-currency figures and the converted total.
+   */
+  pipelineValue: MoneyTotalDto;
+  /**
+   * Σ (open lead value × its stage's win probability). The honest number.
+   *
+   * Deliberately a single figure, in the reader's display currency: a forecast
+   * is one number by nature, and the probability belongs to the stage rather
+   * than to whichever currency a lead happens to be quoted in.
+   */
   weightedPipelineValue: number;
 
   /* Windowed */
   newLeads: DashboardDeltaDto;
   wonLeads: DashboardDeltaDto;
   wonValue: DashboardDeltaDto;
+  /** The same won figure, broken down by the currencies it was earned in. */
+  wonValueTotal: MoneyTotalDto;
   /**
    * Won ÷ (won + lost) among deals *closed inside the window*, as a percentage.
    * `null` when nothing closed — a rate over zero deals is not zero, it is unknown.
@@ -86,8 +102,8 @@ export interface DashboardStageDto {
   type: StageType;
   winProbability: number;
   count: number;
-  value: number;
-  /** `value × winProbability ÷ 100`. Zero for closed stages. */
+  value: MoneyTotalDto;
+  /** `value.converted × winProbability ÷ 100`. Zero for closed stages. */
   weightedValue: number;
   /** Mean days since the leads sitting here were created. */
   avgAgeDays: number | null;
@@ -135,8 +151,16 @@ export interface DashboardDto {
   /** Start of the reporting window, ISO. */
   from: string;
   generatedAt: string;
-  /** Workspace currency. Every figure here is in it. */
+  /** The workspace's default currency — what a new lead is quoted in. */
   currency: string;
+  /**
+   * The currency single-figure numbers on this payload are drawn in: the
+   * charts, the forecast, the averages. Totals that carry a breakdown state
+   * their own currency; this is for everything that cannot.
+   */
+  displayCurrency: Currency;
+  /** Every currency present in the workspace, so the switcher knows to appear. */
+  currencies: Currency[];
   /** `week` or `month` — the bucket size behind `trend`. */
   trendBucket: 'week' | 'month';
   summary: DashboardSummaryDto;

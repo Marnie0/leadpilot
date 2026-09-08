@@ -8,6 +8,7 @@ import { AuthProvider } from '@/features/auth/auth-context';
 import { LocaleProvider } from '@/lib/i18n';
 import { ErrorBoundary } from '@/components/common/error-boundary';
 import { ThemeProvider } from './theme-provider';
+import { MoneyViewProvider } from './money-view-provider';
 
 /**
  * Provider stack, outermost first.
@@ -25,18 +26,22 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
-            <AuthProvider>
-              <LocaleProvider>
-                <TooltipProvider delayDuration={300}>
-                  {children}
-                  <Toaster />
-                </TooltipProvider>
-              </LocaleProvider>
-            </AuthProvider>
-          </BrowserRouter>
-        </QueryClientProvider>
+        {/* Beside the theme, and for the same reason: a pure presentation
+            choice that changes no request. See money-view-provider.tsx. */}
+        <MoneyViewProvider>
+          <QueryClientProvider client={queryClient}>
+            <BrowserRouter>
+              <AuthProvider>
+                <LocaleProvider>
+                  <TooltipProvider delayDuration={300}>
+                    {children}
+                    <Toaster />
+                  </TooltipProvider>
+                </LocaleProvider>
+              </AuthProvider>
+            </BrowserRouter>
+          </QueryClientProvider>
+        </MoneyViewProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

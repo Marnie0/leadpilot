@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { CalendarClock, CircleDollarSign, Target, TrendingUp, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
 import { ConversionNote } from '@/components/common/conversion-note';
+import { WorkspaceSummaryCard } from '@/features/ai/components/workspace-summary-card';
 import { Card } from '@/components/ui/card';
 import {
   Select,
@@ -15,6 +16,7 @@ import { ErrorState } from '@/components/common/error-state';
 import { readOne } from '@/lib/search-params';
 import { useFormat, useT } from '@/lib/i18n';
 import { useMoney } from '@/lib/money';
+import { useMoneyTotalText } from '@/components/common/money-total';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useDashboard } from '@/features/dashboard/api';
 import { KpiCard, KpiCardSkeleton } from '@/features/dashboard/components/kpi-card';
@@ -43,6 +45,7 @@ export function DashboardPage() {
   const t = useT();
   const format = useFormat();
   const money = useMoney();
+  const moneyText = useMoneyTotalText();
   const user = useCurrentUser();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -126,6 +129,13 @@ export function DashboardPage() {
 
       <ConversionNote />
 
+      {/*
+        Above the charts, because this is the half of "how are we doing" the
+        charts cannot answer: which specific leads and follow-ups need somebody
+        today. The figures below are the evidence; this is the reading.
+      */}
+      <WorkspaceSummaryCard />
+
       {/* --- Headline figures ------------------------------------------- */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {isLoading || !summary ? (
@@ -175,7 +185,7 @@ export function DashboardPage() {
               icon={TrendingUp}
               tone="success"
               hint={t('dashboard.expectedRevenueHint', {
-                value: money.format(summary.pipelineValue, currency),
+                value: moneyText(summary.pipelineValue),
               })}
               explainer={t('dashboard.expectedRevenueExplainer')}
             />

@@ -111,7 +111,8 @@ which takes two hundred, and nobody needs twenty-five analyses to see what the f
 re-run spends a call. That is what makes the quota structural rather than hopeful — a visitor
 clicking through the demo cannot exhaust the key however fast they click. It also makes the
 assessment a shared artefact, so a rep and their manager see the same score, with a timestamp,
-a model version and an actor attached. The cost is staleness, which is why every analysis carries a
+a model version and an actor attached — recorded on the row, not shown to the reader, since naming
+the model tells somebody reading a lead nothing they can act on. The cost is staleness, which is why every analysis carries a
 fingerprint of the lead it was made from and says so when the lead has moved on since.
 
 **The spend ledger is a separate table from the analyses.** `AiUsageEvent` exists because counting
@@ -552,6 +553,35 @@ the worst possible reading of "handle the error state".
 locale is stored with it, so an analysis written in the other language is labelled as such and
 offers to be re-run rather than sitting there looking untranslated.
 
+### The whole-workspace briefing
+
+The per-lead assistant answers "what about this enquiry". The dashboard carries one that answers
+"what about all of it" — and they are different questions, which is why it is a separate artefact
+rather than the same prompt over more rows.
+
+**What "the main points" was taken to mean.** Three things, in the order somebody wants them: what
+needs acting on (ranked, each naming the specific lead or number), what is moving (trends, with a
+direction — context for a decision, not a task), and one next step, because a list of five
+priorities is a list of none.
+
+Deliberately _not_ included: anything the dashboard already states plainly. A summary that opens by
+telling you your pipeline value — a number sitting in a card two inches away — has spent a model
+call restating a `SUM()`, so the prompt forbids it explicitly.
+
+**The model is never asked to count.** It gets aggregates and exceptions — stage occupancy, overdue
+totals, the biggest open deals, the leads untouched for a fortnight — computed by the same kind of
+query the dashboard uses. Sending a few hundred rows would cost a fortune in tokens, blow past the
+free tier's per-minute allowance and produce a worse answer, since the useful observations are
+"eleven follow-ups are overdue" and "the three biggest open deals have nobody assigned", neither of
+which needs the rows in the prompt. It also means the summary and the screen beside it cannot
+disagree about a number.
+
+**Same guardrails, one definition.** The workspace opt-in, the provider key, the per-workspace daily
+budget and the per-minute ceiling are imported from the per-lead service rather than repeated, so
+there is one answer to "may this workspace spend a call right now" and both features draw on the
+same ledger. Generating is open to any member — unlike a lead analysis, which takes the lead's write
+rule, this replaces a shared briefing about data every member can already see in full.
+
 ---
 
 ## The dashboard
@@ -660,18 +690,64 @@ nicety. It is one constant in `locale-provider.tsx` if a workspace disagrees.
 Stage names come from the database (`PipelineStage.name` / `nameAr`), not the dictionary, because
 a workspace can rename "Proposal" to "Quote sent" — they are tenant data, not UI copy.
 
-### Two currencies, and why only one of them is real
+### Currencies, and how a total over several of them stays honest
 
-A workspace has a **base currency**. Every lead's `estimatedValue` is stored in it, and the API
-refuses a per-lead currency (`createLeadSchema` says so in a comment) — which is exactly what lets
-every pipeline total be a plain `SUM()` rather than a fold over mixed units.
+A lead's `estimatedValue` is stored in the currency it was **quoted in**. The workspace has a
+default — what a new lead starts on, what the form pre-selects — but any lead may be recorded in
+any supported currency, because that is what the customer was actually told.
 
-On top of that, each person picks a **display currency**. That is a reading preference and nothing
-more: the conversion happens in `useMoney()` at render time, no stored amount is ever written back
-converted, and two people looking at the same workspace in different currencies are looking at the
-same data. Any screen showing converted figures carries a `<ConversionNote />` saying what it was
-converted from and how old the rate is — a converted number that does not admit it is worse than
-no conversion at all.
+This did not used to be true. The API refused a per-lead currency on the grounds that the pipeline
+aggregates sum `estimatedValue` directly, so mixing currencies made "total pipeline value"
+arithmetic between different units. The premise was right and the conclusion was backwards: the fix
+is for the aggregates to stop pretending a mixed total is one number, not for the product to refuse
+to record what the customer was quoted.
+
+So every aggregate **groups by currency first**. `SUM("estimatedValue")` became
+`GROUP BY "currency"`, on the leads table, the board and every figure on the dashboard. That bounds
+the work by the number of supported currencies — a handful — rather than by the number of leads,
+and it hands back both readings from one query:
+
+```ts
+interface MoneyTotalDto {
+  byCurrency: Array<{ currency: Currency; amount: number }>; // exactly true
+  converted: number; // one comparable figure
+  currency: Currency;
+  mixed: boolean;
+}
+```
+
+The two can never disagree, because `converted` is those same per-currency figures converted once
+each and added. Sending both also means the reader's choice between them is a re-render rather than
+a refetch.
+
+**The choice.** `CONVERTED` restates everything at today's rate: one number, comparable, sortable,
+and slightly wrong at the edges because a rate is a moment's opinion about money nobody has
+exchanged. `BREAKDOWN` keeps each currency apart and adds nothing across them: several numbers,
+every one of them exactly true. Neither is right for everybody, so it is a setting — and it lives
+where the theme lives rather than on the user record, because unlike the display currency it
+changes no request.
+
+The switch only appears on workspaces that hold more than one currency. The session carries the
+list for exactly that test, and on the great majority — which trade in one — both readings render
+the same single figure and the control would be a row that visibly does nothing.
+
+Choosing `BREAKDOWN` also turns conversion off for _individual_ figures, not just totals. A reader
+shown a total of "AED 1,200,000 · EUR 300,000" and then a row reading "$50,000" is looking at a
+screen that contradicts itself — and the row is the figure they would quote to the customer, so it
+is the one that has to stay in the currency it was agreed in.
+
+**What stays converted regardless.** A chart line and a forecast are single numbers by nature. They
+use the converted figure and say so, because a stacked-by-currency trend chart is a different
+product. They still convert each currency separately and add, rather than summing mixed units and
+labelling the result with whichever currency came first.
+
+### The display currency, which is a reading preference
+
+Each person picks a currency to read in. The conversion happens at render time, no stored amount is
+ever written back converted, and two people looking at the same workspace in different currencies
+are looking at the same data. Any screen showing converted figures carries a `<ConversionNote />`
+saying what it was converted from and how old the rate is — a converted number that does not admit
+it is worse than no conversion at all.
 
 Rates come from `open.er-api.com` (free, no key, daily), cached in a Postgres table, with a table
 compiled into the build behind that. The response says which tier answered — `live`, `cache` or
@@ -679,24 +755,25 @@ compiled into the build behind that. The response says which tier answered — `
 refresh lazily on the first request after they go stale, which on serverless is the only kind of
 schedule that actually runs.
 
-Converting is recorded. `WorkspaceEvent` holds things that happen to the workspace rather than to
-one lead — which `Activity` cannot express, since every row of it needs a `leadId` — and the
-settings screen shows who converted, when, between which currencies, at what rate and across how
-many leads. An irreversible change with no record of who made it is one a team reconstructs from
-memory a month later.
+### Restating a workspace into one currency
 
-The one place the two layers meet is an owner changing the base currency. That genuinely restates
-every stored amount, and the confirmation quotes the lead count, the rate and what the pipeline
-total becomes before it will proceed — plus a warning if the live feed is down and the rate is an
-indicative one. The alternatives are worse: relabelling turns 250,000 AED into 250,000 USD, and
-converting only new leads leaves two currencies in one column — the same broken sum with a longer
-fuse.
+An owner can still convert every stored amount into a single currency. It is now a normalisation
+tool rather than the only way to change currency — a workspace that has accumulated four of them
+and wants one can say so — and it is unchanged otherwise: the confirmation quotes the lead count,
+the rate and what the pipeline total becomes before it will proceed, plus a warning if the live
+feed is down and the rate is an indicative one.
 
 Inside the transaction it is a compare-and-swap, not a read-then-write: the workspace row is
 claimed only if it is still in the currency the conversion was priced from, and the lead update is
 scoped to that same currency. Two requests arriving together used to both read AED and both
 multiply, turning a 625,000 AED lead into 120,148,024 EGP — the rate applied squared, on a write
 with no undo. The loser now matches zero rows and changes nothing.
+
+Converting is recorded. `WorkspaceEvent` holds things that happen to the workspace rather than to
+one lead — which `Activity` cannot express, since every row of it needs a `leadId` — and the
+settings screen shows who converted, when, between which currencies, at what rate and across how
+many leads. An irreversible change with no record of who made it is one a team reconstructs from
+memory a month later.
 
 ### Arabic is not in the main bundle
 

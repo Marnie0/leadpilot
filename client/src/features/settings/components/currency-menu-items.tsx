@@ -1,10 +1,12 @@
-import { Coins } from 'lucide-react';
-import { CURRENCIES, type Currency } from '@leadpilot/shared';
+import { Coins, Layers, Sigma } from 'lucide-react';
+import { CURRENCIES, type Currency, type MoneyView } from '@leadpilot/shared';
 import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { useMoneyView } from '@/providers/money-view-provider';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useUpdateProfile } from '@/features/settings/api';
 import { useT } from '@/lib/i18n';
@@ -22,6 +24,7 @@ export function CurrencyMenuItems() {
   const t = useT();
   const user = useCurrentUser();
   const updateProfile = useUpdateProfile();
+  const { moneyView, setMoneyView } = useMoneyView();
 
   const base = asCurrency(user.organization.defaultCurrency) ?? 'USD';
   // The sentinel keeps "follow the workspace" distinct from "happens to match
@@ -52,6 +55,34 @@ export function CurrencyMenuItems() {
           </DropdownMenuRadioItem>
         ))}
       </DropdownMenuRadioGroup>
+
+      {/*
+        Only for workspaces that actually hold more than one currency. On the
+        great majority, which trade in one, both readings render the same single
+        figure — and a control that visibly does nothing is worse than no
+        control. `currencies` comes down on the session for exactly this test.
+      */}
+      {user.organization.currencies.length > 1 && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+            {t('currency.mixedTotals')}
+          </DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={moneyView}
+            onValueChange={(next) => setMoneyView(next as MoneyView)}
+          >
+            <DropdownMenuRadioItem value="CONVERTED">
+              <Sigma className="size-4" aria-hidden />
+              {t('currency.viewConverted')}
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="BREAKDOWN">
+              <Layers className="size-4" aria-hidden />
+              {t('currency.viewBreakdown')}
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </>
+      )}
     </>
   );
 }

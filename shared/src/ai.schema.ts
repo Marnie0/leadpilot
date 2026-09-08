@@ -78,7 +78,16 @@ export interface LeadInsightDto {
   draftMessage: string;
   /** Up to AI_MAX_SIGNALS short phrases the judgement rested on. */
   signals: string[];
-  model: string;
+  /*
+   * The provider model is deliberately NOT on this DTO.
+   *
+   * It is still recorded on the row, because "which thing made this assessment"
+   * is the sort of question an audit trail exists to answer once the default has
+   * moved on. It simply is not the reader's business: naming the model tells
+   * somebody reading a lead nothing they can act on, dates the product the day
+   * the provider renames a version, and invites a judgement about the answer
+   * based on the badge rather than the content.
+   */
   generatedAt: string;
   generatedBy: { id: string; name: string } | null;
   /**
@@ -125,8 +134,6 @@ export interface AiUsageDto {
 
 /** Assistant settings, as the workspace owner sees them. */
 export interface AiSettingsDto extends AiUsageDto {
-  /** Which model the deployment is pointed at; shown so the page is honest. */
-  model: string;
   /**
    * True when the provider's free tier trains on what is sent to it, so the
    * settings screen can say so rather than leaving it in a README nobody reads.
@@ -139,3 +146,84 @@ export const updateAiSettingsSchema = z.object({
   enabled: z.boolean(),
 });
 export type UpdateAiSettingsInput = z.infer<typeof updateAiSettingsSchema>;
+
+/* ------------------------------------------------------------------ *
+ * The workspace summary
+ *
+ * The per-lead assistant answers "what about this enquiry". This one answers
+ * "what about all of it" — and they are genuinely different questions, which is
+ * why it is a separate artefact rather than the same prompt over more rows.
+ *
+ * ## What "the main points" was taken to mean
+ *
+ * Three things, in the order a person would want them:
+ *
+ *  1. **What needs attention** — the items where somebody has to act, ranked,
+ *     each naming the specific thing rather than the category. This is the part
+ *     that earns the feature: overdue follow-ups, deals gone quiet, large
+ *     opportunities with nobody assigned, stages that have stopped moving.
+ *  2. **What is moving** — trends worth knowing, with a direction. Deliberately
+ *     separate from the above: a trend is context for a decision, not a task.
+ *  3. **One next step** — a single instruction, because a list of five
+ *     priorities is a list of none.
+ *
+ * Deliberately *not* included: anything the dashboard already states plainly.
+ * A summary that opens by telling you your pipeline value — a number sitting in
+ * a card two inches away — has spent a model call restating a `SUM()`.
+ * ------------------------------------------------------------------ */
+
+/** How loudly one attention item is asking to be dealt with. */
+export const AI_SEVERITIES = ['INFO', 'WATCH', 'URGENT'] as const;
+export type AiSeverity = (typeof AI_SEVERITIES)[number];
+
+/** Which way a trend is pointing, as the model read it. */
+export const AI_TRENDS = ['UP', 'DOWN', 'FLAT'] as const;
+export type AiTrend = (typeof AI_TRENDS)[number];
+
+export const AI_MAX_ATTENTION = 5;
+export const AI_MAX_TRENDS = 3;
+
+export interface AiAttentionItemDto {
+  title: string;
+  detail: string;
+  severity: AiSeverity;
+}
+
+export interface AiTrendItemDto {
+  title: string;
+  detail: string;
+  direction: AiTrend;
+}
+
+export interface WorkspaceSummaryDto {
+  id: string;
+  locale: (typeof LOCALES)[number];
+  /** Two or three sentences on the state of the pipeline as a whole. */
+  headline: string;
+  /** Most pressing first, capped at AI_MAX_ATTENTION. */
+  attention: AiAttentionItemDto[];
+  trends: AiTrendItemDto[];
+  /** One concrete instruction for today. */
+  nextStep: string;
+  /** Recorded on the row but not exposed — see `LeadInsightDto`. */
+  generatedAt: string;
+  generatedBy: { id: string; name: string } | null;
+  /**
+   * True when the workspace has changed materially since this was written.
+   *
+   * Fingerprinted over the figures the summary was built from — counts, values,
+   * overdue totals — rather than over every lead, so ordinary edits that do not
+   * change the picture do not nag. See `ai.workspace-prompt.ts`.
+   */
+  isStale: boolean;
+}
+
+export const generateWorkspaceSummarySchema = z.object({
+  locale: z.enum(LOCALES).optional(),
+});
+export type GenerateWorkspaceSummaryInput = z.infer<typeof generateWorkspaceSummarySchema>;
+
+export interface WorkspaceSummaryResultDto {
+  summary: WorkspaceSummaryDto | null;
+  usage: AiUsageDto;
+}

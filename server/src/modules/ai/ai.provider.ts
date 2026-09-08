@@ -1,4 +1,12 @@
-import { AI_MAX_SIGNALS, AI_URGENCIES, FOLLOW_UP_CHANNELS } from '@leadpilot/shared';
+import {
+  AI_MAX_ATTENTION,
+  AI_MAX_SIGNALS,
+  AI_MAX_TRENDS,
+  AI_SEVERITIES,
+  AI_TRENDS,
+  AI_URGENCIES,
+  FOLLOW_UP_CHANNELS,
+} from '@leadpilot/shared';
 import { AppError } from '../../lib/errors.js';
 import { env } from '../../env.js';
 import { logger } from '../../logger.js';
@@ -70,6 +78,49 @@ export interface LeadAnalysis {
   nextActionChannel: (typeof FOLLOW_UP_CHANNELS)[number];
   draftMessage: string;
   signals: string[];
+}
+
+/** What the workspace briefing must return. Enforced by the API, re-checked below. */
+const SUMMARY_SCHEMA = {
+  type: 'object',
+  properties: {
+    headline: { type: 'string' },
+    attention: {
+      type: 'array',
+      maxItems: AI_MAX_ATTENTION,
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          detail: { type: 'string' },
+          severity: { type: 'string', enum: [...AI_SEVERITIES] },
+        },
+        required: ['title', 'detail', 'severity'],
+      },
+    },
+    trends: {
+      type: 'array',
+      maxItems: AI_MAX_TRENDS,
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          detail: { type: 'string' },
+          direction: { type: 'string', enum: [...AI_TRENDS] },
+        },
+        required: ['title', 'detail', 'direction'],
+      },
+    },
+    nextStep: { type: 'string' },
+  },
+  required: ['headline', 'attention', 'trends', 'nextStep'],
+} as const;
+
+export interface WorkspaceAnalysis {
+  headline: string;
+  attention: Array<{ title: string; detail: string; severity: (typeof AI_SEVERITIES)[number] }>;
+  trends: Array<{ title: string; detail: string; direction: (typeof AI_TRENDS)[number] }>;
+  nextStep: string;
 }
 
 export const PROVIDER_NAME = 'Google Gemini';
@@ -176,25 +227,28 @@ const asString = (value: unknown, max: number): string =>
  * as a factual assessment. A score of `NaN` or a `null` draft rendering as the
  * word "null" on a lead page is the failure this prevents.
  */
-function parseAnalysis(text: string): LeadAnalysis {
-  let raw: unknown;
+/** Parses the model's text, tolerating a ```json fence around it. */
+function parseJson(text: string): unknown {
   try {
-    raw = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
-    // Some models wrap JSON in a ```json fence despite the mime type.
+    // Some models wrap JSON in a fence despite the mime type.
     const fenced = /\{[\s\S]*\}/.exec(text);
-    if (!fenced)
+    if (!fenced) {
       throw new AppError(502, 'AI_INVALID_RESPONSE', 'The assistant returned no usable analysis.');
+    }
     try {
-      raw = JSON.parse(fenced[0]);
+      return JSON.parse(fenced[0]);
     } catch (cause) {
       throw new AppError(502, 'AI_INVALID_RESPONSE', 'The assistant returned no usable analysis.', {
         cause,
       });
     }
   }
+}
 
-  const value = raw as Record<string, unknown>;
+function parseAnalysis(text: string): LeadAnalysis {
+  const value = parseJson(text) as Record<string, unknown>;
   const urgency = AI_URGENCIES.includes(value.urgency as never)
     ? (value.urgency as LeadAnalysis['urgency'])
     : 'MEDIUM';
@@ -231,8 +285,19 @@ function parseAnalysis(text: string): LeadAnalysis {
   return analysis;
 }
 
-/** Calls the provider. Throws an `AppError` with a translatable code, or returns. */
-export async function analyse(prompt: string): Promise<{ analysis: LeadAnalysis; model: string }> {
+/**
+ * One call to the provider, returning the raw text of a schema-shaped answer.
+ *
+ * Both features share this: they differ only in their prompt and their response
+ * schema, and everything else — the timeout, the error mapping, the envelope
+ * handling, the non-completed-status guard — is identical and should stay that
+ * way rather than being copied and drifting.
+ */
+async function complete(
+  prompt: string,
+  schema: unknown,
+  maxOutputTokens: number,
+): Promise<{ text: string; model: string }> {
   const apiKey = env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new AppError(503, 'AI_NOT_CONFIGURED', 'The assistant is not configured on this server.');
@@ -250,16 +315,12 @@ export async function analyse(prompt: string): Promise<{ analysis: LeadAnalysis;
       body: JSON.stringify({
         model: env.AI_MODEL,
         input: prompt,
-        response_format: {
-          type: 'text',
-          mime_type: 'application/json',
-          schema: RESPONSE_SCHEMA,
-        },
+        response_format: { type: 'text', mime_type: 'application/json', schema },
         generation_config: {
-          // Low but not zero: the draft message should not read like a form
-          // letter, and the scores should not wobble between runs.
+          // Low but not zero: the prose should not read like a form letter, and
+          // the scores should not wobble between runs.
           temperature: 0.3,
-          max_output_tokens: 1600,
+          max_output_tokens: maxOutputTokens,
         },
       }),
     });
@@ -295,5 +356,80 @@ export async function analyse(prompt: string): Promise<{ analysis: LeadAnalysis;
     throw new AppError(502, 'AI_INVALID_RESPONSE', 'The assistant returned no usable analysis.');
   }
 
-  return { analysis: parseAnalysis(text), model: env.AI_MODEL };
+  return { text, model: env.AI_MODEL };
+}
+
+/**
+ * Re-validates a workspace briefing.
+ *
+ * Same reasoning as `parseAnalysis`: the API enforces the schema, and this is
+ * cheap insurance on a value that is written to the database and shown as a
+ * factual assessment. An empty headline rendering as a blank card, or an
+ * attention item with no text beside a red URGENT badge, is what this stops.
+ */
+function parseWorkspace(text: string): WorkspaceAnalysis {
+  const value = parseJson(text) as Record<string, unknown>;
+
+  const list = <T>(
+    raw: unknown,
+    max: number,
+    map: (entry: Record<string, unknown>) => T | null,
+  ): T[] =>
+    Array.isArray(raw)
+      ? raw
+          .map((entry) => map((entry ?? {}) as Record<string, unknown>))
+          .filter((entry): entry is T => entry !== null)
+          .slice(0, max)
+      : [];
+
+  const analysis: WorkspaceAnalysis = {
+    headline: asString(value.headline, 1200),
+    attention: list(value.attention, AI_MAX_ATTENTION, (entry) => {
+      const title = asString(entry.title, 160);
+      const detail = asString(entry.detail, 600);
+      if (!title) return null;
+      return {
+        title,
+        detail,
+        severity: AI_SEVERITIES.includes(entry.severity as never)
+          ? (entry.severity as WorkspaceAnalysis['attention'][number]['severity'])
+          : 'WATCH',
+      };
+    }),
+    trends: list(value.trends, AI_MAX_TRENDS, (entry) => {
+      const title = asString(entry.title, 160);
+      const detail = asString(entry.detail, 600);
+      if (!title) return null;
+      return {
+        title,
+        detail,
+        direction: AI_TRENDS.includes(entry.direction as never)
+          ? (entry.direction as WorkspaceAnalysis['trends'][number]['direction'])
+          : 'FLAT',
+      };
+    }),
+    nextStep: asString(value.nextStep, 400),
+  };
+
+  // The two things the card is built around. An empty attention list is a valid
+  // answer — a workspace can genuinely have nothing on fire — but a summary
+  // with no headline and no next step has not answered the question.
+  if (!analysis.headline || !analysis.nextStep) {
+    throw new AppError(502, 'AI_INVALID_RESPONSE', 'The assistant returned an incomplete summary.');
+  }
+  return analysis;
+}
+
+/** Analyses one lead. Throws an `AppError` with a translatable code, or returns. */
+export async function analyse(prompt: string): Promise<{ analysis: LeadAnalysis; model: string }> {
+  const { text, model } = await complete(prompt, RESPONSE_SCHEMA, 1600);
+  return { analysis: parseAnalysis(text), model };
+}
+
+/** Summarises a whole workspace. */
+export async function analyseWorkspace(
+  prompt: string,
+): Promise<{ analysis: WorkspaceAnalysis; model: string }> {
+  const { text, model } = await complete(prompt, SUMMARY_SCHEMA, 2000);
+  return { analysis: parseWorkspace(text), model };
 }

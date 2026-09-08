@@ -4,6 +4,7 @@ import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useFormat, useT } from '@/lib/i18n';
+import { useMoneyView } from '@/providers/money-view-provider';
 
 /** Narrows a stored currency string to one the product knows how to convert. */
 export function asCurrency(code: string | null | undefined): Currency | null {
@@ -72,10 +73,22 @@ export interface Money {
 export function useMoney(): Money {
   const user = useCurrentUser();
   const format = useFormat();
+  const { moneyView } = useMoneyView();
 
   const baseCurrency = asCurrency(user.organization.defaultCurrency) ?? 'USD';
   const preferred = asCurrency(user.displayCurrency);
-  const wantsConversion = preferred !== null && preferred !== baseCurrency;
+  /*
+   * "Keep each currency separate" turns conversion off for individual figures
+   * too, not just for totals.
+   *
+   * The two settings are one idea. A reader who has asked for a total of
+   * "AED 1,200,000 · EUR 300,000" and is then shown "$50,000" on the row that
+   * makes it up is looking at a screen that contradicts itself — and the row is
+   * the figure they would quote to the customer, so it is the one that has to
+   * stay in the currency it was agreed in.
+   */
+  const wantsConversion =
+    moneyView === 'CONVERTED' && preferred !== null && preferred !== baseCurrency;
 
   const ratesQuery = useFxRates(wantsConversion);
   const rates = ratesQuery.data?.rates;

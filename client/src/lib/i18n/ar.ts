@@ -249,8 +249,9 @@ export const ar: Dictionary = {
   'landing.heroEyebrow': 'إدارة العملاء المحتملين لشركات الخدمات',
   'landing.heroTitle': 'كل استفسار تتم متابعته.',
   'landing.heroSubtitle':
-    'نادرًا ما تخسر الفرق الصغيرة صفقة أمام منافس أفضل؛ إنما تخسرها بسبب رسالة لم يردّ عليها أحد. «ليدبايلوت» مكان واحد مشترك لتسجيل كل استفسار، وإسناده إلى مسؤول، والتأكد من أن أحدًا ما يتابعه فعلًا.',
+    'نادرًا ما تخسر الفرق الصغيرة صفقة أمام منافس أفضل؛ إنما تخسرها بسبب رسالة لم يردّ عليها أحد. «ليدبايلوت» مكان واحد مشترك لتسجيل كل استفسار، وإسناده إلى مسؤول، والتأكد من أن أحدًا ما يتابعه فعلًا — مع مساعد ذكي يقرأ كل طلب ويقيّمه ويصوغ الرد.',
   'landing.heroNote': 'دون بطاقة ودون تسجيل. يفتح العرض التجريبي مساحة عمل خاصة ببيانات حقيقية.',
+  'landing.trustAi': 'مساعد ذكي يصوغ الرد نيابةً عنك',
   'landing.trustBilingual': 'بالعربية والإنجليزية، كما ينبغي',
   'landing.trustNoCard': 'دون بطاقة ودون تسجيل',
   'landing.trustPrivate': 'مساحة عمل خاصة بك وحدك',
@@ -603,6 +604,7 @@ export const ar: Dictionary = {
   'leadForm.phonePlaceholder': '+971 50 123 4567',
   'leadForm.requestedService': 'الخدمة المطلوبة *',
   'leadForm.requestedServicePlaceholder': 'الاستثمار في شقة على الخارطة',
+  'leadForm.currency': 'العملة',
   'leadForm.estimatedValue': 'القيمة التقديرية',
   'leadForm.notes': 'ملاحظات',
   'leadForm.notesPlaceholder': 'أي معلومة يحتاجها الفريق قبل أول اتصال…',
@@ -863,6 +865,7 @@ export const ar: Dictionary = {
   'leadField.phone': 'الهاتف',
   'leadField.requestedService': 'الخدمة المطلوبة',
   'leadField.estimatedValue': 'القيمة التقديرية',
+  'leadField.currency': 'العملة',
   'leadField.priority': 'الأولوية',
   'leadField.source': 'مصدر العميل',
 
@@ -894,6 +897,9 @@ export const ar: Dictionary = {
   'currency.QAR': 'الريال القطري',
   'currency.KWD': 'الدينار الكويتي',
 
+  'currency.mixedTotals': 'الإجماليات بأكثر من عملة',
+  'currency.viewConverted': 'التحويل إلى عملة واحدة',
+  'currency.viewBreakdown': 'إبقاء كل عملة على حدة',
   'currency.display': 'عملة العرض',
   'currency.displayHint':
     'تُحفظ المبالغ بعملة مساحة العمل وتُحوَّل لك عند العرض. ما تراه هنا لا يغيّر ما يراه غيرك.',
@@ -1115,7 +1121,6 @@ export const ar: Dictionary = {
   'ai.couldNotDiscard': 'تعذّر حذف التحليل',
   'ai.by': 'حُلِّل {time} بواسطة {name}',
   'ai.byUnknown': 'حُلِّل {time}',
-  'ai.model': 'النموذج: {model}',
   'ai.disclaimer':
     'صيغ هذا النص بالذكاء الاصطناعي اعتمادًا على بيانات هذا العميل. راجعه قبل التصرّف بناءً عليه.',
   'ai.staleTitle': 'تغيّرت بيانات هذا العميل بعد إجراء التحليل',
@@ -1164,13 +1169,35 @@ export const ar: Dictionary = {
   'settings.aiTrainingWarning':
     'تستخدم الباقة المجانية من {provider} ما يصلها لتحسين منتجاتها. لا تفعّل هذا في مساحة عمل تحتوي بيانات عملاء لا يجوز مشاركتها.',
   'settings.aiUsage': 'استُخدم {used} من {limit} تحليلًا خلال آخر ٢٤ ساعة',
-  'settings.aiModel': 'النموذج: {model}',
   'settings.aiUnconfigured':
     'لا يوجد مزوّد ذكاء اصطناعي مُهيّأ على هذا الخادم، لذا لن يعمل المساعد حتى بعد تفعيله.',
   'settings.aiTurnedOn': 'تم تفعيل المساعد الذكي',
   'settings.aiTurnedOff': 'تم تعطيل المساعد الذكي',
   'settings.couldNotChangeAi': 'تعذّر تغيير إعداد المساعد',
   'settings.aiManagerOnly': 'لا يمكن تغيير هذا إلا لمالك مساحة العمل أو المشرف.',
+
+  /* -------------------------------------------------------------- *
+   * AI workspace summary
+   * -------------------------------------------------------------- */
+  'aiSummary.title': 'ما يحتاج إلى انتباهك',
+  'aiSummary.emptyTitle': 'اقرأ خط الصفقات كاملًا نيابةً عني',
+  'aiSummary.emptyBody':
+    'ما يحتاج إلى تصرّف اليوم، وما الذي يتغيّر، والخطوة الأجدر بالبدء بها — عبر كل العملاء المحتملين لا واحدًا منهم.',
+  'aiSummary.generate': 'لخّص مساحة العمل',
+  'aiSummary.regenerate': 'تحديث',
+  'aiSummary.working': 'جارٍ قراءة خط الصفقات…',
+  'aiSummary.attention': 'يحتاج إلى انتباه',
+  'aiSummary.trends': 'ما الذي يتغيّر',
+  'aiSummary.nextStep': 'ابدأ من هنا',
+  'aiSummary.failedTitle': 'تعذّر تلخيص مساحة العمل',
+  'aiSummary.staleTitle': 'تغيّر خط الصفقات بعد كتابة هذا الملخّص',
+  'aiSummary.staleBody': 'حدّثه ليأخذ الأرقام الجديدة في الحسبان.',
+  'aiSummary.discarded': 'تم حذف الملخّص',
+  'aiSummary.disclaimer':
+    'صيغ هذا الملخّص بالذكاء الاصطناعي اعتمادًا على أرقامك. راجع أي معلومة قبل التصرّف بناءً عليها.',
+  'aiSeverity.URGENT': 'اليوم',
+  'aiSeverity.WATCH': 'هذا الأسبوع',
+  'aiSeverity.INFO': 'جدير بالمعرفة',
 
   /* -------------------------------------------------------------- *
    * Dates

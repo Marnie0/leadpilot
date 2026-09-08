@@ -83,8 +83,6 @@ export function AiAssistantCard({ canEdit }: { canEdit: boolean }) {
                       used: format.number(settings.usedToday),
                       limit: format.number(settings.dailyLimit),
                     })}
-                    {' · '}
-                    <span dir="ltr">{t('settings.aiModel', { model: settings.model })}</span>
                   </p>
                 )}
               </div>

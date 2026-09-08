@@ -46,7 +46,24 @@ const AUTH_USER_INCLUDE = {
 
 type AuthUserRow = Prisma.UserGetPayload<{ include: typeof AUTH_USER_INCLUDE }>;
 
-function toAuthUser(user: AuthUserRow): AuthUser {
+/**
+ * The currencies a workspace actually holds leads in.
+ *
+ * On the session because it decides whether the "converted or broken down"
+ * control exists at all. A grouped scan over an organisation-scoped index, and
+ * the answer is a handful of rows at most.
+ */
+async function workspaceCurrencies(organizationId: string): Promise<string[]> {
+  const groups = await prisma.lead.groupBy({
+    by: ['currency'],
+    where: { organizationId, deletedAt: null },
+    orderBy: { currency: 'asc' },
+  });
+  return groups.map((group) => group.currency);
+}
+
+async function toAuthUser(user: AuthUserRow): Promise<AuthUser> {
+  const currencies = await workspaceCurrencies(user.organizationId);
   return {
     id: user.id,
     email: user.email,
@@ -61,6 +78,7 @@ function toAuthUser(user: AuthUserRow): AuthUser {
       name: user.organization.name,
       slug: user.organization.slug,
       defaultCurrency: user.organization.defaultCurrency,
+      currencies,
       isDemo: user.organization.isDemo,
       expiresAt: user.organization.expiresAt?.toISOString() ?? null,
     },
@@ -169,7 +187,7 @@ export async function signup(input: SignupInput, context: SessionContext): Promi
   const tokens = await createSession(user, context);
   logger.info({ userId: user.id, organizationId: user.organizationId }, 'organisation created');
 
-  return { user: toAuthUser(user), ...tokens };
+  return { user: await toAuthUser(user), ...tokens };
 }
 
 export async function login(input: LoginInput, context: SessionContext): Promise<AuthResult> {
@@ -206,7 +224,7 @@ export async function login(input: LoginInput, context: SessionContext): Promise
   });
 
   const tokens = await createSession(user, context);
-  return { user: toAuthUser(user), ...tokens };
+  return { user: await toAuthUser(user), ...tokens };
 }
 
 /**
@@ -277,7 +295,7 @@ export async function refreshSession(
     }),
   ]);
 
-  return { user: toAuthUser(user), accessToken, refreshToken: next.token };
+  return { user: await toAuthUser(user), accessToken, refreshToken: next.token };
 }
 
 /** Revokes the presented session. Never throws — logging out always succeeds. */
@@ -296,7 +314,7 @@ export async function logout(rawToken: string | undefined): Promise<void> {
 export async function getCurrentUser(userId: string): Promise<AuthUser> {
   const user = await prisma.user.findUnique({ where: { id: userId }, include: AUTH_USER_INCLUDE });
   if (!user || !user.isActive) throw unauthorized();
-  return toAuthUser(user);
+  return await toAuthUser(user);
 }
 
 export async function updateProfile(userId: string, input: UpdateProfileInput): Promise<AuthUser> {
@@ -312,7 +330,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
     },
     include: AUTH_USER_INCLUDE,
   });
-  return toAuthUser(user);
+  return await toAuthUser(user);
 }
 
 /**
@@ -367,5 +385,5 @@ export async function startDemoSession(context: SessionContext): Promise<AuthRes
   });
 
   const tokens = await createSession(user, context);
-  return { user: toAuthUser(user), ...tokens };
+  return { user: await toAuthUser(user), ...tokens };
 }

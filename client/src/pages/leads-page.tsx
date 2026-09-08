@@ -120,7 +120,6 @@ export function LeadsPage() {
         <>
           <LeadStats
             stats={statsQuery.data}
-            currency={user.organization.defaultCurrency}
             isLoading={statsQuery.isLoading}
           />
 

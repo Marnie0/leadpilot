@@ -188,8 +188,9 @@ export const en = {
   'landing.heroEyebrow': 'Lead management for service businesses',
   'landing.heroTitle': 'Every enquiry, followed up.',
   'landing.heroSubtitle':
-    'Small teams rarely lose a deal to a better competitor. They lose it to a message nobody answered. LeadPilot is one shared place to capture every enquiry, give it an owner, and make sure somebody actually follows up.',
+    'Small teams rarely lose a deal to a better competitor. They lose it to a message nobody answered. LeadPilot is one shared place to capture every enquiry, give it an owner, and make sure somebody actually follows up — with an AI assistant that reads each enquiry, scores it, and drafts the reply.',
   'landing.heroNote': 'No card, no signup. The demo opens a private workspace with real data.',
+  'landing.trustAi': 'An AI assistant that drafts the reply',
   'landing.trustBilingual': 'English and Arabic, properly',
   'landing.trustNoCard': 'No card, no signup',
   'landing.trustPrivate': 'A private workspace, yours alone',
@@ -502,6 +503,7 @@ export const en = {
   'leadForm.phonePlaceholder': '+971 50 123 4567',
   'leadForm.requestedService': 'Requested service *',
   'leadForm.requestedServicePlaceholder': 'Off-plan apartment investment',
+  'leadForm.currency': 'Currency',
   'leadForm.estimatedValue': 'Estimated value',
   'leadForm.notes': 'Notes',
   'leadForm.notesPlaceholder': 'Anything the team should know before the first call…',
@@ -766,6 +768,7 @@ export const en = {
   'leadField.phone': 'phone',
   'leadField.requestedService': 'requested service',
   'leadField.estimatedValue': 'estimated value',
+  'leadField.currency': 'currency',
   'leadField.priority': 'priority',
   'leadField.source': 'lead source',
 
@@ -797,6 +800,9 @@ export const en = {
   'currency.QAR': 'Qatari riyal',
   'currency.KWD': 'Kuwaiti dinar',
 
+  'currency.mixedTotals': 'Totals in more than one currency',
+  'currency.viewConverted': 'Convert to one currency',
+  'currency.viewBreakdown': 'Keep each currency separate',
   'currency.display': 'Display currency',
   'currency.displayHint':
     'Figures are stored in the workspace currency and converted for you. Nothing you see here changes what anyone else sees.',
@@ -998,7 +1004,6 @@ export const en = {
   'ai.couldNotDiscard': 'Could not discard the analysis',
   'ai.by': 'Analysed {time} by {name}',
   'ai.byUnknown': 'Analysed {time}',
-  'ai.model': 'Model: {model}',
   'ai.disclaimer': 'Written by AI from what is on this lead. Check it before you act on it.',
   'ai.staleTitle': 'This lead has changed since it was analysed',
   'ai.staleBody': 'Run it again to take the newer details into account.',
@@ -1034,13 +1039,35 @@ export const en = {
   'settings.aiTrainingWarning':
     '{provider}’s free tier uses what it receives to improve their products. Do not enable this for a workspace holding customer data you cannot share.',
   'settings.aiUsage': '{used} of {limit} analyses used in the last 24 hours',
-  'settings.aiModel': 'Model: {model}',
   'settings.aiUnconfigured':
     'No AI provider is configured on this deployment, so the assistant cannot run even when enabled.',
   'settings.aiTurnedOn': 'The AI assistant is on',
   'settings.aiTurnedOff': 'The AI assistant is off',
   'settings.couldNotChangeAi': 'Could not change the assistant setting',
   'settings.aiManagerOnly': 'Only an owner or admin can change this.',
+
+  /* -------------------------------------------------------------- *
+   * AI workspace summary
+   * -------------------------------------------------------------- */
+  'aiSummary.title': 'What needs your attention',
+  'aiSummary.emptyTitle': 'Read the whole pipeline for me',
+  'aiSummary.emptyBody':
+    'What needs acting on today, what is moving, and the one thing worth doing first — across every lead, not one.',
+  'aiSummary.generate': 'Summarise my workspace',
+  'aiSummary.regenerate': 'Refresh',
+  'aiSummary.working': 'Reading your pipeline…',
+  'aiSummary.attention': 'Needs attention',
+  'aiSummary.trends': 'What is moving',
+  'aiSummary.nextStep': 'Start here',
+  'aiSummary.failedTitle': 'Could not summarise your workspace',
+  'aiSummary.staleTitle': 'Your pipeline has changed since this was written',
+  'aiSummary.staleBody': 'Refresh it to take the newer figures into account.',
+  'aiSummary.discarded': 'Summary discarded',
+  'aiSummary.disclaimer':
+    'Written by AI from your own figures. Check anything before you act on it.',
+  'aiSeverity.URGENT': 'Today',
+  'aiSeverity.WATCH': 'This week',
+  'aiSeverity.INFO': 'Worth knowing',
 
   /* -------------------------------------------------------------- *
    * Dates

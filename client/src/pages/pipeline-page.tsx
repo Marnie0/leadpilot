@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ErrorState } from '@/components/common/error-state';
 import { useFormat, useT } from '@/lib/i18n';
-import { useMoney } from '@/lib/money';
+import { useMoneyTotalText } from '@/components/common/money-total';
 import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useTeamMembers } from '@/features/leads/api';
@@ -68,7 +68,7 @@ export function PipelinePage() {
   const user = useCurrentUser();
   const t = useT();
   const format = useFormat();
-  const money = useMoney();
+  const moneyText = useMoneyTotalText();
   const describeError = useApiErrorMessage();
   const { filters, setFilters, resetFilters, hasActiveFilters } = useBoardFilters();
 
@@ -127,10 +127,13 @@ export function PipelinePage() {
 
   const totals = useMemo(() => {
     if (!board) return null;
-    const open = board.columns.filter((column) => column.stage.type === 'OPEN');
-    return {
+      return {
       leads: board.columns.reduce((sum, column) => sum + column.total, 0),
-      openValue: open.reduce((sum, column) => sum + column.value, 0),
+      // Taken from the payload rather than re-added here. Summing the columns
+      // client-side would need FX rates the browser may not have fetched — the
+      // reader can be sitting on the workspace currency while the board holds
+      // three — and would produce a converted figure the server never agreed to.
+      openValue: board.openValue,
     };
   }, [board]);
 
@@ -238,10 +241,7 @@ export function PipelinePage() {
           totals
             ? t('board.description', {
                 leads: format.number(totals.leads),
-                value: money.format(
-                  totals.openValue,
-                  board?.currency ?? user.organization.defaultCurrency,
-                ),
+                value: moneyText(totals.openValue),
               })
             : t('board.fallbackDescription', { organization: user.organization.name })
         }

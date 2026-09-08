@@ -5,9 +5,11 @@ import type {
   LeadInsightDto,
   Locale,
   UpdateAiSettingsInput,
+  WorkspaceSummaryResultDto,
 } from '@leadpilot/shared';
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
+import { timeZoneParam } from '@/lib/time-zone';
 
 export interface InsightResponse {
   insight: LeadInsightDto | null;
@@ -77,6 +79,57 @@ export function useUpdateAiSettings() {
       // Every lead's card reads `usage.enabled`, so they all have to hear about
       // the switch being thrown.
       void queryClient.invalidateQueries({ queryKey: queryKeys.leads.details() });
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * The whole-workspace briefing
+ * ------------------------------------------------------------------ */
+
+/**
+ * The stored briefing.
+ *
+ * A plain read that never calls the model, so it is safe on every dashboard
+ * view — and the response carries the workspace's remaining budget, so the card
+ * can say what a click will cost before it is clicked.
+ */
+export function useWorkspaceSummary(options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: queryKeys.aiSummary,
+    queryFn: () =>
+      api.get<WorkspaceSummaryResultDto>('/ai/summary', { params: { ...timeZoneParam } }),
+    enabled: options.enabled ?? true,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useGenerateWorkspaceSummary() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (locale: Locale) =>
+      api.post<WorkspaceSummaryResultDto>(
+        '/ai/summary',
+        { locale },
+        { params: { ...timeZoneParam } },
+      ),
+    onSuccess: (data) => {
+      // Written straight in: the response *is* the new briefing, and a refetch
+      // would put a spinner over something the reader is already reading.
+      queryClient.setQueryData(queryKeys.aiSummary, data);
+    },
+  });
+}
+
+export function useDeleteWorkspaceSummary() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete<void>('/ai/summary'),
+    onSuccess: () => {
+      queryClient.setQueryData<WorkspaceSummaryResultDto>(queryKeys.aiSummary, (previous) =>
+        previous ? { ...previous, summary: null } : previous,
+      );
     },
   });
 }

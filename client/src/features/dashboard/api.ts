@@ -3,14 +3,17 @@ import type { DashboardDto, DashboardRange } from '@leadpilot/shared';
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
 import { timeZoneParam } from '@/lib/time-zone';
+import { useDisplayParam } from '@/lib/display-currency';
 
 export function useDashboard(range: DashboardRange) {
+  // Part of the cache key: every headline figure here is converted into it.
+  const display = useDisplayParam();
   return useQuery({
-    queryKey: queryKeys.dashboard.range(range),
+    queryKey: queryKeys.dashboard.range(`${range}:${display.display ?? 'workspace'}`),
     queryFn: async () =>
       (
         await api.get<{ dashboard: DashboardDto }>('/dashboard', {
-          params: { range, ...timeZoneParam },
+          params: { range, ...timeZoneParam, ...display },
         })
       ).dashboard,
     // Switching range keeps the previous figures on screen while the next set

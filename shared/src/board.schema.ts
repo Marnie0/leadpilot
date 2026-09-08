@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { STAGE_KEYS } from './enums.js';
 import { idSchema, optionalTrimmed } from './common.js';
 import { leadQuerySchema, type LeadListItemDto, type PipelineStageDto } from './lead.schema.js';
+import type { MoneyTotalDto } from './currency.schema.js';
+import type { Currency } from './enums.js';
 
 /**
  * Ceiling on cards per column.
@@ -71,14 +73,30 @@ export interface BoardColumnDto {
   leads: LeadListItemDto[];
   /** Every lead matching the current filters in this stage, loaded or not. */
   total: number;
-  /** Summed estimated value across all `total` leads, not just the loaded ones. */
-  value: number;
+  /**
+   * Summed estimated value across all `total` leads, not just the loaded ones.
+   *
+   * A total rather than a number because a column can hold leads quoted in
+   * several currencies — see `MoneyTotalDto`.
+   */
+  value: MoneyTotalDto;
 }
 
 export interface BoardDto {
   columns: BoardColumnDto[];
   /** Cards per column the server applied, echoed so the client can page. */
   limit: number;
-  /** Workspace currency. Every lead uses it, so the board formats money once. */
+  /** The workspace's default currency — what a new lead is quoted in. */
   currency: string;
+  /** Every currency present on the board, so the switcher knows to appear. */
+  currencies: Currency[];
+  /**
+   * Open pipeline across every column, for the page header.
+   *
+   * Computed server-side rather than re-added from the columns, because summing
+   * them in the browser needs FX rates it may never have fetched — a reader on
+   * the workspace currency looking at a board that holds three — and would
+   * produce a converted figure the server never agreed to.
+   */
+  openValue: MoneyTotalDto;
 }

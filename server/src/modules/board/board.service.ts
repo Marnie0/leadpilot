@@ -6,6 +6,12 @@ import type {
   MoveLeadOnBoardInput,
 } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
+import {
+  currenciesIn,
+  moneyContext,
+  totalFrom,
+  type GroupedAmount,
+} from '../../lib/money-totals.js';
 import { badRequest, notFound } from '../../lib/errors.js';
 import { LEAD_LIST_SELECT, toLeadListItemDto, toStageDto } from '../../lib/serializers.js';
 import { recordActivity } from '../../lib/activity-log.js';
@@ -76,8 +82,10 @@ export async function getBoard(actor: Actor, query: BoardQueryInput): Promise<Bo
   // milliseconds of skew on a "3 of 41" counter is invisible, and keeping it out
   // of the batch keeps Prisma's result typing intact.
   const [totals, columnRows] = await Promise.all([
+    // Grouped by currency too: a column may hold leads quoted in several, and
+    // its footer total has to say so rather than add them as if they matched.
     prisma.lead.groupBy({
-      by: ['stageId'],
+      by: ['stageId', 'currency'],
       where,
       _count: { _all: true },
       _sum: { estimatedValue: true },
@@ -94,20 +102,38 @@ export async function getBoard(actor: Actor, query: BoardQueryInput): Promise<Bo
     ),
   ]);
 
-  const totalsByStageId = new Map(totals.map((entry) => [entry.stageId, entry]));
+  const money = await moneyContext(query.display, currency);
+
+  const rowsByStageId = new Map<string, GroupedAmount[]>();
+  const countByStageId = new Map<string, number>();
+  for (const entry of totals) {
+    const rows = rowsByStageId.get(entry.stageId) ?? [];
+    rows.push({ currency: entry.currency, amount: entry._sum.estimatedValue?.toNumber() ?? 0 });
+    rowsByStageId.set(entry.stageId, rows);
+    countByStageId.set(entry.stageId, (countByStageId.get(entry.stageId) ?? 0) + entry._count._all);
+  }
+
+  const openStageIds = new Set(stages.filter((stage) => stage.type === 'OPEN').map((s) => s.id));
 
   return {
     limit: query.limit,
     currency,
-    columns: stages.map((stage, index) => {
-      const totalsForStage = totalsByStageId.get(stage.id);
-      return {
-        stage: toStageDto(stage),
-        leads: (columnRows[index] ?? []).map((row) => toLeadListItemDto(row, actor)),
-        total: totalsForStage?._count._all ?? 0,
-        value: totalsForStage?._sum.estimatedValue?.toNumber() ?? 0,
-      };
-    }),
+    currencies: currenciesIn(totals, money),
+    openValue: totalFrom(
+      totals
+        .filter((entry) => openStageIds.has(entry.stageId))
+        .map((entry) => ({
+          currency: entry.currency,
+          amount: entry._sum.estimatedValue?.toNumber() ?? 0,
+        })),
+      money,
+    ),
+    columns: stages.map((stage, index) => ({
+      stage: toStageDto(stage),
+      leads: (columnRows[index] ?? []).map((row) => toLeadListItemDto(row, actor)),
+      total: countByStageId.get(stage.id) ?? 0,
+      value: totalFrom(rowsByStageId.get(stage.id) ?? [], money),
+    })),
   };
 }
 

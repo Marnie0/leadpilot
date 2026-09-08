@@ -13,6 +13,7 @@ export const queryKeys = {
   team: ['team'] as const,
   fxRates: ['fx-rates'] as const,
   aiSettings: ['ai', 'settings'] as const,
+  aiSummary: ['ai', 'summary'] as const,
   settings: {
     organization: ['settings', 'organization'] as const,
     events: ['settings', 'events'] as const,

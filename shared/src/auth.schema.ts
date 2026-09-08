@@ -101,6 +101,15 @@ export interface AuthUser {
     name: string;
     slug: string;
     defaultCurrency: string;
+    /**
+     * Every currency this workspace actually holds leads in.
+     *
+     * On the session because it decides whether a whole control exists: the
+     * "converted or broken down" switch is meaningless on the great majority
+     * of workspaces, which trade in one currency, and a menu row that visibly
+     * does nothing is worse than no row. One indexed group-by per session load.
+     */
+    currencies: string[];
     /** True for a throwaway demo sandbox, so the UI can say so. */
     isDemo: boolean;
     /** When the sandbox is reaped. Null for real workspaces. */

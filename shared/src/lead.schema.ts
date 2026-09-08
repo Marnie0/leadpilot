@@ -1,6 +1,13 @@
 import { z } from 'zod';
 import { msg } from './message.js';
-import { LEAD_PRIORITIES, LEAD_SOURCES, STAGE_KEYS, STAGE_TYPES } from './enums.js';
+import { currencySchema, type MoneyTotalDto } from './currency.schema.js';
+import {
+  LEAD_PRIORITIES,
+  LEAD_SOURCES,
+  STAGE_KEYS,
+  STAGE_TYPES,
+  type Currency,
+} from './enums.js';
 import {
   csvArray,
   idSchema,
@@ -10,6 +17,7 @@ import {
   requiredTrimmed,
   sortDirectionSchema,
   timeZoneSchema,
+  displayParamSchema,
 } from './common.js';
 
 /** Loose international phone check — we normalise, we do not gatekeep. */
@@ -51,10 +59,23 @@ export const createLeadSchema = z.object({
   source: z.enum(LEAD_SOURCES).default('OTHER'),
   requestedService: requiredTrimmed('field.requestedService', 160, 2),
   estimatedValue: estimatedValueSchema.default(0),
-  // Currency is deliberately NOT accepted from the client. Every lead inherits
-  // the workspace currency, because the pipeline aggregates sum estimatedValue
-  // directly — a per-lead currency made "total pipeline value" arithmetic
-  // between different units and rendered the result in one of them.
+  /**
+   * The currency this lead's value was quoted in.
+   *
+   * Optional, and omitting it inherits the workspace's default — which is what
+   * the great majority of leads want and what the form pre-selects. Supplying
+   * it is how a workspace that quotes in more than one currency records the
+   * figure it actually gave the customer.
+   *
+   * This was once refused from the client on the grounds that the pipeline
+   * aggregates sum `estimatedValue` directly, so a per-lead currency turned
+   * "total pipeline value" into arithmetic between different units. The premise
+   * was right and the conclusion was backwards: the fix is for the aggregates
+   * to stop pretending a mixed total is one number, not for the product to
+   * refuse to record what the customer was actually quoted. They now group by
+   * currency — see `MoneyTotalDto`.
+   */
+  currency: currencySchema.optional(),
   priority: z.enum(LEAD_PRIORITIES).default('MEDIUM'),
   stageKey: z.enum(STAGE_KEYS).default('NEW'),
   assignedToId: idSchema.nullish(),
@@ -240,6 +261,8 @@ export const leadQuerySchema = paginationSchema.extend({
   sortDir: sortDirectionSchema.default('desc'),
   /** Draws the `followUp` filter's day boundaries in the reader's timezone. */
   tz: timeZoneSchema,
+  /** Currency the aggregate totals should be converted into. */
+  display: displayParamSchema,
 });
 export type LeadQueryInput = z.infer<typeof leadQuerySchema>;
 
@@ -324,8 +347,17 @@ export interface LeadStatsDto {
   openLeads: number;
   wonLeads: number;
   lostLeads: number;
-  totalPipelineValue: number;
-  wonValue: number;
+  /*
+   * Money arrives as a `MoneyTotalDto` rather than a number because a workspace
+   * may hold leads in several currencies, and there is no single number that
+   * honestly describes that. Each of these carries both readings — the
+   * per-currency figures and the converted total — so the reader's view
+   * preference is applied at render time without another round trip.
+   */
+  totalPipelineValue: MoneyTotalDto;
+  wonValue: MoneyTotalDto;
   overdueFollowUps: number;
-  byStage: Array<{ key: (typeof STAGE_KEYS)[number]; count: number; value: number }>;
+  byStage: Array<{ key: (typeof STAGE_KEYS)[number]; count: number; value: MoneyTotalDto }>;
+  /** Every currency represented across the filtered set, for the view switcher. */
+  currencies: Currency[];
 }

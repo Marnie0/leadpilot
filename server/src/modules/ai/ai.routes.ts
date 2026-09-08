@@ -1,10 +1,16 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { generateInsightSchema, idSchema, updateAiSettingsSchema } from '@leadpilot/shared';
+import {
+  generateInsightSchema,
+  generateWorkspaceSummarySchema,
+  idSchema,
+  updateAiSettingsSchema,
+} from '@leadpilot/shared';
 import { asyncHandler, getAuth, requireAuth } from '../../middleware/auth.js';
 import { param, validate } from '../../middleware/validate.js';
 import type { Actor } from '../leads/leads.service.js';
 import * as aiService from './ai.service.js';
+import * as workspaceService from './ai.workspace.service.js';
 
 const actorFrom = (req: Parameters<typeof getAuth>[0]): Actor => {
   const auth = getAuth(req);
@@ -56,6 +62,39 @@ aiRouter.get(
   '/settings',
   asyncHandler(async (req, res) => {
     res.json({ settings: await aiService.getSettings(actorFrom(req)) });
+  }),
+);
+
+/*
+ * The whole-workspace briefing.
+ *
+ * Mounted here rather than under /dashboard because it is an assistant feature
+ * first: it shares the opt-in, the key and the budget with the per-lead
+ * analysis, and grouping them means "everything the AI does" is one directory
+ * and one set of guards rather than two that have to be kept in step.
+ */
+aiRouter.get(
+  '/summary',
+  asyncHandler(async (req, res) => {
+    const tz = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+    res.json(await workspaceService.getSummary(actorFrom(req), tz));
+  }),
+);
+
+aiRouter.post(
+  '/summary',
+  validate(generateWorkspaceSummarySchema),
+  asyncHandler(async (req, res) => {
+    const tz = typeof req.query.tz === 'string' ? req.query.tz : undefined;
+    res.status(201).json(await workspaceService.generateSummary(actorFrom(req), req.body, tz));
+  }),
+);
+
+aiRouter.delete(
+  '/summary',
+  asyncHandler(async (req, res) => {
+    await workspaceService.deleteSummary(actorFrom(req));
+    res.status(204).end();
   }),
 );
 

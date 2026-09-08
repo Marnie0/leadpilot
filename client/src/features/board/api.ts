@@ -1,8 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { BoardDto, LeadDetailDto, MoveLeadOnBoardInput, StageKey } from '@leadpilot/shared';
+import {
+  buildMoneyTotal,
+  type BoardDto,
+  type Currency,
+  type FxRatesDto,
+  type LeadDetailDto,
+  type MoneyTotalDto,
+  type MoveLeadOnBoardInput,
+  type StageKey,
+} from '@leadpilot/shared';
 import { api } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-client';
 import { timeZoneParam } from '@/lib/time-zone';
+import { asCurrency } from '@/lib/money';
+import { useDisplayParam } from '@/lib/display-currency';
 import type { BoardFilterState } from './hooks/use-board-filters';
 
 /** Cards shown per column initially, and the step each "Show more" adds. */
@@ -15,19 +26,51 @@ export const BOARD_PAGE_SIZE = 40;
  * refresh — after a drag, on window focus — silently discarded them.
  */
 export function useBoard(filters: BoardFilterState, limit: number) {
+  const display = useDisplayParam();
   return useQuery({
-    queryKey: queryKeys.board.view({ ...filters, limit }),
+    queryKey: queryKeys.board.view({ ...filters, limit, ...display }),
     queryFn: () =>
       api.get<BoardDto>('/board', {
         // The board carries the same follow-up filter as the table, so it needs
         // the same day boundaries — otherwise "overdue" means one thing on one
         // screen and something else on the other.
-        params: { ...filters, limit, ...timeZoneParam },
+        params: { ...filters, limit, ...timeZoneParam, ...display },
       }),
     // Keeps the previous board on screen while a filter change or a deeper page
     // loads, so the columns never collapse to empty and back.
     placeholderData: (previous) => previous,
   });
+}
+
+/**
+ * Moves one lead's value between two column totals.
+ *
+ * A column total is no longer a number, so an optimistic drag cannot just add
+ * and subtract: the card's own currency has to come out of, and go into, the
+ * right bucket. Rebuilding through `buildMoneyTotal` keeps the converted figure
+ * and the breakdown consistent with each other, exactly as the server does it.
+ *
+ * `rates` come from whatever the FX query already has cached. Without them the
+ * breakdown still moves correctly and only the converted figure is briefly
+ * stale — which the settling refetch fixes a moment later. That is the right
+ * trade: an optimistic update exists to make a drag feel instant, not to be the
+ * authority on anything.
+ */
+function shiftTotal(
+  total: MoneyTotalDto,
+  currency: Currency,
+  delta: number,
+  rates: Record<Currency, number> | undefined,
+): MoneyTotalDto {
+  const rows = total.byCurrency.map((entry) =>
+    entry.currency === currency ? { ...entry, amount: entry.amount + delta } : entry,
+  );
+  if (!rows.some((entry) => entry.currency === currency)) rows.push({ currency, amount: delta });
+  return buildMoneyTotal(
+    rows.filter((entry) => entry.amount !== 0 || total.byCurrency.length === 1),
+    total.currency,
+    rates,
+  );
 }
 
 /** The board rearrangement a drop implies, applied to a cached `BoardDto`. */
@@ -46,7 +89,11 @@ export interface BoardMove {
  * what the user sees mid-drag and what the cache holds after the drop cannot
  * disagree.
  */
-export function applyBoardMove(board: BoardDto, move: BoardMove): BoardDto {
+export function applyBoardMove(
+  board: BoardDto,
+  move: BoardMove,
+  rates?: Record<Currency, number>,
+): BoardDto {
   const lead = board.columns
     .flatMap((column) => column.leads)
     .find((entry) => entry.id === move.leadId);
@@ -56,6 +103,7 @@ export function applyBoardMove(board: BoardDto, move: BoardMove): BoardDto {
   if (!destination) return board;
 
   const movedLead = { ...lead, stage: destination.stage };
+  const leadCurrency = asCurrency(lead.currency) ?? board.columns[0]?.value.currency ?? 'USD';
 
   return {
     ...board,
@@ -70,7 +118,7 @@ export function applyBoardMove(board: BoardDto, move: BoardMove): BoardDto {
               ...column,
               leads: without,
               total: column.total - 1,
-              value: column.value - lead.estimatedValue,
+              value: shiftTotal(column.value, leadCurrency, -lead.estimatedValue, rates),
             }
           : column;
       }
@@ -86,7 +134,9 @@ export function applyBoardMove(board: BoardDto, move: BoardMove): BoardDto {
         ...column,
         leads: [...without.slice(0, insertAt), movedLead, ...without.slice(insertAt)],
         total: removed ? column.total : column.total + 1,
-        value: removed ? column.value : column.value + lead.estimatedValue,
+        value: removed
+          ? column.value
+          : shiftTotal(column.value, leadCurrency, lead.estimatedValue, rates),
       };
     }),
   };
@@ -103,7 +153,8 @@ export function applyBoardMove(board: BoardDto, move: BoardMove): BoardDto {
  */
 export function useMoveLeadOnBoard(filters: BoardFilterState, limit: number) {
   const queryClient = useQueryClient();
-  const key = queryKeys.board.view({ ...filters, limit });
+  const display = useDisplayParam();
+  const key = queryKeys.board.view({ ...filters, limit, ...display });
 
   return useMutation({
     mutationFn: async ({ leadId, ...input }: MoveLeadOnBoardInput & { leadId: string }) =>
@@ -116,11 +167,17 @@ export function useMoveLeadOnBoard(filters: BoardFilterState, limit: number) {
 
       queryClient.setQueryData<BoardDto>(key, (board) =>
         board
-          ? applyBoardMove(board, {
-              leadId: variables.leadId,
-              toStageKey: variables.stageKey,
-              precedingLeadId: variables.precedingLeadId ?? null,
-            })
+          ? applyBoardMove(
+              board,
+              {
+                leadId: variables.leadId,
+                toStageKey: variables.stageKey,
+                precedingLeadId: variables.precedingLeadId ?? null,
+              },
+              // Whatever the FX query already holds. Absent is fine — see
+              // `shiftTotal`; the settling refetch is the authority.
+              queryClient.getQueryData<FxRatesDto>(queryKeys.fxRates)?.rates,
+            )
           : board,
       );
 

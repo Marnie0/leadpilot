@@ -121,7 +121,17 @@ function Analysis({ insight }: { insight: LeadInsightDto }) {
   const band = AI_BAND_STYLES[insight.qualityBand];
 
   return (
-    <div className="space-y-5">
+    /*
+     * `lang` is set to the language the analysis was *written* in, which is not
+     * always the language the page is in — an English analysis stays readable
+     * on an Arabic screen, and the card says so.
+     *
+     * Without this a screen reader announces English prose using Arabic
+     * pronunciation rules, which is somewhere between comic and unintelligible.
+     * It pairs with the `dir="auto"` already on each block: `dir` decides which
+     * way the text runs, `lang` decides how it is spoken and hyphenated.
+     */
+    <div className="space-y-5" lang={insight.locale}>
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div className="min-w-0 space-y-2">
           <div className="flex items-baseline justify-between gap-2">
@@ -215,8 +225,6 @@ function Analysis({ insight }: { insight: LeadInsightDto }) {
               name: insight.generatedBy.name,
             })
           : t('ai.byUnknown', { time: format.relative(insight.generatedAt) })}
-        {' · '}
-        <span dir="ltr">{t('ai.model', { model: insight.model })}</span>
       </p>
     </div>
   );

@@ -152,6 +152,7 @@ model Organization {
   events     WorkspaceEvent[]
   insights   LeadInsight[]
   aiUsage    AiUsageEvent[]
+  summary    WorkspaceSummary?
 
   // Drives the daily reaper, which scans for sandboxes past their expiry.
   @@index([expiresAt])
@@ -186,6 +187,7 @@ model User {
   createdFollowUps FollowUp[]  @relation("FollowUpCreator")
   workspaceEvents  WorkspaceEvent[]
   generatedInsights LeadInsight[]
+  generatedSummaries WorkspaceSummary[]
 
   @@index([organizationId, isActive])
   @@map("users")
@@ -454,6 +456,43 @@ model AiUsageEvent {
   // Drives the housekeeping sweep, which drops rows past the counting window.
   @@index([createdAt])
   @@map("ai_usage_events")
+}
+
+/// The assistant's read of a whole workspace, rather than of one lead.
+///
+/// One row per organisation, replaced on each run — same reasoning as
+/// `LeadInsight`: the question is "what should we do about this pipeline", and
+/// only the current answer is actionable. It is stored for the same three
+/// reasons too: it is a shared artefact a team should be reading one copy of,
+/// reading it costs nothing so a visitor cannot spend quota by clicking, and
+/// `generatedAt` plus `model` make an assessment attributable.
+model WorkspaceSummary {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  locale         Locale   @default(en)
+
+  /// Two or three sentences: the state of the pipeline as a whole.
+  headline       String
+  /// Ordered, most pressing first. Shape: { title, detail, severity }.
+  attention      Json
+  /// What is moving, and in which direction. Shape: { title, detail }.
+  trends         Json
+  /// One thing to do today, phrased as an instruction.
+  nextStep       String
+
+  model          String
+  /// Fingerprint of the figures the summary was written from, so a workspace
+  /// that has moved on since can be told its summary predates the change.
+  inputHash      String
+  generatedById  String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  generatedBy  User?        @relation(fields: [generatedById], references: [id], onDelete: SetNull)
+
+  @@map("workspace_summaries")
 }
 
 model FollowUp {

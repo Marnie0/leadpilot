@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/common/empty-state';
 import { stageName } from '@/lib/labels';
 import { useFormat, useI18n } from '@/lib/i18n';
 import { useMoney } from '@/lib/money';
+import { MoneyTotal, useMoneyTotalText } from '@/components/common/money-total';
 import { AXIS_PROPS, ChartFrame, ChartTooltip, useChartDirection } from './chart-frame';
 
 /**
@@ -27,6 +28,7 @@ export function StagePerformance({
   const { t, locale } = useI18n();
   const format = useFormat();
   const money = useMoney();
+  const moneyText = useMoneyTotalText();
   const direction = useChartDirection();
 
   // Closed stages carry no forecast, and including them would dwarf the open
@@ -80,7 +82,7 @@ export function StagePerformance({
                       { label: t('dashboard.tableLeads'), value: format.number(stage.count) },
                       {
                         label: t('dashboard.pipelineValue'),
-                        value: money.format(stage.value, currency),
+                        value: moneyText(stage.value),
                         color: stage.color,
                       },
                       {
@@ -175,7 +177,7 @@ export function StagePerformance({
                 </td>
                 <td className="px-2 py-2 text-end tabular-nums">{format.number(stage.count)}</td>
                 <td className="px-2 py-2 text-end tabular-nums">
-                  {money.format(stage.value, currency)}
+                  <MoneyTotal total={stage.value} className="items-end" />
                 </td>
                 <td className="px-2 py-2 text-end text-muted-foreground tabular-nums">
                   {/*

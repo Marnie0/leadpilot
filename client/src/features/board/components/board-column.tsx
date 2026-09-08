@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { stageName } from '@/lib/labels';
 import { useFormat, useI18n } from '@/lib/i18n';
-import { useMoney } from '@/lib/money';
+import { MoneyTotal } from '@/components/common/money-total';
 import { cn } from '@/lib/utils';
 import { BOARD_PAGE_SIZE } from '../api';
 import { BoardCard, BoardCardSkeleton } from './board-card';
@@ -42,7 +42,6 @@ export function BoardColumn({
 }) {
   const { t, locale } = useI18n();
   const format = useFormat();
-  const money = useMoney();
   const { setNodeRef, isOver } = useDroppable({
     id: column.stage.key,
     data: { type: 'column', stageKey: column.stage.key },
@@ -67,9 +66,13 @@ export function BoardColumn({
         <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
           {format.number(column.total)}
         </span>
-        <span className="ms-auto shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
-          {money.format(column.value, currency)}
-        </span>
+        {/* Inline, because a column header is one line and a breakdown of two
+            or three currencies has to sit on it without pushing the count off. */}
+        <MoneyTotal
+          total={column.value}
+          inline
+          className="ms-auto shrink-0 text-xs font-medium text-muted-foreground"
+        />
       </header>
 
       <div

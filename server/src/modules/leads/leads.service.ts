@@ -12,6 +12,12 @@ import type {
 } from '@leadpilot/shared';
 import { STAGE_KEYS, TRASH_RETENTION_DAYS, confirmationMatches } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
+import {
+  currenciesIn,
+  moneyContext,
+  totalFrom,
+  type GroupedAmount,
+} from '../../lib/money-totals.js';
 import { badRequest, forbidden, notFound } from '../../lib/errors.js';
 import { paginate, toPrismaPagination } from '../../lib/pagination.js';
 import { canMutateLead, isManager, type Viewer } from '../../lib/permissions.js';
@@ -90,9 +96,17 @@ export async function listLeads(
 export async function getLeadStats(actor: Actor, query: LeadQueryInput): Promise<LeadStatsDto> {
   const where = buildLeadWhere(actor.organizationId, query);
 
+  const organization = await prisma.organization.findUniqueOrThrow({
+    where: { id: actor.organizationId },
+    select: { defaultCurrency: true },
+  });
+  const money = await moneyContext(query.display, organization.defaultCurrency);
+
   const [stageGroups, stages, overdueFollowUps] = await Promise.all([
+    // Grouped by currency as well as stage: a workspace may quote in several,
+    // and summing across them would be arithmetic between different units.
     prisma.lead.groupBy({
-      by: ['stageId'],
+      by: ['stageId', 'currency'],
       where,
       _count: { _all: true },
       _sum: { estimatedValue: true },
@@ -113,41 +127,51 @@ export async function getLeadStats(actor: Actor, query: LeadQueryInput): Promise
     }),
   ]);
 
-  const byStageId = new Map(stageGroups.map((group) => [group.stageId, group]));
+  // One stage now yields one row per currency present in it.
+  const rowsByStageId = new Map<string, GroupedAmount[]>();
+  const countByStageId = new Map<string, number>();
+  for (const group of stageGroups) {
+    const rows = rowsByStageId.get(group.stageId) ?? [];
+    rows.push({ currency: group.currency, amount: group._sum.estimatedValue?.toNumber() ?? 0 });
+    rowsByStageId.set(group.stageId, rows);
+    countByStageId.set(group.stageId, (countByStageId.get(group.stageId) ?? 0) + group._count._all);
+  }
 
-  const byStage = stages.map((stage) => {
-    const group = byStageId.get(stage.id);
-    return {
-      key: stage.key,
-      count: group?._count._all ?? 0,
-      value: group?._sum.estimatedValue?.toNumber() ?? 0,
-    };
-  });
+  const byStage = stages.map((stage) => ({
+    key: stage.key,
+    count: countByStageId.get(stage.id) ?? 0,
+    value: totalFrom(rowsByStageId.get(stage.id) ?? [], money),
+  }));
 
-  const totals = stages.reduce(
-    (acc, stage) => {
-      const group = byStageId.get(stage.id);
-      const count = group?._count._all ?? 0;
-      const value = group?._sum.estimatedValue?.toNumber() ?? 0;
-      acc.totalLeads += count;
-      if (stage.type === 'OPEN') {
-        acc.openLeads += count;
-        acc.totalPipelineValue += value;
-      } else if (stage.type === 'WON') {
-        acc.wonLeads += count;
-        acc.wonValue += value;
-      } else {
-        acc.lostLeads += count;
-      }
-      return acc;
-    },
-    { totalLeads: 0, openLeads: 0, wonLeads: 0, lostLeads: 0, totalPipelineValue: 0, wonValue: 0 },
-  );
+  // Accumulated as grouped rows and totalled once at the end, rather than by
+  // adding up already-converted stage figures. Adding converted numbers loses
+  // the per-currency detail the breakdown needs, and rounds twice.
+  const openRows: GroupedAmount[] = [];
+  const wonRows: GroupedAmount[] = [];
+  const counts = { totalLeads: 0, openLeads: 0, wonLeads: 0, lostLeads: 0 };
+
+  for (const stage of stages) {
+    const count = countByStageId.get(stage.id) ?? 0;
+    const rows = rowsByStageId.get(stage.id) ?? [];
+    counts.totalLeads += count;
+    if (stage.type === 'OPEN') {
+      counts.openLeads += count;
+      openRows.push(...rows);
+    } else if (stage.type === 'WON') {
+      counts.wonLeads += count;
+      wonRows.push(...rows);
+    } else {
+      counts.lostLeads += count;
+    }
+  }
 
   return {
-    ...totals,
+    ...counts,
+    totalPipelineValue: totalFrom(openRows, money),
+    wonValue: totalFrom(wonRows, money),
     overdueFollowUps,
     byStage: byStage.filter((entry) => STAGE_KEYS.includes(entry.key)),
+    currencies: currenciesIn(stageGroups, money),
   };
 }
 
@@ -261,8 +285,9 @@ export async function createLead(actor: Actor, input: CreateLeadInput): Promise<
         source: input.source,
         requestedService: input.requestedService,
         estimatedValue: input.estimatedValue,
-        // Always the workspace currency; see the note in createLeadSchema.
-        currency: organization.defaultCurrency,
+        // The currency the figure was quoted in. Defaults to the workspace's,
+        // which is what almost every lead wants and what the form pre-selects.
+        currency: input.currency ?? organization.defaultCurrency,
         priority: input.priority,
         description: input.description ?? null,
         tags: (input.tags ?? []).map((tag) => tag.toLowerCase()),
@@ -299,6 +324,7 @@ const AUDITED_FIELDS = [
   'phone',
   'requestedService',
   'estimatedValue',
+  'currency',
   'priority',
   'source',
 ] as const;
@@ -351,6 +377,7 @@ export async function updateLead(
   if (input.source !== undefined) data.source = input.source;
   if (input.requestedService !== undefined) data.requestedService = input.requestedService;
   if (input.estimatedValue !== undefined) data.estimatedValue = input.estimatedValue;
+  if (input.currency !== undefined) data.currency = input.currency;
   if (input.priority !== undefined) data.priority = input.priority;
   if (input.description !== undefined) data.description = input.description ?? null;
   if (input.tags !== undefined) data.tags = input.tags.map((tag) => tag.toLowerCase());
@@ -389,12 +416,19 @@ export async function updateLead(
           field,
           from: beforeText,
           to: afterText,
-          // A money figure is meaningless without its unit, and the workspace's
-          // unit can change underneath it: an owner converting AED to EGP
-          // leaves every historical "625000" quoted in a currency the workspace
-          // no longer uses. Stamping it here makes the entry true forever,
-          // which is the whole job of an audit trail.
-          ...(field === 'estimatedValue' && { currency: existing.currency }),
+          // A money figure is meaningless without its unit, and the unit can
+          // change underneath it — an owner restating AED as EGP leaves every
+          // historical "625000" quoted in a currency nobody uses any more.
+          // Stamping it here makes the entry true forever, which is the whole
+          // job of an audit trail.
+          //
+          // The currency stamped is the one the *new* figure is in, because
+          // that is the figure the timeline renders. When a single PATCH moves
+          // both the amount and its currency, using the old one would label the
+          // new number with the unit it is no longer quoted in.
+          ...(field === 'estimatedValue' && {
+            currency: input.currency ?? existing.currency,
+          }),
         },
       });
     }

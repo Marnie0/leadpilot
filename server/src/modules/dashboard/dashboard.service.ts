@@ -11,6 +11,8 @@ import {
   type LeadSource,
 } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
+import { convertedSum, currenciesIn, moneyContext, totalFrom } from '../../lib/money-totals.js';
+import { comparableAmount } from '@leadpilot/shared';
 import { FOLLOW_UP_WITH_LEAD_SELECT, toFollowUpDto } from '../../lib/serializers.js';
 import { dayWindow, normaliseTimeZone } from '../../lib/day-window.js';
 import type { Actor } from '../leads/leads.service.js';
@@ -40,13 +42,31 @@ import type { Actor } from '../leads/leads.service.js';
 /** Rows produced by the per-stage snapshot scan. */
 interface StageAggregateRow {
   stageId: string;
+  /** One row per stage *per currency* — see `lib/money-totals.ts`. */
+  currency: string;
   count: number;
   value: number;
   avgAgeDays: number | null;
 }
 
+/**
+ * A currency-grouped won/lost aggregate.
+ *
+ * Declared explicitly because these `groupBy` calls sit inside a large
+ * `Promise.all([...] as const`, and Prisma's conditional result types do not
+ * survive that — the tuple widens `_sum` and `_count` back to their optional
+ * forms. Naming the shape here is clearer than casting at four call sites.
+ */
+interface WonGroupRow {
+  currency: string;
+  _count: { _all: number };
+  _sum: { estimatedValue: Prisma.Decimal | null };
+}
+
 interface TrendRow {
   bucket: Date;
+  /** Only present on the won-value series, which is money. */
+  currency?: string;
   count: number;
   value: number;
 }
@@ -186,26 +206,31 @@ export async function getDashboard(
        * Prisma's `groupBy` cannot express — `_avg` only takes numeric columns. */
       prisma.$queryRaw<StageAggregateRow[]>`
       SELECT "stageId",
+             "currency",
              count(*)::int                                              AS "count",
              coalesce(sum("estimatedValue"), 0)::float8                  AS "value",
              avg(extract(epoch FROM (now() - "createdAt")) / 86400)::float8 AS "avgAgeDays"
       FROM "leads"
       WHERE "organizationId" = ${organizationId} AND "archivedAt" IS NULL AND "deletedAt" IS NULL
-      GROUP BY "stageId"
+      GROUP BY "stageId", "currency"
     `,
 
       /* --- Windowed: what happened, and what happened before it ---------- */
       prisma.lead.count({ where: { ...live, createdAt: inWindow } }),
       prisma.lead.count({ where: { ...live, createdAt: inPreviousWindow } }),
-      prisma.lead.aggregate({
+      prisma.lead.groupBy({
+        by: ['currency'],
         where: { ...live, wonAt: inWindow },
         _count: { _all: true },
         _sum: { estimatedValue: true },
+        orderBy: { currency: 'asc' },
       }),
-      prisma.lead.aggregate({
+      prisma.lead.groupBy({
+        by: ['currency'],
         where: { ...live, wonAt: inPreviousWindow },
         _count: { _all: true },
         _sum: { estimatedValue: true },
+        orderBy: { currency: 'asc' },
       }),
       prisma.lead.count({ where: { ...live, lostAt: inWindow } }),
       prisma.lead.count({ where: { ...live, lostAt: inPreviousWindow } }),
@@ -231,13 +256,14 @@ export async function getDashboard(
     `,
       prisma.$queryRaw<TrendRow[]>`
       SELECT date_trunc(${trendBucket}::text, "wonAt")         AS "bucket",
+             "currency",
              count(*)::int                               AS "count",
              coalesce(sum("estimatedValue"), 0)::float8  AS "value"
       FROM "leads"
       WHERE "organizationId" = ${organizationId}
         AND "archivedAt" IS NULL AND "deletedAt" IS NULL
         AND "wonAt" >= ${trendFrom}
-      GROUP BY 1
+      GROUP BY 1, 2
       ORDER BY 1
     `,
 
@@ -258,7 +284,7 @@ export async function getDashboard(
       }),
     ] as const),
     prisma.lead.groupBy({
-      by: ['source', 'stageId'],
+      by: ['source', 'stageId', 'currency'],
       where: { ...live, createdAt: inWindow },
       _count: { _all: true },
       _sum: { estimatedValue: true },
@@ -267,13 +293,37 @@ export async function getDashboard(
 
   /* --- Stage snapshot -------------------------------------------------- */
 
-  const aggregateByStageId = new Map(stageAggregates.map((row) => [row.stageId, row]));
+  const money = await moneyContext(query.display, organization.defaultCurrency);
   const stageTypeById = new Map<string, StageType>(stages.map((stage) => [stage.id, stage.type]));
 
+  // One stage now arrives as several rows, one per currency it holds.
+  const stageRows = new Map<string, StageAggregateRow[]>();
+  for (const row of stageAggregates) {
+    stageRows.set(row.stageId, [...(stageRows.get(row.stageId) ?? []), row]);
+  }
+
   const stageDtos: DashboardStageDto[] = stages.map((stage) => {
-    const aggregate = aggregateByStageId.get(stage.id);
-    const count = aggregate?.count ?? 0;
-    const value = aggregate?.value ?? 0;
+    const rows = stageRows.get(stage.id) ?? [];
+    const count = rows.reduce((sum, row) => sum + row.count, 0);
+    const total = totalFrom(
+      rows.map((row) => ({ currency: row.currency, amount: row.value })),
+      money,
+    );
+    // Weighted across currencies rather than per currency: a forecast is one
+    // number by nature, and the probability is a property of the stage, not of
+    // the currency a lead happens to be quoted in.
+    const weighted =
+      stage.type === 'OPEN' ? (comparableAmount(total) * stage.winProbability) / 100 : 0;
+    // A mean of per-row means, weighted by the rows behind each — the plain
+    // average of the averages would let a stage's one EUR lead count as much as
+    // its forty AED ones.
+    const aged = rows.filter((row) => row.avgAgeDays != null && row.count > 0);
+    const agedCount = aged.reduce((sum, row) => sum + row.count, 0);
+    const avgAgeDays =
+      agedCount === 0
+        ? null
+        : round(aged.reduce((sum, row) => sum + (row.avgAgeDays ?? 0) * row.count, 0) / agedCount);
+
     return {
       key: stage.key,
       name: stage.name,
@@ -283,25 +333,45 @@ export async function getDashboard(
       type: stage.type,
       winProbability: stage.winProbability,
       count,
-      value,
+      value: total,
       // Closed stages contribute nothing to a forecast: Won is already revenue
       // and Lost is not coming back.
-      weightedValue: stage.type === 'OPEN' ? (value * stage.winProbability) / 100 : 0,
-      avgAgeDays: count === 0 || aggregate?.avgAgeDays == null ? null : round(aggregate.avgAgeDays),
+      weightedValue: weighted,
+      avgAgeDays,
     };
   });
 
+  const openStageIds = new Set(stages.filter((s) => s.type === 'OPEN').map((s) => s.id));
+  const openRows = stageAggregates.filter((row) => openStageIds.has(row.stageId));
   const openStages = stageDtos.filter((stage) => stage.type === 'OPEN');
   const totalLeads = stageDtos.reduce((sum, stage) => sum + stage.count, 0);
   const openLeads = openStages.reduce((sum, stage) => sum + stage.count, 0);
-  const pipelineValue = openStages.reduce((sum, stage) => sum + stage.value, 0);
+  const pipelineValue = totalFrom(
+    openRows.map((row) => ({ currency: row.currency, amount: row.value })),
+    money,
+  );
   const weightedPipelineValue = openStages.reduce((sum, stage) => sum + stage.weightedValue, 0);
 
   /* --- Windowed summary ------------------------------------------------ */
 
-  const wonCount = wonCurrent._count._all;
-  const wonSum = wonCurrent._sum.estimatedValue?.toNumber() ?? 0;
-  const previousWonSum = wonPrevious._sum.estimatedValue?.toNumber() ?? 0;
+  const wonRows = (wonCurrent as WonGroupRow[]).map((row) => ({
+    currency: row.currency,
+    amount: row._sum.estimatedValue?.toNumber() ?? 0,
+  }));
+  const previousWonRows = (wonPrevious as WonGroupRow[]).map((row) => ({
+    currency: row.currency,
+    amount: row._sum.estimatedValue?.toNumber() ?? 0,
+  }));
+  const wonCount = (wonCurrent as WonGroupRow[]).reduce((sum, row) => sum + row._count._all, 0);
+  const previousWonCount = (wonPrevious as WonGroupRow[]).reduce(
+    (sum, row) => sum + row._count._all,
+    0,
+  );
+  const wonTotal = totalFrom(wonRows, money);
+  // A delta is a single number by nature, so it uses the comparable figure —
+  // see `comparableAmount`. `wonValueTotal` beside it carries the breakdown.
+  const wonSum = comparableAmount(wonTotal);
+  const previousWonSum = convertedSum(previousWonRows, money);
   const closedInWindow = wonCount + lostCurrent;
   const avgDaysToClose = closeTime[0]?.days ?? null;
 
@@ -322,7 +392,12 @@ export async function getDashboard(
     };
 
     const count = group._count._all;
-    const value = group._sum.estimatedValue?.toNumber() ?? 0;
+    // Converted per row: `group` is now one source × stage × currency, so
+    // adding the raw figure would mix units inside one source's total.
+    const value = convertedSum(
+      [{ currency: group.currency, amount: group._sum.estimatedValue?.toNumber() ?? 0 }],
+      money,
+    );
     entry.total += count;
     entry.value += value;
 
@@ -350,7 +425,18 @@ export async function getDashboard(
    * quiet week draws a straight segment across it and overstates the gap. */
 
   const createdByBucket = new Map(createdTrend.map((row) => [row.bucket.getTime(), row.count]));
-  const wonByBucket = new Map(wonTrend.map((row) => [row.bucket.getTime(), row]));
+
+  // A chart line is one number per bucket, so the won-value series converts
+  // rather than breaking down — but it converts each currency separately and
+  // adds, which is not the same as summing mixed units and hoping.
+  const wonByBucket = new Map<number, { count: number; value: number }>();
+  for (const row of wonTrend) {
+    const key = row.bucket.getTime();
+    const entry = wonByBucket.get(key) ?? { count: 0, value: 0 };
+    entry.count += row.count;
+    entry.value += convertedSum([{ currency: row.currency ?? '', amount: row.value }], money);
+    wonByBucket.set(key, entry);
+  }
 
   const trend: DashboardTrendPointDto[] = [];
   const lastBucket = truncateUtc(now, trendBucket);
@@ -374,18 +460,21 @@ export async function getDashboard(
     from: from.toISOString(),
     generatedAt: now.toISOString(),
     currency: organization.defaultCurrency,
+    displayCurrency: money.target,
+    currencies: currenciesIn(stageAggregates, money),
     trendBucket,
     summary: {
       totalLeads,
       openLeads,
       pipelineValue,
       weightedPipelineValue: round(weightedPipelineValue, 2),
+      wonValueTotal: wonTotal,
       newLeads: delta(createdCurrent, createdPrevious),
-      wonLeads: delta(wonCount, wonPrevious._count._all),
+      wonLeads: delta(wonCount, previousWonCount),
       wonValue: delta(wonSum, previousWonSum),
       conversionRate: {
         current: rate(wonCount, lostCurrent),
-        previous: rate(wonPrevious._count._all, lostPrevious),
+        previous: rate(previousWonCount, lostPrevious),
         closed: closedInWindow,
       },
       avgDealSize: wonCount === 0 ? null : wonSum / wonCount,

@@ -59,7 +59,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const PROVIDER_RPM = 10;
 const recentCalls: number[] = [];
 
-function reserveProviderSlot(): number {
+export function reserveProviderSlot(): number {
   const cutoff = Date.now() - 60_000;
   while (recentCalls.length > 0 && (recentCalls[0] ?? 0) < cutoff) recentCalls.shift();
   if (recentCalls.length >= PROVIDER_RPM) {
@@ -77,12 +77,12 @@ function reserveProviderSlot(): number {
  * queue: two analyses can be in flight at once, and popping would hand back a
  * slot still being used by whichever one has not finished.
  */
-function releaseProviderSlot(token: number): void {
+export function releaseProviderSlot(token: number): void {
   const index = recentCalls.lastIndexOf(token);
   if (index !== -1) recentCalls.splice(index, 1);
 }
 
-async function loadOrganization(actor: Actor) {
+export async function loadOrganization(actor: Actor) {
   const organization = await prisma.organization.findUnique({
     where: { id: actor.organizationId },
     select: { aiEnabled: true, isDemo: true },
@@ -100,11 +100,11 @@ async function loadOrganization(actor: Actor) {
  * meaning "unbounded in total" on the one deployment where workspaces are
  * created by strangers.
  */
-const limitFor = (organization: { isDemo: boolean }): number =>
+export const limitFor = (organization: { isDemo: boolean }): number =>
   organization.isDemo ? env.AI_DEMO_DAILY_LIMIT : env.AI_DAILY_LIMIT_PER_ORG;
 
 /** The caller's own language preference, for a request that did not name one. */
-async function resolveLocale(actor: Actor): Promise<Locale> {
+export async function resolveLocale(actor: Actor): Promise<Locale> {
   const user = await prisma.user.findUnique({
     where: { id: actor.userId },
     select: { locale: true },
@@ -121,7 +121,7 @@ async function resolveLocale(actor: Actor): Promise<Locale> {
  * the row, which hands the quota back, so generate-then-discard is an unlimited
  * loop against a shared free-tier key.
  */
-async function countToday(organizationId: string): Promise<number> {
+export async function countToday(organizationId: string): Promise<number> {
   return prisma.aiUsageEvent.count({
     where: { organizationId, createdAt: { gte: new Date(Date.now() - DAY_MS) } },
   });
@@ -149,6 +149,27 @@ export async function purgeExpiredAiUsage(now = new Date()): Promise<number> {
  * user of this app would recognise. A rolling window needs no explanation:
  * whatever you used, you get back 24 hours later.
  */
+/**
+ * Records one provider call against the workspace's budget.
+ *
+ * Written before the artefact it produced, and outside any transaction that
+ * could roll it back: the call has been made and paid for whether or not the
+ * write that follows succeeds. `leadId` is null for the workspace briefing,
+ * which belongs to no single lead.
+ */
+export async function recordUsage(
+  actor: Actor,
+  leadId: string | null,
+  model: string,
+): Promise<void> {
+  await prisma.aiUsageEvent.create({
+    data: { organizationId: actor.organizationId, userId: actor.userId, leadId, model },
+  });
+}
+
+/** Alias kept for the workspace service, which reads the same budget. */
+export const usageFrom = (actor: Actor): Promise<AiUsageDto> => getUsage(actor);
+
 export async function getUsage(actor: Actor): Promise<AiUsageDto> {
   const [organization, usedToday] = await Promise.all([
     loadOrganization(actor),
@@ -167,7 +188,6 @@ export async function getUsage(actor: Actor): Promise<AiUsageDto> {
 export async function getSettings(actor: Actor): Promise<AiSettingsDto> {
   return {
     ...(await getUsage(actor)),
-    model: env.AI_MODEL,
     providerName: PROVIDER_NAME,
     providerTrainsOnInput: PROVIDER_TRAINS_ON_INPUT,
   };
@@ -230,7 +250,6 @@ function toDto(row: InsightRow, currentHash: string): LeadInsightDto {
     nextActionChannel: row.nextActionChannel,
     draftMessage: row.draftMessage,
     signals: row.signals,
-    model: row.model,
     generatedAt: row.updatedAt.toISOString(),
     generatedBy: row.generatedBy,
     isStale: row.inputHash !== currentHash,
@@ -405,12 +424,7 @@ export async function generateInsight(
     throw error;
   }
 
-  // Recorded before the analysis is stored, and outside any transaction that
-  // could roll it back: the call has been made and paid for whether or not the
-  // write that follows succeeds.
-  await prisma.aiUsageEvent.create({
-    data: { organizationId: actor.organizationId, userId: actor.userId, leadId, model },
-  });
+  await recordUsage(actor, leadId, model);
 
   const row = await prisma.leadInsight.upsert({
     where: { leadId },

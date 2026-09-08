@@ -4,13 +4,18 @@ import type { LucideIcon } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFormat, useT } from '@/lib/i18n';
-import { useMoney } from '@/lib/money';
+import { MoneyTotal } from '@/components/common/money-total';
 import { cn } from '@/lib/utils';
 
 interface StatDefinition {
   key: string;
   label: string;
-  value: string;
+  /**
+   * A node rather than a string: a money figure may render as a breakdown of
+   * two or three currencies stacked, which no amount of string formatting
+   * fits into one line of a card this size.
+   */
+  value: React.ReactNode;
   hint?: string;
   icon: LucideIcon;
   tone?: 'default' | 'success' | 'warning';
@@ -67,16 +72,13 @@ function StatCard({
  */
 export function LeadStats({
   stats,
-  currency,
   isLoading,
 }: {
   stats: LeadStatsDto | undefined;
-  currency: string;
   isLoading: boolean;
 }) {
   const t = useT();
   const format = useFormat();
-  const money = useMoney();
 
   if (isLoading && !stats) {
     return (
@@ -106,14 +108,14 @@ export function LeadStats({
     {
       key: 'pipeline',
       label: t('leads.stat.pipelineValue'),
-      value: money.format(stats.totalPipelineValue, currency),
+      value: <MoneyTotal total={stats.totalPipelineValue} className="text-xl sm:text-2xl" />,
       hint: t('leads.stat.pipelineValueHint'),
       icon: CircleDollarSign,
     },
     {
       key: 'won',
       label: t('leads.stat.won'),
-      value: money.format(stats.wonValue, currency),
+      value: <MoneyTotal total={stats.wonValue} className="text-xl sm:text-2xl" />,
       hint:
         winRate === null
           ? t('leads.stat.wonHintNoRate', { count: format.number(stats.wonLeads) })

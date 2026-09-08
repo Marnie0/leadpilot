@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  CURRENCIES,
   LEAD_PRIORITIES,
   LEAD_SOURCES,
   createLeadSchema,
@@ -36,6 +37,7 @@ import { useFormError } from '@/features/auth/use-form-error';
 import { stageName } from '@/lib/labels';
 import { useI18n } from '@/lib/i18n';
 import { useLocalizedResolver } from '@/lib/i18n/zod-resolver';
+import { asCurrency } from '@/lib/money';
 import { useCreateLead, useUpdateLead, type TeamMemberDetail } from '../api';
 
 /** Sentinel for the assignee Select — Radix cannot hold an empty string value. */
@@ -99,6 +101,7 @@ export function LeadFormDialog({
       source: 'WEBSITE',
       requestedService: '',
       estimatedValue: 0,
+      currency: asCurrency(defaultCurrency) ?? 'USD',
       priority: 'MEDIUM',
       stageKey: 'NEW',
       assignedToId: null,
@@ -124,6 +127,9 @@ export function LeadFormDialog({
             source: lead.source,
             requestedService: lead.requestedService,
             estimatedValue: lead.estimatedValue,
+            // The currency this lead was actually quoted in, which may differ
+            // from the workspace default a new one starts on.
+            currency: asCurrency(lead.currency) ?? asCurrency(defaultCurrency) ?? 'USD',
             priority: lead.priority,
             stageKey: lead.stage.key,
             assignedToId: lead.assignedTo?.id ?? null,
@@ -138,6 +144,7 @@ export function LeadFormDialog({
             source: 'WEBSITE',
             requestedService: '',
             estimatedValue: 0,
+            currency: asCurrency(defaultCurrency) ?? 'USD',
             priority: 'MEDIUM',
             stageKey: 'NEW',
             assignedToId: null,
@@ -270,26 +277,48 @@ export function LeadFormDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="estimatedValue">{t('leadForm.estimatedValue')}</Label>
-                <div className="relative">
+                {/*
+                  The currency used to be a static label pinned inside the
+                  input. It read as a control — it sat where a select's trigger
+                  sits, in a field people expected to be able to change — and
+                  did nothing when clicked. It is a real select now, and the
+                  value it carries is stored on the lead.
+                */}
+                <div className="flex gap-2">
                   <Input
                     id="estimatedValue"
                     type="number"
                     min={0}
                     step={1000}
                     inputMode="decimal"
-                    className="pe-14"
-                    aria-describedby="currency-hint"
+                    className="flex-1"
                     aria-invalid={Boolean(errors.estimatedValue)}
                     {...form.register('estimatedValue')}
                   />
-                  {/* Currency is a workspace setting, not a per-lead choice — the
-                      pipeline totals sum these figures directly. */}
-                  <span
-                    id="currency-hint"
-                    className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-sm font-medium text-muted-foreground"
-                  >
-                    {defaultCurrency}
-                  </span>
+                  <Controller
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? asCurrency(defaultCurrency) ?? 'USD'}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger
+                          className="w-[7.5rem] shrink-0"
+                          aria-label={t('leadForm.currency')}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCIES.map((code) => (
+                            <SelectItem key={code} value={code}>
+                              <span dir="ltr">{code}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
                 {errors.estimatedValue && (
                   <p className="text-sm text-destructive">{errors.estimatedValue.message}</p>

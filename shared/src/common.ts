@@ -74,6 +74,19 @@ export const sortDirectionSchema = z.enum(['asc', 'desc']);
  * the wrong day is a smaller problem than a screen that will not load.
  */
 export const timeZoneSchema = z.string().max(64).optional();
+
+/**
+ * The currency a reader wants aggregate figures converted into.
+ *
+ * Sent on any query that returns a total, for the same reason `tz` is sent on
+ * any query with a "today" in it: the answer depends on something only the
+ * browser knows, and the alternative is the server loading the caller's
+ * profile on every aggregate. Validated loosely and resolved on the server,
+ * where an unrecognised code falls back to the workspace's own currency rather
+ * than failing the request — a total drawn in the wrong currency is labelled
+ * with that currency and is a smaller problem than a screen that will not load.
+ */
+export const displayParamSchema = z.string().max(8).optional();
 export type SortDirection = z.infer<typeof sortDirectionSchema>;
 
 export interface PageMeta {

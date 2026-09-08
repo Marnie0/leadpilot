@@ -63,6 +63,7 @@ const LEAD_FIELDS = [
   'phone',
   'requestedService',
   'estimatedValue',
+  'currency',
   'priority',
   'source',
 ] as const;
