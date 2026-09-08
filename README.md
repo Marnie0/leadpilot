@@ -280,6 +280,33 @@ There is exactly one `// prettier-ignore` in the codebase, on `DEFAULT_STAGE_PRE
 six lines read as the table they are; formatted normally it becomes 54 lines and you can no longer
 scan the colours and probabilities down a column. Reach for it that rarely.
 
+## Linting
+
+`npm run lint` exists for one class of bug: **the kind the compiler cannot see.** TypeScript already
+covers types and Prettier owns formatting, so `eslint.config.js` carries no stylistic rules and
+nothing that could disagree with `.prettierrc`. What is left is small and worth having.
+
+The rule that earns its keep is `react-hooks/rules-of-hooks`. Phase 8 replaced an expression with a
+hook — `user.role === 'OWNER'` became `useCan('DELETE_LEADS')` — and left it where the expression had
+been, which was below the lead page's loading early-return. That type-checks perfectly and breaks
+React at runtime, because the component then calls a different number of hooks once the query
+resolves. It reached the browser and was caught only by a console error picked up in the render
+matrix. The linter names it at the keyboard instead:
+
+```
+error  React Hook "useCan" is called conditionally. React Hooks must be called
+       in the exact same order in every component render   react-hooks/rules-of-hooks
+```
+
+Before this, the root `lint` script was `npm run lint --workspaces --if-present` and no workspace
+defined one, so it had always exited zero without checking anything — a green light wired to nothing,
+which is worse than no light at all.
+
+`exhaustive-deps` is a warning rather than an error: the exhaustive list is frequently the wrong
+answer for an effect that deliberately fires on one trigger, and those cases carry a comment saying
+so. Type-aware linting is deliberately off — it needs a TypeScript program per run, and the rules it
+adds mostly restate what `tsc --noEmit` already enforces.
+
 ---
 
 ## Product rules worth knowing

@@ -22,8 +22,7 @@ import { en } from './en';
  * selection is delegated to `Intl` instead of the usual `count === 1 ? a : b`.
  * "3 leads" and "11 leads" are different words in Arabic.
  */
-const PLURAL_CATEGORIES = ['zero', 'one', 'two', 'few', 'many', 'other'] as const;
-type PluralCategory = (typeof PLURAL_CATEGORIES)[number];
+type PluralCategory = 'zero' | 'one' | 'two' | 'few' | 'many' | 'other';
 type PluralSuffix = `_${PluralCategory}`;
 
 /** The English dictionary is the source of truth for the key list. */

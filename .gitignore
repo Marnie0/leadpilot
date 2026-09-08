@@ -50,3 +50,6 @@ server/prisma/*.db-journal
 coverage/
 playwright-report/
 test-results/
+
+# ESLint cache, if the flag is ever used.
+.eslintcache
