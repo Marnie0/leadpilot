@@ -47,5 +47,5 @@ export function useFormError<TValues extends FieldValues>(setError: UseFormSetEr
 
   const clearFormError = useCallback(() => setFormError(null), []);
 
-  return { formError, handleError, clearFormError };
+  return { formError, setFormError, handleError, clearFormError };
 }

@@ -1091,6 +1091,7 @@ export const en = {
     'Your workspace is ready. We’ve sent a link to confirm your email — sign in below to get started.',
   'auth.signedUpNoEmail':
     'Your workspace is ready. Sign in below with the password you just chose.',
+  'auth.formBlocked': 'Something on this form is not valid. Refresh the page and try again.',
   'auth.forgotPassword': 'Forgot password?',
   'auth.forgotTitle': 'Reset your password',
   'auth.forgotSubtitle': 'We’ll email you a link to choose a new one.',

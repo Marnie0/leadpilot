@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -49,7 +49,38 @@ export function AcceptInvitePage() {
     resolver: useLocalizedResolver(zodResolver(acceptInvitationFormSchema)),
     defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
   });
-  const { formError, handleError, clearFormError } = useFormError(form.setError);
+  const { formError, setFormError, handleError, clearFormError } = useFormError(form.setError);
+
+  const boundEmail = preview.data?.email ?? null;
+
+  /*
+   * Copy a bound invitation's address into the form.
+   *
+   * The field is rendered read-only in that case and therefore not registered,
+   * so the form value stayed at its `''` default — which `emailSchema` rejects,
+   * since `.optional()` permits `undefined` and not an empty string. Validation
+   * then failed on a field that was not on screen, `handleSubmit` never called
+   * `onSubmit`, and the button did nothing at all: no navigation, no error,
+   * nothing. Filling the value is the fix; the guard below is the seatbelt.
+   */
+  useEffect(() => {
+    if (boundEmail) form.setValue('email', boundEmail, { shouldValidate: false });
+  }, [boundEmail, form]);
+
+  /**
+   * Never let a blocked submit be silent.
+   *
+   * React Hook Form focuses the first invalid field, which does nothing when
+   * that field is not rendered. If none of the errored fields are actually on
+   * screen, say so above the button rather than appearing to ignore the click.
+   */
+  const onInvalid = (errors: Record<string, unknown>) => {
+    const anyVisible = Object.keys(errors).some((field) => {
+      const element = document.getElementById(field);
+      return element !== null && element.offsetParent !== null;
+    });
+    if (!anyVisible) setFormError(t('auth.formBlocked'));
+  };
 
   if (preview.isLoading) {
     return (
@@ -74,7 +105,6 @@ export function AcceptInvitePage() {
   }
 
   const invitation = preview.data;
-  const boundEmail = invitation.email;
 
   const onSubmit = async (values: AcceptInvitationFormValues) => {
     clearFormError();
@@ -107,7 +137,7 @@ export function AcceptInvitePage() {
           : t('invite.subtitle', { role: t(`role.${invitation.role}`) })
       }
     >
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5" noValidate>
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-5" noValidate>
         {formError && (
           <Alert variant="destructive">
             <AlertCircle className="size-4" />
