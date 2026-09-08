@@ -363,7 +363,7 @@ export const en = {
     '{label} An answer is saved to the lead or the workspace, so re-reading costs nothing and everyone sees the same one. Delete any of them whenever you like.',
 
   'landing.footerTagline': 'Bilingual lead management for small and medium service businesses.',
-  'landing.footerBuilt': 'A portfolio project, built to production standards.',
+  'landing.footerBuilt': 'Built to production standards.',
   'landing.footerExplore': 'On this page',
   'landing.footerLinkFeatures': 'What it does',
   'landing.footerLinkAssistant': 'The AI assistant',

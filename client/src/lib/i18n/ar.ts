@@ -413,7 +413,7 @@ export const ar: Dictionary = {
     '{label} تُحفظ الإجابة على العميل المحتمل أو على مساحة العمل، فإعادة قراءتها لا تكلّف شيئًا ويراها الجميع كما هي. واحذف أيًّا منها متى شئت.',
 
   'landing.footerTagline': 'إدارة ثنائية اللغة للعملاء المحتملين للشركات الصغيرة والمتوسطة.',
-  'landing.footerBuilt': 'مشروع لعرض الأعمال، مبنيّ بمعايير الإنتاج.',
+  'landing.footerBuilt': 'مبنيّ بمعايير الإنتاج.',
   'landing.footerExplore': 'في هذه الصفحة',
   'landing.footerLinkFeatures': 'ماذا يفعل',
   'landing.footerLinkAssistant': 'المساعد الذكي',
