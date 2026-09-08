@@ -308,14 +308,14 @@ export const en = {
   'landing.aiEyebrow': 'The AI assistant',
   'landing.aiTitle': 'Two questions, one assistant.',
   'landing.aiSubtitle':
-    'One about the enquiry in front of you, one about everything at once. Both answer in the language you are reading, and both stay off until somebody turns them on.',
+    'One about the enquiry in front of you, one about everything at once. Both answer in the language you asked in, and both stay off until somebody turns them on.',
 
   'landing.aiLeadTitle': 'Ask it about one lead',
   'landing.aiLeadBody':
     'It reads what the customer wrote and comes back with the enquiry in two or three sentences, a quality score out of 100 with the reasoning that produced it, how urgent it looks, and a follow-up written for you to send.',
   'landing.aiLeadPoint1': 'A score you can argue with, because it shows its reasons',
   'landing.aiLeadPoint2': 'One next action, on a named channel — call, email, WhatsApp',
-  'landing.aiLeadPoint3': 'A draft addressed to the customer, in their language',
+  'landing.aiLeadPoint3': 'A reply addressed to the customer, ready to send as it stands',
 
   'landing.aiWorkspaceTitle': 'Ask it about the whole workspace',
   'landing.aiWorkspaceBody':
