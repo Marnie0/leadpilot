@@ -1,7 +1,15 @@
 import { useState } from 'react';
-import type { LeadSortField } from '@leadpilot/shared';
-import { Plus, SearchX, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { TRASH_RETENTION_DAYS, type LeadSortField, type LeadView } from '@leadpilot/shared';
+import { ArrowLeft, Plus, SearchX, Trash2, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/page-header';
+
+/** Each view names itself, so the screen you land on says what it is. */
+const VIEW_TITLES: Record<LeadView, StaticKey> = {
+  active: 'leads.title',
+  archived: 'leads.archivedTitle',
+  trash: 'nav.trash',
+};
 import { ConversionNote } from '@/components/common/conversion-note';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,7 +17,7 @@ import { EmptyState } from '@/components/common/empty-state';
 import { ErrorState } from '@/components/common/error-state';
 import { PaginationBar } from '@/components/common/pagination-bar';
 import { useCurrentUser } from '@/features/auth/auth-context';
-import { useT } from '@/lib/i18n';
+import { useT, type StaticKey } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useLeadFilters } from '@/features/leads/hooks/use-lead-filters';
 import { useLeadStats, useLeads, useStages, useTeamMembers } from '@/features/leads/api';
@@ -60,23 +68,48 @@ export function LeadsPage() {
         selection.isActive && 'pb-28',
       )}
     >
+      {/*
+        The header follows the view. Arriving from the sidebar's Trash and
+        landing on a page headed "Leads" reads as the wrong screen, and "New
+        lead" is not an action the trash has any business offering. The stats
+        strip goes with it: totals and pipeline value describe a working set,
+        not a recycling bin.
+      */}
       <PageHeader
-        title={t('leads.title')}
-        description={t('leads.description', { organization: user.organization.name })}
+        title={t(VIEW_TITLES[filters.view])}
+        description={
+          filters.view === 'trash'
+            ? t('leads.trashDescription', { count: TRASH_RETENTION_DAYS })
+            : filters.view === 'archived'
+              ? t('leads.archivedDescription', { organization: user.organization.name })
+              : t('leads.description', { organization: user.organization.name })
+        }
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" /> {t('leads.newLead')}
-          </Button>
+          filters.view === 'active' ? (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" /> {t('leads.newLead')}
+            </Button>
+          ) : (
+            <Button variant="outline" asChild>
+              <Link to="/leads">
+                <ArrowLeft className="icon-directional size-4" /> {t('leads.backToActive')}
+              </Link>
+            </Button>
+          )
         }
       />
 
-      <LeadStats
-        stats={statsQuery.data}
-        currency={user.organization.defaultCurrency}
-        isLoading={statsQuery.isLoading}
-      />
+      {filters.view === 'active' && (
+        <>
+          <LeadStats
+            stats={statsQuery.data}
+            currency={user.organization.defaultCurrency}
+            isLoading={statsQuery.isLoading}
+          />
 
-      <ConversionNote className="-mt-3" />
+          <ConversionNote className="-mt-3" />
+        </>
+      )}
 
       <LeadFilterBar
         filters={filters}
@@ -107,6 +140,18 @@ export function LeadsPage() {
                   {t('common.clearFilters')}
                 </Button>
               }
+            />
+          ) : filters.view === 'trash' ? (
+            <EmptyState
+              icon={Trash2}
+              title={t('leads.trashEmptyTitle')}
+              description={t('leads.trashEmptyBody', { count: TRASH_RETENTION_DAYS })}
+            />
+          ) : filters.view === 'archived' ? (
+            <EmptyState
+              icon={Users}
+              title={t('leads.archivedEmptyTitle')}
+              description={t('leads.archivedEmptyBody')}
             />
           ) : (
             <EmptyState

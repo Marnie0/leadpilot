@@ -61,6 +61,7 @@ export const en = {
   'nav.dashboard': 'Dashboard',
   'nav.followUps': 'Follow-ups',
   'nav.team': 'Team',
+  'nav.trash': 'Trash',
 
   'menu.appearance': 'Appearance',
   'menu.themeLight': 'Light',
@@ -309,6 +310,20 @@ export const en = {
    * -------------------------------------------------------------- */
   'leads.title': 'Leads',
   'leads.description': 'Every enquiry across {organization}, in one place.',
+  'leads.archivedTitle': 'Archived',
+  'leads.archivedDescription': 'Filed away from {organization}’s working list, and kept.',
+  'leads.trashDescription_one':
+    'Deleted leads, restorable until they are permanently removed after {count} day.',
+  'leads.trashDescription_other':
+    'Deleted leads, restorable until they are permanently removed after {count} days.',
+  'leads.backToActive': 'Back to active leads',
+  'leads.trashEmptyTitle': 'The trash is empty',
+  'leads.trashEmptyBody_one':
+    'Deleted leads wait here for {count} day before they are removed for good.',
+  'leads.trashEmptyBody_other':
+    'Deleted leads wait here for {count} days before they are removed for good.',
+  'leads.archivedEmptyTitle': 'Nothing archived',
+  'leads.archivedEmptyBody': 'Archiving a lead files it away without losing its history.',
   'leads.newLead': 'New lead',
   'leads.couldNotLoad': 'Could not load leads',
   'leads.noMatchTitle': 'No leads match these filters',

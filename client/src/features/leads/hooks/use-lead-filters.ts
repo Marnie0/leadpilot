@@ -94,19 +94,32 @@ export function useLeadFilters() {
     [setSearchParams],
   );
 
-  const resetFilters = useCallback(() => {
-    setSearchParams(new URLSearchParams(), { replace: true });
-  }, [setSearchParams]);
+  /**
+   * Clears what is narrowing the list, and leaves you looking at the same set.
+   *
+   * Wiping the whole query string took the view with it, so "Clear all" in the
+   * trash quietly moved you back to the active pipeline — and the empty trash
+   * offered that very button, since the view was being counted as a filter.
+   */
+  const resetFilters = useCallback(
+    () => setFilters({ ...DEFAULTS, view: filters.view }),
+    [setFilters, filters.view],
+  );
 
-  /** Count of active narrowing filters, for the "Filters (3)" button badge. */
+  /**
+   * Count of active *narrowing* filters, for the "Filters (3)" badge.
+   *
+   * The view is not one of them. Archive and trash are which set you are
+   * looking at, not a filter within it — counting them made an empty trash
+   * claim that no leads "match these filters" and offer to clear its way out.
+   */
   const activeFilterCount =
     filters.stage.length +
     filters.source.length +
     filters.priority.length +
     filters.assignedToId.length +
     (filters.followUp !== 'any' ? 1 : 0) +
-    (filters.openOnly ? 1 : 0) +
-    (filters.view !== 'active' ? 1 : 0);
+    (filters.openOnly ? 1 : 0);
 
   const hasActiveFilters = activeFilterCount > 0 || filters.q.length > 0;
 

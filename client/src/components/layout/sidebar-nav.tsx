@@ -1,8 +1,8 @@
-import { NavLink } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useFollowUpCounts } from '@/features/follow-ups/api';
 import { useFormat, useT } from '@/lib/i18n';
-import { NAV_ITEMS } from './nav-items';
+import { NAV_ITEMS, isNavItemActive } from './nav-items';
 
 /**
  * Primary navigation.
@@ -15,6 +15,7 @@ import { NAV_ITEMS } from './nav-items';
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const t = useT();
   const format = useFormat();
+  const location = useLocation();
   const countsQuery = useFollowUpCounts({});
   const overdue = countsQuery.data?.overdue ?? 0;
 
@@ -25,39 +26,42 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         const label = t(item.labelKey);
         const badge = item.to === '/follow-ups' && overdue > 0 ? overdue : null;
 
+        /*
+         * A plain `Link` with the active state computed here, rather than a
+         * `NavLink`. Two rows share the `/leads` path — the list and the trash
+         * — and `NavLink` decides from the path alone, so it would light both
+         * of them up at once.
+         */
+        const isActive = isNavItemActive(item, location.pathname, location.search);
+
         return (
-          <NavLink
+          <Link
             key={item.to}
             to={item.to}
             onClick={onNavigate}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon
-                  className={cn('size-4 shrink-0', isActive && 'text-sidebar-primary')}
-                  aria-hidden
-                />
-                <span className="flex-1">{label}</span>
-                {badge !== null && (
-                  <span
-                    className="rounded-full bg-destructive/15 px-1.5 py-0.5 text-[11px] leading-none font-semibold text-destructive tabular-nums"
-                    aria-label={t('bucket.overdue')}
-                  >
-                    {format.number(badge)}
-                  </span>
-                )}
-              </>
+            aria-current={isActive ? 'page' : undefined}
+            className={cn(
+              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              isActive
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
             )}
-          </NavLink>
+          >
+            <Icon
+              className={cn('size-4 shrink-0', isActive && 'text-sidebar-primary')}
+              aria-hidden
+            />
+            <span className="flex-1">{label}</span>
+            {badge !== null && (
+              <span
+                className="rounded-full bg-destructive/15 px-1.5 py-0.5 text-[11px] leading-none font-semibold text-destructive tabular-nums"
+                aria-label={t('bucket.overdue')}
+              >
+                {format.number(badge)}
+              </span>
+            )}
+          </Link>
         );
       })}
     </nav>

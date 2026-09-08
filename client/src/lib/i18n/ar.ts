@@ -122,6 +122,7 @@ export const ar: Dictionary = {
   'nav.dashboard': 'لوحة التحكم',
   'nav.followUps': 'المتابعات',
   'nav.team': 'الفريق',
+  'nav.trash': 'المحذوفات',
 
   'menu.appearance': 'المظهر',
   'menu.themeLight': 'فاتح',
@@ -390,6 +391,26 @@ export const ar: Dictionary = {
    * -------------------------------------------------------------- */
   'leads.title': 'العملاء المحتملون',
   'leads.description': 'كل استفسارات {organization} في مكان واحد.',
+  'leads.archivedTitle': 'المؤرشفون',
+  'leads.archivedDescription': 'مؤرشفون بعيدًا عن قائمة عمل {organization}، ومحفوظون.',
+  'leads.trashDescription_one':
+    'عملاء محذوفون، يمكن استعادتهم إلى أن يُزالوا نهائيًا بعد يوم واحد.',
+  'leads.trashDescription_two': 'عملاء محذوفون، يمكن استعادتهم إلى أن يُزالوا نهائيًا بعد يومين.',
+  'leads.trashDescription_few':
+    'عملاء محذوفون، يمكن استعادتهم إلى أن يُزالوا نهائيًا بعد {count} أيام.',
+  'leads.trashDescription_many':
+    'عملاء محذوفون، يمكن استعادتهم إلى أن يُزالوا نهائيًا بعد {count} يومًا.',
+  'leads.trashDescription_other':
+    'عملاء محذوفون، يمكن استعادتهم إلى أن يُزالوا نهائيًا بعد {count} يوم.',
+  'leads.backToActive': 'العودة إلى العملاء النشطين',
+  'leads.trashEmptyTitle': 'سلة المحذوفات فارغة',
+  'leads.trashEmptyBody_one': 'ينتظر العملاء المحذوفون هنا يومًا واحدًا قبل أن يزولوا نهائيًا.',
+  'leads.trashEmptyBody_two': 'ينتظر العملاء المحذوفون هنا يومين قبل أن يزولوا نهائيًا.',
+  'leads.trashEmptyBody_few': 'ينتظر العملاء المحذوفون هنا {count} أيام قبل أن يزولوا نهائيًا.',
+  'leads.trashEmptyBody_many': 'ينتظر العملاء المحذوفون هنا {count} يومًا قبل أن يزولوا نهائيًا.',
+  'leads.trashEmptyBody_other': 'ينتظر العملاء المحذوفون هنا {count} يوم قبل أن يزولوا نهائيًا.',
+  'leads.archivedEmptyTitle': 'لا يوجد مؤرشفون',
+  'leads.archivedEmptyBody': 'أرشفة العميل تحفظه بعيدًا دون فقدان سجله.',
   'leads.newLead': 'عميل محتمل جديد',
   'leads.couldNotLoad': 'تعذّر تحميل العملاء المحتملين',
   'leads.noMatchTitle': 'لا يوجد عملاء يطابقون عوامل التصفية',
