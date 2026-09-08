@@ -36,7 +36,11 @@ async function assertLeadInOrg(
     where: {
       id: leadId,
       organizationId: actor.organizationId,
-      ...(requireActive ? { archivedAt: null } : {}),
+      // `requireActive` gates writing, and trash gates it exactly as archiving
+      // does: you cannot log a call against a lead that is on its way out.
+      // Reading stays open, because the detail page for a trashed lead shows
+      // its history — you should be able to see what you are about to destroy.
+      ...(requireActive ? { archivedAt: null, deletedAt: null } : {}),
     },
     select: { id: true },
   });

@@ -106,6 +106,16 @@ export type AssignLeadInput = z.infer<typeof assignLeadSchema>;
  */
 export const BULK_LEAD_LIMIT = 100;
 
+/** Permanently destroying a lead. The name is the confirmation; see
+ *  `confirmationMatches`. */
+export const purgeLeadSchema = z.object({
+  confirmName: z
+    .string()
+    .min(1, { message: msg('validation.confirmName') })
+    .max(120),
+});
+export type PurgeLeadInput = z.infer<typeof purgeLeadSchema>;
+
 export const bulkLeadIdsSchema = z.object({
   // Deduplicated on the way in. The UI selects into a Set so it cannot produce
   // a repeat, but the endpoint is public: a caller sending the same id twice
@@ -176,6 +186,35 @@ export type FollowUpFilter = (typeof FOLLOW_UP_FILTERS)[number];
 
 export const UNASSIGNED = '__unassigned__';
 
+/**
+ * Which set of leads a list is looking at.
+ *
+ * Three states rather than two booleans, because they are mutually exclusive:
+ * `archived=true&deleted=true` would be a legal query with no meaning. The
+ * distinction they encode is the point of the whole feature — filing something
+ * you mean to keep is not the same act as deciding it should not exist.
+ */
+export const LEAD_VIEWS = ['active', 'archived', 'trash'] as const;
+export type LeadView = (typeof LEAD_VIEWS)[number];
+
+/**
+ * Typing the customer's name is what stands between somebody and an
+ * unrecoverable delete.
+ *
+ * A fixed word — "DELETE" — can be typed without reading; the record's own name
+ * cannot. Normalised rather than compared raw: NFC because an Arabic name can
+ * arrive composed or decomposed and is the same name either way, case-folded
+ * and trimmed because the friction is meant to make you look, not to make you
+ * fight a text box.
+ *
+ * Lives here so the browser and the API apply the identical rule. A client-side
+ * check on the one irreversible action in the product is decoration.
+ */
+export function confirmationMatches(typed: string, expected: string): boolean {
+  const normalise = (value: string) => value.normalize('NFC').trim().toLocaleLowerCase();
+  return normalise(typed).length > 0 && normalise(typed) === normalise(expected);
+}
+
 export const leadQuerySchema = paginationSchema.extend({
   /** Free-text search across name, company, email, phone and service. */
   q: z.string().trim().max(120).optional(),
@@ -190,11 +229,8 @@ export const leadQuerySchema = paginationSchema.extend({
   createdFrom: isoDateTime.optional(),
   createdTo: isoDateTime.optional(),
   followUp: z.enum(FOLLOW_UP_FILTERS).default('any'),
-  /** `true` lists archived leads *instead of* active ones. */
-  archived: z
-    .union([z.boolean(), z.enum(['true', 'false'])])
-    .transform((value) => value === true || value === 'true')
-    .optional(),
+  /** Which set to list: the active pipeline, the archive, or the trash. */
+  view: z.enum(LEAD_VIEWS).default('active'),
   /** `true` hides leads sitting in a WON or LOST stage. */
   openOnly: z
     .union([z.boolean(), z.enum(['true', 'false'])])
@@ -271,6 +307,8 @@ export interface LeadListItemDto {
 export interface LeadDetailDto extends LeadListItemDto {
   description: string | null;
   archivedAt: string | null;
+  /** Set while the lead is in the trash. Null for everything else. */
+  deletedAt: string | null;
   lostReason: string | null;
   wonAt: string | null;
   lostAt: string | null;

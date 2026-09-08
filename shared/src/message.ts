@@ -119,6 +119,7 @@ export const VALIDATION_EN = {
   'validation.requiredShort': 'Required',
   'validation.currency': 'Choose a supported currency',
   'validation.confirmRequired': 'Please confirm before continuing',
+  'validation.confirmName': 'Type the customer’s name to confirm',
 
   'field.name': 'Your name',
   'field.companyName': 'Company name',

@@ -122,13 +122,14 @@ export async function getDashboard(
   const inWindow = { gte: from };
   const inPreviousWindow = { gte: previousFrom, lt: from };
   /** Every non-archived lead in the workspace. The snapshot scope. */
-  const live: Prisma.LeadWhereInput = { organizationId, archivedAt: null };
+  const live: Prisma.LeadWhereInput = { organizationId, archivedAt: null, deletedAt: null };
 
   // Trashed follow-ups are gone as far as every count is concerned.
   const pendingFollowUp = {
     organizationId,
     status: 'PENDING',
     deletedAt: null,
+    lead: { deletedAt: null },
   } satisfies Prisma.FollowUpWhereInput;
 
   const trendFrom = truncateUtc(from, trendBucket);
@@ -189,7 +190,7 @@ export async function getDashboard(
              coalesce(sum("estimatedValue"), 0)::float8                  AS "value",
              avg(extract(epoch FROM (now() - "createdAt")) / 86400)::float8 AS "avgAgeDays"
       FROM "leads"
-      WHERE "organizationId" = ${organizationId} AND "archivedAt" IS NULL
+      WHERE "organizationId" = ${organizationId} AND "archivedAt" IS NULL AND "deletedAt" IS NULL
       GROUP BY "stageId"
     `,
 
@@ -213,7 +214,7 @@ export async function getDashboard(
       SELECT avg(extract(epoch FROM ("wonAt" - "createdAt")) / 86400)::float8 AS "days"
       FROM "leads"
       WHERE "organizationId" = ${organizationId}
-        AND "archivedAt" IS NULL
+        AND "archivedAt" IS NULL AND "deletedAt" IS NULL
         AND "wonAt" >= ${from}
     `,
 
@@ -223,7 +224,7 @@ export async function getDashboard(
              0::float8                                   AS "value"
       FROM "leads"
       WHERE "organizationId" = ${organizationId}
-        AND "archivedAt" IS NULL
+        AND "archivedAt" IS NULL AND "deletedAt" IS NULL
         AND "createdAt" >= ${trendFrom}
       GROUP BY 1
       ORDER BY 1
@@ -234,7 +235,7 @@ export async function getDashboard(
              coalesce(sum("estimatedValue"), 0)::float8  AS "value"
       FROM "leads"
       WHERE "organizationId" = ${organizationId}
-        AND "archivedAt" IS NULL
+        AND "archivedAt" IS NULL AND "deletedAt" IS NULL
         AND "wonAt" >= ${trendFrom}
       GROUP BY 1
       ORDER BY 1

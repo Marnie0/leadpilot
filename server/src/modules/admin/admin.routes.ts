@@ -5,6 +5,7 @@ import { unauthorized } from '../../lib/errors.js';
 import { env } from '../../env.js';
 import { reapExpiredSandboxes } from '../auth/demo.service.js';
 import { purgeExpiredTrash } from '../follow-ups/follow-ups.service.js';
+import { purgeExpiredLeads } from '../leads/leads.service.js';
 
 export const adminRouter = Router();
 
@@ -18,8 +19,8 @@ function isAuthorised(header: string | undefined): boolean {
 }
 
 /**
- * The daily housekeeping run: expired demo sandboxes, and follow-ups that have
- * sat in the trash past their retention.
+ * The daily housekeeping run: expired demo sandboxes, and anything — leads or
+ * follow-ups — that has sat in the trash past its retention.
  *
  * One scheduled job rather than two, because a second cron is a second thing to
  * misconfigure and forget. Invoked by Vercel Cron, which sends
@@ -28,8 +29,14 @@ function isAuthorised(header: string | undefined): boolean {
  */
 const handler = asyncHandler(async (req, res) => {
   if (!isAuthorised(req.headers.authorization)) throw unauthorized();
-  const [removed, purged] = await Promise.all([reapExpiredSandboxes(), purgeExpiredTrash()]);
-  res.json({ removed, purgedFollowUps: purged, at: new Date().toISOString() });
+  // Leads first: destroying one cascades to its follow-ups, so the follow-up
+  // sweep afterwards has less to do and can never race the cascade.
+  const purgedLeads = await purgeExpiredLeads();
+  const [removed, purgedFollowUps] = await Promise.all([
+    reapExpiredSandboxes(),
+    purgeExpiredTrash(),
+  ]);
+  res.json({ removed, purgedLeads, purgedFollowUps, at: new Date().toISOString() });
 });
 
 adminRouter.get('/reap-demo-sandboxes', handler);

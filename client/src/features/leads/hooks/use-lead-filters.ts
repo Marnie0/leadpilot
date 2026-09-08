@@ -4,6 +4,7 @@ import { applyFilterPatch, readList, readOne } from '@/lib/search-params';
 import {
   FOLLOW_UP_FILTERS,
   LEAD_PRIORITIES,
+  LEAD_VIEWS,
   LEAD_SORT_FIELDS,
   LEAD_SOURCES,
   STAGE_KEYS,
@@ -11,6 +12,7 @@ import {
   type LeadPriority,
   type LeadSortField,
   type LeadSource,
+  type LeadView,
   type StageKey,
 } from '@leadpilot/shared';
 
@@ -22,7 +24,7 @@ export interface LeadFilterState {
   assignedToId: string[];
   followUp: FollowUpFilter;
   openOnly: boolean;
-  archived: boolean;
+  view: LeadView;
   sortBy: LeadSortField;
   sortDir: 'asc' | 'desc';
   page: number;
@@ -37,7 +39,7 @@ const DEFAULTS: LeadFilterState = {
   assignedToId: [],
   followUp: 'any',
   openOnly: false,
-  archived: false,
+  view: 'active',
   sortBy: 'updatedAt',
   sortDir: 'desc',
   page: 1,
@@ -67,7 +69,7 @@ export function useLeadFilters() {
       assignedToId: readList(searchParams, 'assignedToId'),
       followUp: readOne(searchParams, 'followUp', FOLLOW_UP_FILTERS, DEFAULTS.followUp),
       openOnly: searchParams.get('openOnly') === 'true',
-      archived: searchParams.get('archived') === 'true',
+      view: readOne(searchParams, 'view', LEAD_VIEWS, DEFAULTS.view),
       sortBy: readOne(searchParams, 'sortBy', LEAD_SORT_FIELDS, DEFAULTS.sortBy),
       sortDir: readOne(searchParams, 'sortDir', ['asc', 'desc'] as const, DEFAULTS.sortDir),
       page: Number.isFinite(page) && page > 0 ? page : DEFAULTS.page,
@@ -104,7 +106,7 @@ export function useLeadFilters() {
     filters.assignedToId.length +
     (filters.followUp !== 'any' ? 1 : 0) +
     (filters.openOnly ? 1 : 0) +
-    (filters.archived ? 1 : 0);
+    (filters.view !== 'active' ? 1 : 0);
 
   const hasActiveFilters = activeFilterCount > 0 || filters.q.length > 0;
 

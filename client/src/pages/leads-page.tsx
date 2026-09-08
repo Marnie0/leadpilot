@@ -175,7 +175,7 @@ export function LeadsPage() {
           stages={stagesQuery.data ?? []}
           members={teamQuery.data ?? []}
           canArchive={canArchive}
-          viewingArchived={Boolean(filters.archived)}
+          view={filters.view}
           onDone={selection.retain}
           onClear={selection.clear}
         />

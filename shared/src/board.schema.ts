@@ -19,12 +19,13 @@ export const BOARD_MAX_LIMIT = 200;
  *
  *  - `stage` — the board *is* the stage breakdown; filtering it out would empty
  *    columns rather than filter cards.
- *  - `archived` — archived leads have no place on a working board.
+ *  - `view` — the board is the *active* pipeline. Archived leads have no place
+ *    on it, and trashed ones exist nowhere at all.
  *  - `page` / `pageSize` / `sortBy` / `sortDir` — the board is always ordered by
  *    the manual rank within each stage, and depth is controlled by `limit`.
  */
 export const boardQuerySchema = leadQuerySchema
-  .omit({ page: true, pageSize: true, sortBy: true, sortDir: true, stage: true, archived: true })
+  .omit({ page: true, pageSize: true, sortBy: true, sortDir: true, stage: true, view: true })
   .extend({
     /**
      * Cards to load per column.

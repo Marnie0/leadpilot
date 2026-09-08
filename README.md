@@ -394,11 +394,43 @@ sets `deletedAt`: the row leaves every view immediately and stays restorable. De
 separate route you can only reach from the trash, and the daily cron that reaps demo sandboxes also
 purges anything left there past `TRASH_RETENTION_DAYS`.
 
-Trash is deliberately **not** the same idea as archiving a lead, and the two are not unified.
-Archiving files something you mean to keep — it exists to preserve the activity trail a cascading
-delete destroyed, and is never purged. Trash is for a mistake: it disappears immediately, can be
-undone, and stops existing after the grace period instead of accumulating forever. Leads already
-never hard-delete, so nothing there is at risk from leaving it alone.
+Leads have the same two-step removal, and the distinction between archiving and deleting is the
+whole point of having both:
+
+|                | Archive                   | Delete                            |
+| -------------- | ------------------------- | --------------------------------- |
+| Means          | "Done with this, keep it" | "This should not exist"           |
+| Column         | `archivedAt`              | `deletedAt`                       |
+| Lifetime       | Forever                   | `TRASH_RETENTION_DAYS`, then gone |
+| Who            | Owner or admin            | Owner or admin                    |
+| Permanent step | —                         | Owner or admin, name typed back   |
+
+The columns are **orthogonal**, which is what makes the pair coherent: deleting an archived lead
+does not clear `archivedAt`, so restoring it returns it to the archive rather than dropping it back
+into everyone's working list. Deleting is something that happens _to_ a lead in whatever state it
+was already in.
+
+The two share the mechanism — one retention constant, one daily job — but not a screen. A single
+trash listing leads and follow-ups together would mix two record shapes with two sets of actions,
+and you look for a deleted lead where you look for leads. So the table's old archived toggle became
+a three-way view (active / archived / trash) and follow-ups keep their own chip.
+
+**Permanent deletion asks you to type the customer's name.** Not a fixed word: "DELETE" can be
+typed without reading, and a name cannot — you have to look at what you are destroying. The
+comparison normalises NFC, case and surrounding space, so an Arabic name that arrives composed or
+decomposed still matches and the friction stays "read this" rather than "fight a text box".
+`confirmationMatches` lives in `shared/` and runs on both sides: the API checks it too, because a
+browser-side guard on the one action with no undo is decoration. It is reachable only from the
+trash, and it cascades — the lead, its whole activity trail and every follow-up on it. Owners and
+admins both have it, matching who can archive and delete in the first place: the typed name is what
+carries the weight, not a narrower role.
+
+An archived or trashed lead accepts no writes, and now shows none — no note composer, no "schedule
+follow-up", no complete or cancel on the follow-ups it already has. The API had always refused
+those on an archived lead; the buttons offering them were simply lying about it.
+
+Bulk delete exists because bulk archive does; bulk _permanent_ delete does not, because there is no
+single name to type for a selection and the friction is the entire point.
 
 Completing a follow-up asks what happened and writes it to the lead's timeline. That is the whole
 point of the prompt: this is the one moment somebody knows the answer, and "left a voicemail,

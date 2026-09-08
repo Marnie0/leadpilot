@@ -40,7 +40,15 @@ function defaultDueAt(): string {
   return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }
 
-function FollowUpRow({ followUp, leadId }: { followUp: FollowUpDto; leadId: string }) {
+function FollowUpRow({
+  followUp,
+  leadId,
+  canAct,
+}: {
+  followUp: FollowUpDto;
+  leadId: string;
+  canAct: boolean;
+}) {
   const t = useT();
   const format = useFormat();
   const complete = useCompleteFollowUp(leadId);
@@ -98,7 +106,7 @@ function FollowUpRow({ followUp, leadId }: { followUp: FollowUpDto; leadId: stri
         )}
       </div>
 
-      {isPending && (
+      {isPending && canAct && (
         <div className="flex shrink-0 gap-1">
           <Button
             variant="ghost"
@@ -149,12 +157,15 @@ export function FollowUpPanel({
   isLoading,
   error,
   onRetry,
+  canSchedule = true,
 }: {
   leadId: string;
   followUps: FollowUpDto[];
   isLoading: boolean;
   error?: unknown;
   onRetry?: () => void;
+  /** False for an archived or trashed lead, which takes no new writes. */
+  canSchedule?: boolean;
 }) {
   const t = useT();
   const describeError = useApiErrorMessage();
@@ -192,7 +203,7 @@ export function FollowUpPanel({
 
   return (
     <div className="space-y-4">
-      {!isAdding && (
+      {canSchedule && !isAdding && (
         <Button variant="outline" size="sm" className="w-full" onClick={() => setAdding(true)}>
           <Plus className="size-4" /> {t('followUp.schedule')}
         </Button>
@@ -318,7 +329,12 @@ export function FollowUpPanel({
           {pending.length > 0 && (
             <ul className="space-y-2">
               {pending.map((followUp) => (
-                <FollowUpRow key={followUp.id} followUp={followUp} leadId={leadId} />
+                <FollowUpRow
+                  key={followUp.id}
+                  followUp={followUp}
+                  leadId={leadId}
+                  canAct={canSchedule}
+                />
               ))}
             </ul>
           )}
@@ -330,7 +346,12 @@ export function FollowUpPanel({
               </p>
               <ul className="space-y-2">
                 {past.map((followUp) => (
-                  <FollowUpRow key={followUp.id} followUp={followUp} leadId={leadId} />
+                  <FollowUpRow
+                    key={followUp.id}
+                    followUp={followUp}
+                    leadId={leadId}
+                    canAct={canSchedule}
+                  />
                 ))}
               </ul>
             </div>

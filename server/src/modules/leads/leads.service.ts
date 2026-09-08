@@ -10,7 +10,7 @@ import type {
   Paginated,
   UpdateLeadInput,
 } from '@leadpilot/shared';
-import { STAGE_KEYS } from '@leadpilot/shared';
+import { STAGE_KEYS, TRASH_RETENTION_DAYS, confirmationMatches } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
 import { badRequest, forbidden, notFound } from '../../lib/errors.js';
 import { paginate, toPrismaPagination } from '../../lib/pagination.js';
@@ -107,6 +107,7 @@ export async function getLeadStats(actor: Actor, query: LeadQueryInput): Promise
         organizationId: actor.organizationId,
         status: 'PENDING',
         deletedAt: null,
+        lead: { deletedAt: null },
         dueAt: { lt: dayWindow(normaliseTimeZone(query.tz)).startOfToday },
       },
     }),
@@ -157,6 +158,13 @@ export async function getLeadById(
 ): Promise<LeadDetailDto> {
   // The organizationId in the filter is what makes another tenant's id a 404
   // rather than a leak.
+  //
+  // A *trashed* lead is readable here on purpose, unlike in any list. The trash
+  // view links straight to this page, and it is where the banner offering
+  // "restore" and "delete permanently" lives — 404ing would leave the trash
+  // with nothing to open and no way to act on what is in it. Reads have always
+  // been open within the organisation; the actions on that banner are what
+  // carry the permission checks.
   const lead = await prisma.lead.findFirst({
     where: {
       id: leadId,
@@ -301,7 +309,12 @@ export async function updateLead(
   input: UpdateLeadInput,
 ): Promise<LeadDetailDto> {
   const existing = await prisma.lead.findFirst({
-    where: { id: leadId, organizationId: actor.organizationId, archivedAt: null },
+    where: {
+      id: leadId,
+      organizationId: actor.organizationId,
+      archivedAt: null,
+      deletedAt: null,
+    },
     select: {
       id: true,
       customerName: true,
@@ -483,6 +496,99 @@ export async function restoreLead(actor: Actor, leadId: string): Promise<LeadDet
   });
 
   return getLeadById(actor, leadId);
+}
+
+/* ------------------------------------------------------------------ *
+ * Trash
+ *
+ * A different act from archiving, and kept deliberately separate from it.
+ * Archiving files something you mean to keep; deleting says the record should
+ * not exist. The two columns are orthogonal, so a lead deleted out of the
+ * archive comes back to the archive rather than into everybody's working list.
+ * ------------------------------------------------------------------ */
+
+export async function trashLead(actor: Actor, leadId: string): Promise<void> {
+  if (!isManager(actor)) throw forbidden('Only an owner or admin can delete a lead');
+
+  const existing = await prisma.lead.findFirst({
+    where: { id: leadId, organizationId: actor.organizationId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!existing) throw notFound('Lead');
+
+  await prisma.lead.update({
+    where: { id: leadId },
+    // `archivedAt` is deliberately untouched.
+    data: { deletedAt: new Date(), deletedById: actor.userId },
+    select: { id: true },
+  });
+}
+
+export async function restoreFromTrash(actor: Actor, leadId: string): Promise<LeadDetailDto> {
+  if (!isManager(actor)) throw forbidden('Only an owner or admin can restore a lead');
+
+  const existing = await prisma.lead.findFirst({
+    where: { id: leadId, organizationId: actor.organizationId, deletedAt: { not: null } },
+    select: { id: true },
+  });
+  if (!existing) throw notFound('Lead');
+
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: { deletedAt: null, deletedById: null },
+    select: { id: true },
+  });
+
+  return getLeadById(actor, leadId, { includeArchived: true });
+}
+
+/**
+ * Destroys a lead, its whole activity trail and its follow-ups.
+ *
+ * The only genuinely irreversible action in the product, and gated like one:
+ * a manager, only from the trash, and only when the customer's name is typed
+ * back. Owners and admins together, matching who can archive and delete in the
+ * first place — an admin trusted to put a lead in the trash is trusted to
+ * finish the job, and the typed name is what carries the weight here rather
+ * than a narrower role.
+ *
+ * The name is checked here as well as in the browser: a client-side guard on
+ * something with no undo is decoration, and the shared `confirmationMatches`
+ * means both sides apply the identical rule.
+ */
+export async function purgeLead(actor: Actor, leadId: string, confirmName: string): Promise<void> {
+  if (!isManager(actor)) {
+    throw forbidden('Only an owner or admin can permanently delete a lead');
+  }
+
+  const existing = await prisma.lead.findFirst({
+    where: { id: leadId, organizationId: actor.organizationId },
+    select: { id: true, customerName: true, deletedAt: true },
+  });
+  if (!existing) throw notFound('Lead');
+  if (!existing.deletedAt) {
+    throw badRequest('Move it to the trash before deleting it permanently', 'NOT_TRASHED');
+  }
+  if (!confirmationMatches(confirmName, existing.customerName)) {
+    throw badRequest('The name you typed does not match this lead', 'CONFIRMATION_MISMATCH');
+  }
+
+  // Activities and follow-ups cascade — see the relations in schema.prisma.
+  await prisma.lead.delete({ where: { id: leadId } });
+}
+
+/**
+ * Destroys everything that has sat in the trash past its retention.
+ *
+ * Shares the constant and the daily job with trashed follow-ups: one retention
+ * policy for the product, in one place, rather than two that drift.
+ */
+export async function purgeExpiredLeads(now = new Date()): Promise<number> {
+  const cutoff = new Date(now.getTime() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  const { count } = await prisma.lead.deleteMany({
+    where: { deletedAt: { not: null, lt: cutoff } },
+  });
+  return count;
 }
 
 export { syncNextFollowUp };

@@ -35,12 +35,12 @@ const BOARD_ORDER: Prisma.LeadOrderByWithRelationInput[] = [
 ];
 
 /**
- * Board columns never show archived leads, and the board's own stage split
- * replaces the table's stage filter. Both are pinned here rather than trusted
- * from the query string.
+ * The board is the *active* pipeline: archived leads have no place on it and
+ * trashed ones exist nowhere at all. Its own stage split replaces the table's
+ * stage filter. Both are pinned here rather than trusted from the query string.
  */
 function boardWhere(organizationId: string, query: BoardQueryInput): Prisma.LeadWhereInput {
-  return buildLeadWhere(organizationId, { ...query, archived: false, stage: undefined });
+  return buildLeadWhere(organizationId, { ...query, view: 'active', stage: undefined });
 }
 
 async function workspaceCurrency(organizationId: string): Promise<string> {
@@ -146,7 +146,12 @@ export async function moveLeadOnBoard(
   input: MoveLeadOnBoardInput,
 ): Promise<LeadDetailDto> {
   const lead = await prisma.lead.findFirst({
-    where: { id: leadId, organizationId: actor.organizationId, archivedAt: null },
+    where: {
+      id: leadId,
+      organizationId: actor.organizationId,
+      archivedAt: null,
+      deletedAt: null,
+    },
     select: {
       id: true,
       assignedToId: true,
@@ -199,6 +204,7 @@ export async function moveLeadOnBoard(
         organizationId: actor.organizationId,
         stageId: destination.id,
         archivedAt: null,
+        deletedAt: null,
         id: { not: leadId },
       },
       select: { id: true },

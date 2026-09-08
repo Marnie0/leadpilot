@@ -3,17 +3,19 @@ import {
   FOLLOW_UP_FILTERS,
   LEAD_PRIORITIES,
   LEAD_SORT_FIELDS,
+  LEAD_VIEWS,
   LEAD_SOURCES,
   STAGE_KEYS,
   UNASSIGNED,
   type FollowUpFilter,
   type LeadPriority,
   type LeadSortField,
+  type LeadView,
   type LeadSource,
   type PipelineStageDto,
   type StageKey,
 } from '@leadpilot/shared';
-import { Archive, ArrowDownWideNarrow, ArrowUpNarrowWide, Search, X } from 'lucide-react';
+import { Archive, ArrowDownWideNarrow, ArrowUpNarrowWide, Search, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -231,17 +233,31 @@ export function LeadFilterBar({
           {t('filters.openOnly')}
         </Button>
 
-        <Button
-          variant={filters.archived ? 'secondary' : 'outline'}
-          size="sm"
-          className="h-9 border-dashed data-[active=true]:border-solid"
-          data-active={filters.archived}
-          onClick={() => onChange({ archived: !filters.archived, openOnly: false })}
-          aria-pressed={filters.archived}
-          title={t('filters.archivedTitle')}
+        {/*
+          Three views rather than a toggle, because there are now three sets and
+          they are mutually exclusive. Archive and trash mean different things —
+          one is filed, the other is on its way out — so they cannot share a
+          control that only says "not the normal list".
+        */}
+        <Select
+          value={filters.view}
+          onValueChange={(value) => onChange({ view: value as LeadView, openOnly: false })}
         >
-          <Archive className="size-3.5" /> {t('filters.archived')}
-        </Button>
+          <SelectTrigger size="sm" className="h-9 w-[132px]" aria-label={t('filters.view')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {LEAD_VIEWS.map((view) => (
+              <SelectItem key={view} value={view}>
+                <span className="flex items-center gap-2">
+                  {view === 'archived' && <Archive className="size-3.5" aria-hidden />}
+                  {view === 'trash' && <Trash2 className="size-3.5" aria-hidden />}
+                  {t(`leadView.${view}`)}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" className="h-9 gap-1.5" onClick={onReset}>

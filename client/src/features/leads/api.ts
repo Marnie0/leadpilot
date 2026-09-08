@@ -153,8 +153,56 @@ export function useAssignLead(leadId: string) {
 export function useArchiveLead() {
   const invalidate = useInvalidateLeads();
   return useMutation({
+    mutationFn: (leadId: string) => api.post<void>(`/leads/${leadId}/archive`),
+    onSuccess: () => invalidate(),
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Trash
+ *
+ * A different act from archiving. Archiving files a lead you mean to keep;
+ * deleting says the record should not exist, and the trash is the grace period
+ * before that becomes true.
+ * ------------------------------------------------------------------ */
+
+export function useTrashLead() {
+  const invalidate = useInvalidateLeads();
+  return useMutation({
     mutationFn: (leadId: string) => api.delete<void>(`/leads/${leadId}`),
     onSuccess: () => invalidate(),
+  });
+}
+
+export function useRestoreLeadFromTrash() {
+  const invalidate = useInvalidateLeads();
+  return useMutation({
+    mutationFn: async (leadId: string) =>
+      (await api.post<{ lead: LeadDetailDto }>(`/leads/${leadId}/restore-from-trash`)).lead,
+    onSuccess: (lead) => invalidate(lead.id),
+  });
+}
+
+/** The name is the confirmation; the server checks it too. */
+export function usePurgeLead() {
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidateLeads();
+  return useMutation({
+    mutationFn: ({ leadId, confirmName }: { leadId: string; confirmName: string }) =>
+      api.delete<void>(`/leads/${leadId}/permanent`, { body: { confirmName } }),
+    onSuccess: (_result, { leadId }) => {
+      /*
+       * Removed, not invalidated.
+       *
+       * Invalidating asks the cache to go and refetch a record that no longer
+       * exists, which 404s and fires the background-refresh toast — so a
+       * successful permanent delete announced itself twice, once as "deleted"
+       * and once as "Could not refresh data: Lead not found". There is nothing
+       * left to refetch; drop it instead.
+       */
+      queryClient.removeQueries({ queryKey: queryKeys.leads.detail(leadId) });
+      invalidate();
+    },
   });
 }
 
@@ -172,6 +220,24 @@ export function useBulkArchive() {
   return useMutation({
     mutationFn: (input: BulkLeadIdsInput) =>
       api.post<BulkLeadResultDto>('/leads/bulk/archive', input),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useBulkTrash() {
+  const invalidate = useInvalidateLeads();
+  return useMutation({
+    mutationFn: (input: BulkLeadIdsInput) =>
+      api.post<BulkLeadResultDto>('/leads/bulk/trash', input),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useBulkRestoreFromTrash() {
+  const invalidate = useInvalidateLeads();
+  return useMutation({
+    mutationFn: (input: BulkLeadIdsInput) =>
+      api.post<BulkLeadResultDto>('/leads/bulk/restore-from-trash', input),
     onSuccess: () => invalidate(),
   });
 }

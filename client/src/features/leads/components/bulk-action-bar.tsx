@@ -1,6 +1,12 @@
 import { useState } from 'react';
-import type { BulkLeadResultDto, PipelineStageDto, StageKey } from '@leadpilot/shared';
-import { Archive, ArchiveRestore, ChevronDown, Loader2, UserRound, X } from 'lucide-react';
+import {
+  TRASH_RETENTION_DAYS,
+  type BulkLeadResultDto,
+  type LeadView,
+  type PipelineStageDto,
+  type StageKey,
+} from '@leadpilot/shared';
+import { Archive, ArchiveRestore, ChevronDown, Loader2, Trash2, UserRound, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -29,6 +35,8 @@ import {
   useBulkAssign,
   useBulkMoveStage,
   useBulkRestore,
+  useBulkRestoreFromTrash,
+  useBulkTrash,
   type TeamMemberDetail,
 } from '../api';
 
@@ -48,7 +56,7 @@ export function BulkActionBar({
   stages,
   members,
   canArchive,
-  viewingArchived,
+  view,
   onDone,
   onClear,
 }: {
@@ -56,7 +64,7 @@ export function BulkActionBar({
   stages: PipelineStageDto[];
   members: TeamMemberDetail[];
   canArchive: boolean;
-  viewingArchived: boolean;
+  view: LeadView;
   /** Called with the ids to keep selected — empty clears the selection. */
   onDone: (keepSelected: string[]) => void;
   onClear: () => void;
@@ -65,16 +73,25 @@ export function BulkActionBar({
   const format = useFormat();
   const describeError = useApiErrorMessage();
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmTrash, setConfirmTrash] = useState(false);
+  const isTrashView = view === 'trash';
   /** A move into a Lost stage, held until the reason prompt is answered. */
   const [pendingLoss, setPendingLoss] = useState<StageKey | null>(null);
 
   const archive = useBulkArchive();
   const restore = useBulkRestore();
+  const trash = useBulkTrash();
+  const restoreFromTrash = useBulkRestoreFromTrash();
   const moveStage = useBulkMoveStage();
   const assign = useBulkAssign();
 
   const isPending =
-    archive.isPending || restore.isPending || moveStage.isPending || assign.isPending;
+    archive.isPending ||
+    restore.isPending ||
+    trash.isPending ||
+    restoreFromTrash.isPending ||
+    moveStage.isPending ||
+    assign.isPending;
 
   /**
    * Reports what the server actually did.
@@ -146,96 +163,131 @@ export function BulkActionBar({
           */}
           <Separator orientation="vertical" className="data-[orientation=vertical]:h-6" />
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" disabled={isPending}>
-                {t('bulk.moveToStage')}
-                <ChevronDown className="size-3.5" aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" side="top" className="w-52">
-              <DropdownMenuLabel className="text-xs">{t('bulk.moveToStage')}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {stages.map((stage) => (
-                <DropdownMenuItem
-                  key={stage.id}
-                  onSelect={() => {
-                    // Closing deals as lost asks why, exactly as the board and
-                    // the detail view do. Doing it silently here would have
-                    // made the fastest way to lose a hundred deals also the
-                    // only one that records nothing about them.
-                    if (stage.type === 'LOST') {
-                      setPendingLoss(stage.key);
-                      return;
-                    }
-                    moveStage.mutate({ ids, stageKey: stage.key }, handlers);
-                  }}
-                >
-                  <span
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: stage.color }}
-                    aria-hidden
-                  />
-                  {stageName(stage, locale)}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Moving or reassigning something in the trash is not an action the
+              API will perform, so it is not one the bar should offer. */}
+          {!isTrashView && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" disabled={isPending}>
+                  {t('bulk.moveToStage')}
+                  <ChevronDown className="size-3.5" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" side="top" className="w-52">
+                <DropdownMenuLabel className="text-xs">{t('bulk.moveToStage')}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {stages.map((stage) => (
+                  <DropdownMenuItem
+                    key={stage.id}
+                    onSelect={() => {
+                      // Closing deals as lost asks why, exactly as the board and
+                      // the detail view do. Doing it silently here would have
+                      // made the fastest way to lose a hundred deals also the
+                      // only one that records nothing about them.
+                      if (stage.type === 'LOST') {
+                        setPendingLoss(stage.key);
+                        return;
+                      }
+                      moveStage.mutate({ ids, stageKey: stage.key }, handlers);
+                    }}
+                  >
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: stage.color }}
+                      aria-hidden
+                    />
+                    {stageName(stage, locale)}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" disabled={isPending}>
-                {t('bulk.assignTo')}
-                <ChevronDown className="size-3.5" aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" side="top" className="w-56">
-              <DropdownMenuLabel className="text-xs">{t('bulk.assignTo')}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => assign.mutate({ ids, assignedToId: null }, handlers)}
-              >
-                <UserRound className="size-3.5 text-muted-foreground" aria-hidden />
-                {t('common.unassigned')}
-              </DropdownMenuItem>
-              {activeMembers.map((member) => (
+          {!isTrashView && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" disabled={isPending}>
+                  {t('bulk.assignTo')}
+                  <ChevronDown className="size-3.5" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" side="top" className="w-56">
+                <DropdownMenuLabel className="text-xs">{t('bulk.assignTo')}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  key={member.id}
-                  onSelect={() => assign.mutate({ ids, assignedToId: member.id }, handlers)}
+                  onSelect={() => assign.mutate({ ids, assignedToId: null }, handlers)}
                 >
-                  <span
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: member.avatarColor }}
-                    aria-hidden
-                  />
-                  {member.name}
+                  <UserRound className="size-3.5 text-muted-foreground" aria-hidden />
+                  {t('common.unassigned')}
                 </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                {activeMembers.map((member) => (
+                  <DropdownMenuItem
+                    key={member.id}
+                    onSelect={() => assign.mutate({ ids, assignedToId: member.id }, handlers)}
+                  >
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: member.avatarColor }}
+                      aria-hidden
+                    />
+                    {member.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
+          {/*
+            The trash offers the one action that makes sense there. Destroying
+            leads stays a single-record affair: the confirmation is the
+            customer's name, and there is no name to type for a selection.
+          */}
           {canArchive &&
-            (viewingArchived ? (
+            (view === 'trash' ? (
               <Button
                 variant="ghost"
                 size="sm"
                 disabled={isPending}
-                onClick={() => restore.mutate({ ids }, handlers)}
+                onClick={() => restoreFromTrash.mutate({ ids }, handlers)}
               >
-                <ArchiveRestore className="size-3.5" aria-hidden />
+                <ArchiveRestore className="icon-directional size-3.5" aria-hidden />
                 {t('bulk.restore')}
               </Button>
             ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                disabled={isPending}
-                onClick={() => setConfirmArchive(true)}
-              >
-                <Archive className="size-3.5" aria-hidden />
-                {t('bulk.archive')}
-              </Button>
+              <>
+                {view === 'archived' ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={isPending}
+                    onClick={() => restore.mutate({ ids }, handlers)}
+                  >
+                    <ArchiveRestore className="icon-directional size-3.5" aria-hidden />
+                    {t('bulk.unarchive')}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={isPending}
+                    onClick={() => setConfirmArchive(true)}
+                  >
+                    <Archive className="size-3.5" aria-hidden />
+                    {t('bulk.archive')}
+                  </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  disabled={isPending}
+                  onClick={() => setConfirmTrash(true)}
+                >
+                  <Trash2 className="size-3.5" aria-hidden />
+                  {t('bulk.delete')}
+                </Button>
+              </>
             ))}
 
           <Separator orientation="vertical" className="data-[orientation=vertical]:h-6" />
@@ -273,8 +325,10 @@ export function BulkActionBar({
         }}
       />
 
-      {/* Archiving in bulk is the one action here that removes things from view,
-          so it is the one that asks first. */}
+      {/* The two actions that remove things from view are the two that ask
+          first. Neither destroys anything — a deleted lead sits in the trash —
+          so a count is confirmation enough; typing a name is reserved for the
+          permanent step, which is one record at a time. */}
       <Dialog open={confirmArchive} onOpenChange={setConfirmArchive}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -295,6 +349,33 @@ export function BulkActionBar({
             >
               {archive.isPending && <Loader2 className="size-4 animate-spin" />}
               {t('bulk.archive')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmTrash} onOpenChange={setConfirmTrash}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('bulk.deleteTitle', { count })}</DialogTitle>
+            <DialogDescription>
+              {t('bulk.deleteBody', { count: TRASH_RETENTION_DAYS })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmTrash(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={trash.isPending}
+              onClick={() => {
+                setConfirmTrash(false);
+                trash.mutate({ ids }, handlers);
+              }}
+            >
+              {trash.isPending && <Loader2 className="size-4 animate-spin" />}
+              {t('bulk.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

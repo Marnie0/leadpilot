@@ -76,7 +76,12 @@ export async function bulkArchive(
   if (!isManager(actor)) throw forbidden('Only an owner or admin can archive a lead');
 
   const { count } = await prisma.lead.updateMany({
-    where: { id: { in: ids }, organizationId: actor.organizationId, archivedAt: null },
+    where: {
+      id: { in: ids },
+      organizationId: actor.organizationId,
+      archivedAt: null,
+      deletedAt: null,
+    },
     data: { archivedAt: new Date(), archivedById: actor.userId },
   });
 
@@ -90,8 +95,51 @@ export async function bulkRestore(
   if (!isManager(actor)) throw forbidden('Only an owner or admin can restore a lead');
 
   const { count } = await prisma.lead.updateMany({
-    where: { id: { in: ids }, organizationId: actor.organizationId, archivedAt: { not: null } },
+    where: {
+      id: { in: ids },
+      organizationId: actor.organizationId,
+      archivedAt: { not: null },
+      // Un-archiving must not reach into the trash: those are restored from
+      // the trash view, back to whatever state they were deleted in.
+      deletedAt: null,
+    },
     data: { archivedAt: null, archivedById: null },
+  });
+
+  return outcome(count, ids.length);
+}
+
+/**
+ * Moves a selection to the trash.
+ *
+ * Reversible, so it is confirmed by count like archiving rather than by typing
+ * anything. Destroying leads stays one at a time — you cannot type one name for
+ * forty records, and that friction is the entire point of the permanent step.
+ */
+export async function bulkTrash(
+  actor: Actor,
+  { ids }: BulkLeadIdsInput,
+): Promise<BulkLeadResultDto> {
+  if (!isManager(actor)) throw forbidden('Only an owner or admin can delete a lead');
+
+  const { count } = await prisma.lead.updateMany({
+    where: { id: { in: ids }, organizationId: actor.organizationId, deletedAt: null },
+    data: { deletedAt: new Date(), deletedById: actor.userId },
+  });
+
+  return outcome(count, ids.length);
+}
+
+/** Puts a selection back to whatever state it was deleted in. */
+export async function bulkRestoreFromTrash(
+  actor: Actor,
+  { ids }: BulkLeadIdsInput,
+): Promise<BulkLeadResultDto> {
+  if (!isManager(actor)) throw forbidden('Only an owner or admin can restore a lead');
+
+  const { count } = await prisma.lead.updateMany({
+    where: { id: { in: ids }, organizationId: actor.organizationId, deletedAt: { not: null } },
+    data: { deletedAt: null, deletedById: null },
   });
 
   return outcome(count, ids.length);
@@ -104,7 +152,12 @@ export async function bulkMoveStage(
   const stage = await resolveStage(actor.organizationId, input.stageKey);
 
   const leads = await prisma.lead.findMany({
-    where: { id: { in: input.ids }, organizationId: actor.organizationId, archivedAt: null },
+    where: {
+      id: { in: input.ids },
+      organizationId: actor.organizationId,
+      archivedAt: null,
+      deletedAt: null,
+    },
     select: SELECT,
   });
 
@@ -146,6 +199,7 @@ export async function bulkMoveStage(
         id: { in: movable.map((lead) => lead.id) },
         organizationId: actor.organizationId,
         archivedAt: null,
+        deletedAt: null,
       },
       data: {
         stageId: stage.id,
@@ -173,7 +227,12 @@ export async function bulkAssign(actor: Actor, input: BulkAssignInput): Promise<
   if (input.assignedToId) await assertAssigneeInOrg(actor.organizationId, input.assignedToId);
 
   const leads = await prisma.lead.findMany({
-    where: { id: { in: input.ids }, organizationId: actor.organizationId, archivedAt: null },
+    where: {
+      id: { in: input.ids },
+      organizationId: actor.organizationId,
+      archivedAt: null,
+      deletedAt: null,
+    },
     select: SELECT,
   });
 
@@ -198,6 +257,7 @@ export async function bulkAssign(actor: Actor, input: BulkAssignInput): Promise<
         id: { in: changeable.map((lead) => lead.id) },
         organizationId: actor.organizationId,
         archivedAt: null,
+        deletedAt: null,
       },
       data: { assignedToId: input.assignedToId },
     });

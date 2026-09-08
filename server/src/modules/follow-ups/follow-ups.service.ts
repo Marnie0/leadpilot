@@ -187,6 +187,10 @@ function buildWhere(
     // Trash is opt-in. Every other view — including a lead's own panel and the
     // dashboard — behaves as though a deleted follow-up is gone.
     ...(query.bucket === 'trash' ? {} : { deletedAt: null }),
+    // And a follow-up on a *deleted lead* is gone from every view including the
+    // trash: it is a promise to somebody whose record no longer exists, and it
+    // will be destroyed with them when the reaper gets there.
+    lead: { deletedAt: null },
     ...(query.leadId && { leadId: query.leadId }),
     ...(assigneeFilter.length > 0 && { OR: assigneeFilter }),
     ...(query.bucket

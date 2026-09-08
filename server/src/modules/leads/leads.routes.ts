@@ -11,6 +11,8 @@ import {
   bulkAssignSchema,
   bulkLeadIdsSchema,
   bulkMoveStageSchema,
+  purgeLeadSchema,
+  type PurgeLeadInput,
 } from '@leadpilot/shared';
 import { asyncHandler, getAuth, requireAuth } from '../../middleware/auth.js';
 import { param, validate, validatedQuery } from '../../middleware/validate.js';
@@ -91,6 +93,22 @@ leadsRouter.post(
 );
 
 leadsRouter.post(
+  '/bulk/trash',
+  validate(bulkLeadIdsSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await bulkService.bulkTrash(actorFrom(req), req.body));
+  }),
+);
+
+leadsRouter.post(
+  '/bulk/restore-from-trash',
+  validate(bulkLeadIdsSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await bulkService.bulkRestoreFromTrash(actorFrom(req), req.body));
+  }),
+);
+
+leadsRouter.post(
   '/bulk/stage',
   validate(bulkMoveStageSchema),
   asyncHandler(async (req, res) => {
@@ -167,15 +185,50 @@ leadsRouter.post(
   }),
 );
 
-/**
- * Archive rather than delete: the lead leaves every list and aggregate but its
- * activity trail survives. Owners and admins only.
+/*
+ * Two soft removals, deliberately distinct.
+ *
+ * `POST /:id/archive` files a lead you mean to keep — hidden from every list,
+ * history preserved, never purged. `DELETE /:id` says the record should not
+ * exist: it goes to the trash, stays restorable to whatever state it was in,
+ * and the daily reaper destroys it after the retention window. Only
+ * `/:id/permanent` actually removes anything, and it asks for the customer's
+ * name first.
  */
+leadsRouter.post(
+  '/:id/archive',
+  validate(leadParams, 'params'),
+  asyncHandler(async (req, res) => {
+    await leadsService.archiveLead(actorFrom(req), param(req, 'id'));
+    res.status(204).end();
+  }),
+);
+
 leadsRouter.delete(
   '/:id',
   validate(leadParams, 'params'),
   asyncHandler(async (req, res) => {
-    await leadsService.archiveLead(actorFrom(req), param(req, 'id'));
+    await leadsService.trashLead(actorFrom(req), param(req, 'id'));
+    res.status(204).end();
+  }),
+);
+
+leadsRouter.post(
+  '/:id/restore-from-trash',
+  validate(leadParams, 'params'),
+  asyncHandler(async (req, res) => {
+    const lead = await leadsService.restoreFromTrash(actorFrom(req), param(req, 'id'));
+    res.json({ lead });
+  }),
+);
+
+leadsRouter.delete(
+  '/:id/permanent',
+  validate(leadParams, 'params'),
+  validate(purgeLeadSchema),
+  asyncHandler(async (req, res) => {
+    const { confirmName } = req.body as PurgeLeadInput;
+    await leadsService.purgeLead(actorFrom(req), param(req, 'id'), confirmName);
     res.status(204).end();
   }),
 );

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TRASH_RETENTION_DAYS } from '@leadpilot/shared';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Archive,
@@ -12,6 +13,7 @@ import {
   Pencil,
   Phone,
   Tag,
+  Trash2,
   TrendingUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -47,7 +49,10 @@ import { useApiErrorMessage } from '@/lib/i18n/errors';
 import {
   ACTIVITY_PAGE_SIZE,
   useArchiveLead,
+  usePurgeLead,
   useRestoreLead,
+  useRestoreLeadFromTrash,
+  useTrashLead,
   useLead,
   useLeadActivities,
   useLeadFollowUps,
@@ -62,6 +67,7 @@ import { FollowUpPanel } from '@/features/leads/components/follow-up-panel';
 import { LeadStageSelect } from '@/features/leads/components/lead-stage-select';
 import { LeadAssigneeSelect } from '@/features/leads/components/lead-assignee-select';
 import { LeadFormDialog } from '@/features/leads/components/lead-form-dialog';
+import { PurgeLeadDialog } from '@/features/leads/components/purge-lead-dialog';
 import { FollowUpCell } from '@/features/leads/components/follow-up-cell';
 
 /** Label + value row used throughout the details card. */
@@ -113,6 +119,8 @@ export function LeadDetailPage() {
 
   const [isEditOpen, setEditOpen] = useState(false);
   const [isArchiveOpen, setArchiveOpen] = useState(false);
+  const [isDeleteOpen, setDeleteOpen] = useState(false);
+  const [isPurgeOpen, setPurgeOpen] = useState(false);
   /**
    * Drives the activity query rather than filtering the fetched list client-side.
    * A client-side `body !== null` filter also matched FOLLOW_UP_COMPLETED entries
@@ -129,6 +137,9 @@ export function LeadDetailPage() {
   const teamQuery = useTeamMembers();
   const archiveLead = useArchiveLead();
   const restoreLead = useRestoreLead();
+  const trashLead = useTrashLead();
+  const restoreFromTrash = useRestoreLeadFromTrash();
+  const purgeLead = usePurgeLead();
 
   if (leadQuery.isLoading) return <LeadDetailSkeleton />;
 
@@ -161,6 +172,8 @@ export function LeadDetailPage() {
 
   /** Owners and admins only — the API enforces it, this just hides the affordance. */
   const canArchive = user.role === 'OWNER' || user.role === 'ADMIN';
+  /** Archived and trashed leads reject every write, so they show no write UI. */
+  const isEditable = !lead.archivedAt && !lead.deletedAt;
 
   const handleArchive = () => {
     archiveLead.mutate(lead.id, {
@@ -175,6 +188,45 @@ export function LeadDetailPage() {
         toast.error(t('lead.couldNotArchive'), { description: describeError(error) });
       },
     });
+  };
+
+  const handleDelete = () => {
+    trashLead.mutate(lead.id, {
+      onSuccess: () => {
+        setDeleteOpen(false);
+        toast.success(t('lead.deleted'), {
+          description: t('lead.deletedDescription', { name: lead.customerName }),
+        });
+        navigate('/leads', { replace: true });
+      },
+      onError: (error: unknown) => {
+        setDeleteOpen(false);
+        toast.error(t('lead.couldNotDelete'), { description: describeError(error) });
+      },
+    });
+  };
+
+  const handleRestoreFromTrash = () => {
+    restoreFromTrash.mutate(lead.id, {
+      onSuccess: () => toast.success(t('lead.restoredFromTrash')),
+      onError: (error: unknown) =>
+        toast.error(t('lead.couldNotRestoreFromTrash'), { description: describeError(error) }),
+    });
+  };
+
+  const handlePurge = (confirmName: string) => {
+    purgeLead.mutate(
+      { leadId: lead.id, confirmName },
+      {
+        onSuccess: () => {
+          setPurgeOpen(false);
+          toast.success(t('lead.deletedForever'));
+          navigate('/leads?view=trash', { replace: true });
+        },
+        onError: (error: unknown) =>
+          toast.error(t('lead.couldNotDeleteForever'), { description: describeError(error) }),
+      },
+    );
   };
 
   const handleRestore = () => {
@@ -236,11 +288,16 @@ export function LeadDetailPage() {
                 <DropdownMenuItem onSelect={() => setEditOpen(true)}>
                   <Pencil className="size-4" /> {t('lead.editDetails')}
                 </DropdownMenuItem>
-                {canArchive && (
+                {canArchive && !lead.deletedAt && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive" onSelect={() => setArchiveOpen(true)}>
+                    {/* Archiving is filing; deleting says it should not exist.
+                        Two entries because they are two decisions. */}
+                    <DropdownMenuItem onSelect={() => setArchiveOpen(true)}>
                       <Archive className="size-4" /> {t('lead.archive')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
+                      <Trash2 className="size-4" /> {t('lead.delete')}
                     </DropdownMenuItem>
                   </>
                 )}
@@ -255,7 +312,41 @@ export function LeadDetailPage() {
         <LeadStageSelect lead={lead} stages={stagesQuery.data ?? []} />
       </div>
 
-      {lead.archivedAt && (
+      {lead.deletedAt && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">{t('lead.trashedTitle')}</p>
+              <p className="text-sm text-muted-foreground">
+                {t('lead.trashedBody', {
+                  date: format.date(lead.deletedAt),
+                  count: TRASH_RETENTION_DAYS,
+                })}
+              </p>
+            </div>
+            {canArchive && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleRestoreFromTrash}
+                  disabled={restoreFromTrash.isPending}
+                >
+                  <ArchiveRestore className="icon-directional size-4" />{' '}
+                  {t('lead.restoreFromTrash')}
+                </Button>
+                {/* Destroying the record, its history and its follow-ups is
+                    the one action with no way back — the typed confirmation
+                    behind it is what carries that, not a narrower role. */}
+                <Button variant="destructive" onClick={() => setPurgeOpen(true)}>
+                  <Trash2 className="size-4" /> {t('lead.deleteForever')}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {lead.archivedAt && !lead.deletedAt && (
         <Card className="border-warning/40 bg-warning/10">
           <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div>
@@ -289,14 +380,23 @@ export function LeadDetailPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         {/* Activity column */}
         <div className="min-w-0 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t('lead.logUpdate')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <NoteComposer leadId={lead.id} />
-            </CardContent>
-          </Card>
+          {/*
+            A lead that is archived or in the trash takes no new writes — the
+            API refuses them, and it always has for archived ones. Offering a
+            composer and an "Add entry" button that can only fail was the older
+            half of that; the read-only history below stays, because seeing what
+            is on the record is the reason you opened the page.
+          */}
+          {isEditable && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">{t('lead.logUpdate')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <NoteComposer leadId={lead.id} />
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="pb-0">
@@ -497,6 +597,7 @@ export function LeadDetailPage() {
                 isLoading={followUpsQuery.isLoading}
                 error={followUpsQuery.error}
                 onRetry={() => void followUpsQuery.refetch()}
+                canSchedule={isEditable}
               />
             </CardContent>
           </Card>
@@ -510,6 +611,36 @@ export function LeadDetailPage() {
         members={teamQuery.data ?? []}
         defaultCurrency={user.organization.defaultCurrency}
         lead={lead}
+      />
+
+      <Dialog open={isDeleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle dir="auto">
+              {t('lead.deleteTitle', { name: lead.customerName })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('lead.deleteBody', { count: TRASH_RETENTION_DAYS })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={trashLead.isPending}>
+              {trashLead.isPending && <Loader2 className="size-4 animate-spin" />}
+              {t('lead.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <PurgeLeadDialog
+        open={isPurgeOpen}
+        name={lead.customerName}
+        isPending={purgeLead.isPending}
+        onCancel={() => setPurgeOpen(false)}
+        onConfirm={() => handlePurge(lead.customerName)}
       />
 
       <Dialog open={isArchiveOpen} onOpenChange={setArchiveOpen}>

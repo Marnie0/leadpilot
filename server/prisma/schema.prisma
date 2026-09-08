@@ -278,11 +278,18 @@ model Lead {
   wonAt          DateTime?
   lostAt         DateTime?
 
-  /// Soft delete. Archiving hides a lead from every list and aggregate while
-  /// preserving its activity trail and follow-ups, which a cascading hard delete
-  /// destroyed irrecoverably. Restorable by an owner or admin.
+  /// Filing, not removal. Archiving hides a lead from every list and aggregate
+  /// while preserving its activity trail and follow-ups forever. Restorable by
+  /// an owner or admin, and never purged — keeping the history is the point.
   archivedAt     DateTime?
   archivedById   String?
+
+  /// Trash. A different intention from archiving: this record should not exist.
+  /// It leaves every view immediately, stays restorable to whatever state it
+  /// was in — archived leads come back archived — and the daily reaper destroys
+  /// it, along with its activities and follow-ups, after TRASH_RETENTION_DAYS.
+  deletedAt      DateTime?
+  deletedById    String?
 
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -296,8 +303,10 @@ model Lead {
 
   // Ordered organisation-first: every list query is tenant-scoped, then sorted.
   // archivedAt leads each index because every list filters archived rows out.
-  @@index([organizationId, archivedAt, updatedAt(sort: Desc)])
+  @@index([organizationId, deletedAt, archivedAt, updatedAt(sort: Desc)])
   @@index([organizationId, updatedAt(sort: Desc)])
+  // Drives the purge, which scans for leads trashed long enough ago.
+  @@index([deletedAt])
   @@index([organizationId, createdAt(sort: Desc)])
   @@index([organizationId, stageId, boardPosition])
   @@index([organizationId, assignedToId])

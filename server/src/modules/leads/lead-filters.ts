@@ -17,12 +17,25 @@ export function buildLeadWhere(
   organizationId: string,
   query: LeadFilterInput,
 ): Prisma.LeadWhereInput {
-  // Archived leads are excluded here and nowhere else, so there is a single line
-  // to audit — and `?archived=true` is the only way to see them.
-  const where: Prisma.LeadWhereInput = {
-    organizationId,
-    archivedAt: query.archived ? { not: null } : null,
-  };
+  /*
+   * The three views are decided here and nowhere else, so there is a single
+   * place to audit what each one can see.
+   *
+   * Trash is the exclusive one: a deleted lead is absent from the active
+   * pipeline *and* from the archive, whichever it was in when it was deleted.
+   * That is what keeps `deletedAt` orthogonal to `archivedAt` — deleting an
+   * archived lead leaves it archived, so restoring it returns it to the archive
+   * rather than dropping it back into everyone's working list.
+   */
+  const view = query.view ?? 'active';
+  const where: Prisma.LeadWhereInput =
+    view === 'trash'
+      ? { organizationId, deletedAt: { not: null } }
+      : {
+          organizationId,
+          deletedAt: null,
+          archivedAt: view === 'archived' ? { not: null } : null,
+        };
   const and: Prisma.LeadWhereInput[] = [];
 
   if (query.q) {
