@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { CalendarCheck, Search, X } from 'lucide-react';
 import { FOLLOW_UP_BUCKETS, type FollowUpBucket } from '@leadpilot/shared';
 import { PageHeader } from '@/components/layout/page-header';
@@ -68,6 +69,12 @@ export function FollowUpsPage() {
 
   const empty = EMPTY_COPY[filters.bucket];
   const isFiltered = filters.q.length > 0 || filters.mineOnly;
+  // A workspace that has never booked one is a different situation from a
+  // bucket that happens to be clear. "Nothing overdue — every promise you have
+  // made is still in the future" is true of somebody who has made none, and
+  // reads as smug rather than helpful.
+  const isFirstRun =
+    !isFiltered && counts !== undefined && Object.values(counts).every((count) => count === 0);
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -181,19 +188,39 @@ export function FollowUpsPage() {
         ) : followUps.length === 0 ? (
           <EmptyState
             icon={CalendarCheck}
-            title={isFiltered ? t('followUp.emptyFiltered') : t(empty.title)}
-            description={isFiltered ? t('followUp.emptyFilteredBody') : t(empty.body)}
-            {...(isFiltered && {
-              action: (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFilters({ q: '', mineOnly: false })}
-                >
-                  {t('common.clearFilters')}
-                </Button>
-              ),
-            })}
+            title={
+              isFiltered
+                ? t('followUp.emptyFiltered')
+                : isFirstRun
+                  ? t('followUp.emptyWorkspace')
+                  : t(empty.title)
+            }
+            description={
+              isFiltered
+                ? t('followUp.emptyFilteredBody')
+                : isFirstRun
+                  ? t('followUp.emptyWorkspaceBody')
+                  : t(empty.body)
+            }
+            {...(isFiltered
+              ? {
+                  action: (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFilters({ q: '', mineOnly: false })}
+                    >
+                      {t('common.clearFilters')}
+                    </Button>
+                  ),
+                }
+              : isFirstRun && {
+                  action: (
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to="/leads">{t('followUp.goToLeads')}</Link>
+                    </Button>
+                  ),
+                })}
           />
         ) : (
           <>

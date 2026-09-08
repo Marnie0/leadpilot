@@ -826,6 +826,10 @@ export const ar: Dictionary = {
   'bucket.later': 'لاحقًا',
   'bucket.done': 'منتهية',
 
+  'followUp.emptyWorkspace': 'لا متابعات بعد',
+  'followUp.emptyWorkspaceBody':
+    'افتح عميلًا واحجز المكالمة أو الرسالة أو المعاينة التالية. وكل ما تعد به سيظهر هنا.',
+  'followUp.goToLeads': 'اذهب إلى عملائك',
   'followUp.emptyOverdue': 'لا توجد متابعات متأخرة',
   'followUp.emptyOverdueBody': 'كل ما وعدت به ما زال في المستقبل.',
   'followUp.emptyToday': 'لا توجد متابعات مستحقة اليوم',

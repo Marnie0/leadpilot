@@ -753,6 +753,10 @@ export const en = {
   'bucket.later': 'Later',
   'bucket.done': 'Done',
 
+  'followUp.emptyWorkspace': 'No follow-ups yet',
+  'followUp.emptyWorkspaceBody':
+    'Open a lead and book the next call, email or viewing. Whatever you promise shows up here.',
+  'followUp.goToLeads': 'Go to your leads',
   'followUp.emptyOverdue': 'Nothing overdue',
   'followUp.emptyOverdueBody': 'Every promise you have made is still in the future.',
   'followUp.emptyToday': 'Nothing due today',
