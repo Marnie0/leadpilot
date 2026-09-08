@@ -691,12 +691,18 @@ The repo is configured for a **single** Vercel project serving both the SPA and 
    `vercel.json` already pins functions to `fra1` (Frankfurt) to match the Neon region, so there is
    nothing to change under Settings → Functions.
 
-4. Deploy, then apply the schema to the production database once:
+4. Deploy. The build runs `prisma migrate deploy` before it compiles anything, so the schema is
+   applied as part of the deployment rather than as a step somebody has to remember:
 
    ```bash
-   DIRECT_URL="<neon direct string>" npm run db:deploy
-   npm run db:seed        # optional — seeds the demo workspace
+   npm run db:seed        # optional, once — seeds the demo workspace
    ```
+
+Migrating inside the build is deliberate. The alternative — deploy, then migrate by hand — has a
+window in which the new code is live against the old schema, and every request that touches a
+column the migration was going to add fails until somebody runs the command. This way a migration
+that cannot apply fails the build instead, and nothing ships. `migrate deploy` only applies
+pending migrations, so a rebuild with nothing to do is a no-op.
 
 `/api/health` returns database connectivity and latency, which is the quickest way to confirm a
 deployment is wired up correctly.
