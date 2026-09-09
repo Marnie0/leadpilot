@@ -194,6 +194,8 @@ export const ar: Dictionary = {
   'apiError.SYSTEM_ROLE': 'لا يمكن حذف الأدوار المدمجة',
   'apiError.OWNER_ROLE_FIXED': 'دور المالك يملك كل الصلاحيات دائمًا',
   'apiError.OWNER_MUST_TRANSFER': 'سلِّم مساحة العمل أو احذفها قبل حذف حسابك',
+  'apiError.NOT_OWNER': 'انتقلت ملكية مساحة العمل هذه بالفعل إلى شخص آخر',
+  'apiError.TARGET_UNAVAILABLE': 'لم يعد هذا الشخص عضوًا نشطًا، فلم تُنقل الملكية',
   'apiError.CANNOT_GRANT_ROLE': 'لا يمكنك منح دور يملك أكثر مما تملك، أو دور يستطيع إدارة الفريق',
   'apiError.NOT_FOUND': 'لم يعد هذا السجل موجودًا',
   'apiError.VALIDATION_ERROR': 'بعض الحقول بحاجة إلى مراجعة',

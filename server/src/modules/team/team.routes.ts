@@ -13,7 +13,7 @@ import { assertMayGrantRole } from '../invitations/invitations.service.js';
 import { recordWorkspaceEvent } from '../../lib/workspace-events.js';
 import { confirmationMatches, transferOwnershipSchema } from '@leadpilot/shared';
 import { param, validate } from '../../middleware/validate.js';
-import { badRequest, forbidden, notFound } from '../../lib/errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../../lib/errors.js';
 import { TEAM_MEMBER_SELECT, toTeamMemberDto } from '../../lib/serializers.js';
 
 const actorFrom = (req: Parameters<typeof getAuth>[0]) => {
@@ -111,13 +111,31 @@ teamRouter.patch(
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      const row = await tx.user.update({
-        where: { id: target.id },
+      /*
+       * Every write to a member through this endpoint is conditional on the
+       * member still not being the owner. The check above ran before this
+       * transaction, and an ownership transfer can commit in between — after
+       * which "deactivate" would deactivate the owner, and "change role" would
+       * hand the owner an admin role, leaving the workspace with no active
+       * owner. Zero rows means the row moved from under us; the client is told
+       * to look again.
+       */
+      const { count } = await tx.user.updateMany({
+        where: { id: target.id, organizationId: auth.organizationId, isOwner: false },
         data: {
           ...(body.name !== undefined && { name: body.name }),
           ...(nextRole !== null && { roleId: nextRole.id }),
           ...(body.isActive !== undefined && { isActive: body.isActive }),
         },
+      });
+      if (count === 0) {
+        throw conflict(
+          'This member became the workspace owner just now. Reload and try again',
+          'OWNER_ONLY',
+        );
+      }
+      const row = await tx.user.findUniqueOrThrow({
+        where: { id: target.id },
         select: TEAM_MEMBER_SELECT,
       });
 
@@ -188,8 +206,6 @@ teamRouter.post(
     }
 
     const member = await prisma.$transaction(async (tx) => {
-      // Demote first: the partial unique index permits one OWNER per
-      // organisation, so promoting before demoting would collide with itself.
       const [ownerRole, adminRole] = await Promise.all([
         tx.role.findFirstOrThrow({
           where: { organizationId: auth.organizationId, key: 'OWNER' },
@@ -201,16 +217,39 @@ teamRouter.post(
         }),
       ]);
 
-      // Demote first: the partial unique index permits one owner per
-      // organisation, so promoting before demoting would collide with itself.
-      await tx.user.update({
-        where: { id: auth.userId },
+      /*
+       * Demote first: the partial unique index permits one owner per
+       * organisation, so promoting before demoting would collide with itself.
+       *
+       * Both writes are conditional. The demotion requires the caller to still
+       * be the owner, so two transfers racing each other end as one success and
+       * one 409 rather than relying on the index to trip. The promotion
+       * requires the target to still be an active member of this workspace:
+       * if they deleted their account or were deactivated between the check
+       * above and this write, zero rows come back, the whole transaction —
+       * demotion included — rolls back, and the caller stays the owner. Without
+       * this the workspace could end up owned by nobody, or by a deactivated
+       * account that can never sign in again.
+       */
+      const demoted = await tx.user.updateMany({
+        where: { id: auth.userId, organizationId: auth.organizationId, isOwner: true },
         data: { isOwner: false, roleId: adminRole.id },
-        select: { id: true },
       });
-      const promoted = await tx.user.update({
-        where: { id: target.id },
+      if (demoted.count === 0) {
+        throw conflict('Ownership of this workspace has already changed hands', 'NOT_OWNER');
+      }
+      const promotedCount = await tx.user.updateMany({
+        where: { id: target.id, organizationId: auth.organizationId, isActive: true },
         data: { isOwner: true, roleId: ownerRole.id },
+      });
+      if (promotedCount.count === 0) {
+        throw conflict(
+          'That member is no longer active in this workspace, so ownership was not transferred',
+          'TARGET_UNAVAILABLE',
+        );
+      }
+      const promoted = await tx.user.findUniqueOrThrow({
+        where: { id: target.id },
         select: TEAM_MEMBER_SELECT,
       });
       await recordWorkspaceEvent(tx, {
@@ -263,11 +302,20 @@ teamRouter.delete(
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: target.id },
+      // Conditional for the same reason as the PATCH above: an ownership
+      // transfer landing between the check and this write would otherwise
+      // deactivate the new owner, and nobody could ever sign in as the owner
+      // again.
+      const { count } = await tx.user.updateMany({
+        where: { id: target.id, organizationId: auth.organizationId, isOwner: false },
         data: { isActive: false },
-        select: { id: true },
       });
+      if (count === 0) {
+        throw conflict(
+          'This member became the workspace owner just now. Reload and try again',
+          'OWNER_ONLY',
+        );
+      }
       await tx.refreshToken.updateMany({
         where: { userId: target.id, revokedAt: null },
         data: { revokedAt: new Date() },

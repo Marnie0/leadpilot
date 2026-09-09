@@ -5,7 +5,7 @@ import {
   type DeleteWorkspaceInput,
 } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
-import { badRequest, forbidden, notFound, unauthorized } from '../../lib/errors.js';
+import { badRequest, conflict, forbidden, notFound, unauthorized } from '../../lib/errors.js';
 import { verifyPassword } from '../../lib/password.js';
 import { recordWorkspaceEvent } from '../../lib/workspace-events.js';
 import { logger } from '../../logger.js';
@@ -117,7 +117,21 @@ export async function deleteAccount(userId: string, input: DeleteAccountInput): 
     if (user.organization.isDemoTemplate) {
       throw forbidden('The demo template cannot be deleted');
     }
-    await prisma.organization.delete({ where: { id: user.organizationId } });
+    await prisma.$transaction(async (tx) => {
+      // Re-counted inside the transaction: somebody accepting an invitation
+      // between the check above and this delete would otherwise be destroyed
+      // along with a workspace they had just joined.
+      const others = await tx.user.count({
+        where: { organizationId: user.organizationId, id: { not: user.id }, isActive: true },
+      });
+      if (others > 0) {
+        throw conflict(
+          'Somebody joined the workspace just now. Transfer ownership or delete the workspace before deleting your account',
+          'OWNER_MUST_TRANSFER',
+        );
+      }
+      await tx.organization.delete({ where: { id: user.organizationId } });
+    });
     logger.info(
       { userId, organizationId: user.organizationId },
       'account deleted with its workspace — last member',
@@ -134,7 +148,22 @@ export async function deleteAccount(userId: string, input: DeleteAccountInput): 
       type: 'ACCOUNT_DELETED',
       metadata: { subject: user.name },
     });
-    await tx.user.delete({ where: { id: user.id } });
+    /*
+     * Conditional on still not being the owner. The status check above ran
+     * before this transaction, and an ownership transfer can land in between:
+     * the transfer commits, this delete removes the brand-new owner, and the
+     * workspace is left with nobody who can transfer, delete, or manage roles.
+     * The database's one-owner index cannot prevent zero owners; this can.
+     * A row locked by the concurrent transfer is re-read once the lock frees,
+     * so the condition is evaluated against the committed state.
+     */
+    const { count } = await tx.user.deleteMany({ where: { id: user.id, isOwner: false } });
+    if (count === 0) {
+      throw conflict(
+        'You became the owner of this workspace just now. Transfer ownership or delete the workspace before deleting your account',
+        'OWNER_MUST_TRANSFER',
+      );
+    }
   });
 
   logger.info({ organizationId: user.organizationId }, 'account deleted');

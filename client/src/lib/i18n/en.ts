@@ -136,6 +136,9 @@ export const en = {
   'apiError.OWNER_ROLE_FIXED': 'The owner role always has every permission',
   'apiError.OWNER_MUST_TRANSFER':
     'Hand the workspace over, or delete it, before deleting your account',
+  'apiError.NOT_OWNER': 'Ownership of this workspace has already changed hands',
+  'apiError.TARGET_UNAVAILABLE':
+    'That person is no longer an active member, so ownership was not transferred',
   'apiError.CANNOT_GRANT_ROLE':
     'You cannot grant a role that holds more than you do, or one that can manage the team',
   'apiError.NOT_FOUND': 'That record no longer exists',
