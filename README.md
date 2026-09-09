@@ -1170,7 +1170,7 @@ The repo is configured for a **single** Vercel project serving both the SPA and 
 
 1. Push to GitHub, then **Add New → Project** on Vercel and import the repo.
 2. Leave the build settings alone — `vercel.json` supplies them.
-3. Add these environment variables (Production **and** Preview):
+3. Add these environment variables to the **Production** environment only:
 
    | Variable             | Value                     |
    | -------------------- | ------------------------- |
@@ -1180,12 +1180,19 @@ The repo is configured for a **single** Vercel project serving both the SPA and 
    | `JWT_REFRESH_SECRET` | 48 different random bytes |
    | `NODE_ENV`           | `production`              |
    | `COOKIE_SECURE`      | `true`                    |
+   | `CRON_SECRET`        | 32 random bytes           |
+
+   Do not give the Preview environment the production database. Preview builds compile without
+   one and never run migrations (see below); if a branch needs data to test against, give Preview
+   its own Neon branch through the Vercel–Neon integration.
 
    `vercel.json` already pins functions to `fra1` (Frankfurt) to match the Neon region, so there is
    nothing to change under Settings → Functions.
 
-4. Deploy. The build runs `prisma migrate deploy` before it compiles anything, so the schema is
-   applied as part of the deployment rather than as a step somebody has to remember:
+4. Deploy. A **production** build runs `prisma migrate deploy` before it compiles anything, so the
+   schema is applied as part of the deployment rather than as a step somebody has to remember.
+   The gate lives in `scripts/vercel-build.mjs`: any other build, preview included, skips the
+   migration step entirely.
 
    ```bash
    npm run db:seed        # optional, once — seeds the demo workspace
@@ -1195,7 +1202,10 @@ Migrating inside the build is deliberate. The alternative — deploy, then migra
 window in which the new code is live against the old schema, and every request that touches a
 column the migration was going to add fails until somebody runs the command. This way a migration
 that cannot apply fails the build instead, and nothing ships. `migrate deploy` only applies
-pending migrations, so a rebuild with nothing to do is a no-op.
+pending migrations, so a rebuild with nothing to do is a no-op. It is gated to production builds
+because "every build" once included previews, and the Preview environment held a copy of the
+production connection string — a pull-request branch with a migration would have migrated
+production from a preview build.
 
 `/api/health` returns database connectivity and latency, which is the quickest way to confirm a
 deployment is wired up correctly.
