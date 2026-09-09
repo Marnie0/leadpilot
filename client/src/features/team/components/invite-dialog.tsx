@@ -61,7 +61,8 @@ export function InviteDialog({
 
   const { locale } = useI18n();
   const viewerIsOwner = useIsOwner();
-  const viewerPermissions = useCurrentUser().role.permissions;
+  const user = useCurrentUser();
+  const viewerPermissions = user.role.permissions;
 
   /*
    * The three rules `canGrantRole` enforces on the server, mirrored: ownership
@@ -175,25 +176,34 @@ export function InviteDialog({
             </DialogHeader>
 
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="invite-email">{t('team.inviteEmailLabel')}</Label>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  dir="ltr"
-                  placeholder={t('auth.emailPlaceholder')}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
+              {/* A sandbox creates links only — the API refuses an address, so
+                  the field is not offered. See createInvitation. */}
+              {user.organization.isDemo ? (
                 <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                  {email.trim() ? (
-                    <Mail className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                  ) : (
-                    <Link2 className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                  )}
-                  {email.trim() ? t('team.inviteBoundHint') : t('team.inviteOpenHint')}
+                  <Link2 className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                  {t('team.inviteDemoLinkOnly')}
                 </p>
-              </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="invite-email">{t('team.inviteEmailLabel')}</Label>
+                  <Input
+                    id="invite-email"
+                    type="email"
+                    dir="ltr"
+                    placeholder={t('auth.emailPlaceholder')}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                  />
+                  <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    {email.trim() ? (
+                      <Mail className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                    ) : (
+                      <Link2 className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                    )}
+                    {email.trim() ? t('team.inviteBoundHint') : t('team.inviteOpenHint')}
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="invite-role">{t('team.role')}</Label>

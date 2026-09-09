@@ -215,6 +215,16 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/** The reverse, for the plain-text alternative: no tags there to escape for. */
+function unescapeHtml(value: string): string {
+  return value
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&');
+}
+
 /**
  * Wraps copy in the message shell.
  *
@@ -266,7 +276,7 @@ function render(copy: Copy, link: string, locale: Locale): { html: string; text:
   const text = [
     copy.heading,
     '',
-    ...copy.body.map((line) => line.replace(/<[^>]+>/g, '')),
+    ...copy.body.map((line) => unescapeHtml(line.replace(/<[^>]+>/g, ''))),
     ...(link && copy.action ? ['', copy.action + ':', link] : []),
     '',
     ...copy.footer,
@@ -285,7 +295,9 @@ export function buildEmail(
   const name = escapeHtml(params.name ?? '');
   const workspace = escapeHtml(params.workspace ?? '');
   const inviter = escapeHtml(params.inviter ?? '');
-  const role = params.role ?? '';
+  // The workspace's own label for the role — owner-controlled text, and the
+  // one field that used to reach the HTML unescaped.
+  const role = escapeHtml(params.role ?? '');
 
   const copy =
     kind === 'verify'

@@ -10,7 +10,8 @@ import {
   type InvitationState,
 } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
-import { badRequest, conflict, forbidden, notFound } from '../../lib/errors.js';
+import { env } from '../../env.js';
+import { badRequest, conflict, forbidden, notFound, tooManyRequests } from '../../lib/errors.js';
 import { hashToken } from '../../lib/tokens.js';
 import { can, canGrantRole } from '../../lib/permissions.js';
 import { logger } from '../../logger.js';
@@ -143,6 +144,47 @@ export async function createInvitation(
   if (!can(actor, 'MANAGE_TEAM')) throw forbidden('You cannot invite people to this workspace');
   const role = await assertMayGrantRole(actor, input.roleId);
 
+  const organization = await prisma.organization.findUniqueOrThrow({
+    where: { id: actor.organizationId },
+    select: { name: true, defaultLocale: true, isDemo: true },
+  });
+
+  /*
+   * A demo sandbox creates links, never email.
+   *
+   * Anyone gets an owner session from the demo button, and an owner may
+   * invite. With an address attached that invitation goes out through the
+   * product's own sending domain — which made the sandbox a relay anybody
+   * could point at anybody, with the workspace and inviter names under their
+   * control. A link the visitor shares themselves shows the feature just as
+   * well and sends nothing.
+   */
+  if (input.email && organization.isDemo) {
+    throw forbidden(
+      'A demo workspace can create invitation links but cannot email them',
+      'DEMO_EMAIL_DISABLED',
+    );
+  }
+
+  /*
+   * Per-workspace, per-hour, counted in the database rather than in memory:
+   * the in-process limiters reset on every cold start and never see traffic
+   * on another instance, so on their own they cap nothing. Twenty an hour is
+   * far more than a team ever needs and far less than a spammer wants.
+   */
+  const recent = await prisma.invitation.count({
+    where: {
+      organizationId: actor.organizationId,
+      createdAt: { gt: new Date(Date.now() - 60 * 60 * 1000) },
+    },
+  });
+  if (recent >= env.INVITE_WORKSPACE_HOURLY_LIMIT) {
+    throw tooManyRequests(
+      'This workspace has created too many invitations in the last hour. Try again later',
+      'INVITE_LIMIT',
+    );
+  }
+
   if (input.email) {
     // A member of this workspace already. Refused rather than silently
     // no-oped, because the person clicking expects somebody to be added.
@@ -196,17 +238,14 @@ export async function createInvitation(
   let emailed = false;
 
   if (input.email) {
-    const [inviter, organization] = await Promise.all([
-      prisma.user.findUnique({ where: { id: actor.userId }, select: { name: true, locale: true } }),
-      prisma.organization.findUnique({
-        where: { id: actor.organizationId },
-        select: { name: true, defaultLocale: true },
-      }),
-    ]);
-    const locale = organization?.defaultLocale ?? inviter?.locale ?? 'en';
+    const inviter = await prisma.user.findUnique({
+      where: { id: actor.userId },
+      select: { name: true, locale: true },
+    });
+    const locale = organization.defaultLocale ?? inviter?.locale ?? 'en';
     const message = buildEmail('invite', locale, link, {
       inviter: inviter?.name ?? 'A colleague',
-      workspace: organization?.name ?? 'LeadPilot',
+      workspace: organization.name,
       // The workspace's own label for the role, in the recipient's language.
       role: locale === 'ar' ? role.nameAr : role.name,
     });

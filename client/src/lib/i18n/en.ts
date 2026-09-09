@@ -125,6 +125,10 @@ export const en = {
   'apiError.AI_INVALID_RESPONSE': 'The assistant returned an unusable answer. Try again.',
   'apiError.OWNER_TRANSFER_ONLY': 'Ownership is transferred, not granted',
   'apiError.ALREADY_A_MEMBER': 'That person is already in this workspace',
+  'apiError.DEMO_EMAIL_DISABLED':
+    'A demo workspace can create invitation links but cannot email them',
+  'apiError.INVITE_LIMIT':
+    'This workspace has created too many invitations in the last hour. Try again later',
   'apiError.ALREADY_OWNER': 'You already own this workspace',
   'apiError.INVITE_ALREADY_ACCEPTED': 'That invitation has already been accepted',
   'apiError.EMAIL_REQUIRED': 'An email address is required to accept this invitation',
@@ -1242,6 +1246,8 @@ export const en = {
   'team.inviteEmailLabel': 'Email address (optional)',
   'team.inviteBoundHint': 'Only this address can use the link, and we’ll email it to them.',
   'team.inviteOpenHint': 'Anyone with the link can use it — once. You share it yourself.',
+  'team.inviteDemoLinkOnly':
+    'This demo workspace creates links only. Emailing an invitation is switched off here; share the link yourself.',
   'team.createInvite': 'Create the link',
   'team.inviteReadyTitle': 'Invitation ready',
   'team.inviteSentTo': 'We’ve emailed the link to {email}.',

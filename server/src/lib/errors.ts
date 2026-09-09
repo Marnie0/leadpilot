@@ -65,5 +65,7 @@ export const notFound = (resource = 'Resource') =>
 
 export const conflict = (message: string, code = 'CONFLICT') => new AppError(409, code, message);
 
-export const tooManyRequests = (message = 'Too many requests. Please try again shortly.') =>
-  new AppError(429, 'RATE_LIMITED', message);
+export const tooManyRequests = (
+  message = 'Too many requests. Please try again shortly.',
+  code = 'RATE_LIMITED',
+) => new AppError(429, code, message);

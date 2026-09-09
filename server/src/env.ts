@@ -113,6 +113,12 @@ const envSchema = z.object({
    */
   SIGNUP_RATE_LIMIT: z.coerce.number().int().min(1).max(1000).default(5),
   INVITE_RATE_LIMIT: z.coerce.number().int().min(1).max(1000).default(30),
+  /**
+   * Invitations one workspace may create per hour, counted from the database
+   * so it holds across serverless instances. Onboarding a whole sales floor
+   * fits comfortably; a sandbox turned into a mail cannon does not.
+   */
+  INVITE_WORKSPACE_HOURLY_LIMIT: z.coerce.number().int().min(1).max(10000).default(20),
 
   /**
    * Resend API key for verification, invite and password-reset email.

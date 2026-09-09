@@ -184,6 +184,9 @@ export const ar: Dictionary = {
   'apiError.AI_INVALID_RESPONSE': 'أعاد المساعد ردًّا غير صالح. أعد المحاولة.',
   'apiError.OWNER_TRANSFER_ONLY': 'الملكية تُنقل ولا تُمنح',
   'apiError.ALREADY_A_MEMBER': 'هذا الشخص موجود في مساحة العمل بالفعل',
+  'apiError.DEMO_EMAIL_DISABLED': 'مساحة العمل التجريبية تنشئ روابط دعوة فقط ولا ترسلها بالبريد',
+  'apiError.INVITE_LIMIT':
+    'أنشأت مساحة العمل هذه عددًا كبيرًا من الدعوات خلال الساعة الأخيرة. حاول لاحقًا',
   'apiError.ALREADY_OWNER': 'أنت مالك مساحة العمل بالفعل',
   'apiError.INVITE_ALREADY_ACCEPTED': 'قُبلت هذه الدعوة بالفعل',
   'apiError.EMAIL_REQUIRED': 'يلزم بريد إلكتروني لقبول هذه الدعوة',
@@ -1361,6 +1364,8 @@ export const ar: Dictionary = {
   'team.inviteEmailLabel': 'البريد الإلكتروني (اختياري)',
   'team.inviteBoundHint': 'هذا العنوان وحده يستطيع استخدام الرابط، وسنرسله إليه.',
   'team.inviteOpenHint': 'يستطيع أي شخص لديه الرابط استخدامه — مرة واحدة. أنت من يشاركه.',
+  'team.inviteDemoLinkOnly':
+    'مساحة العمل التجريبية تنشئ روابط فقط. إرسال الدعوة بالبريد متوقف هنا؛ شارك الرابط بنفسك.',
   'team.createInvite': 'إنشاء الرابط',
   'team.inviteReadyTitle': 'الدعوة جاهزة',
   'team.inviteSentTo': 'أرسلنا الرابط إلى {email}.',
