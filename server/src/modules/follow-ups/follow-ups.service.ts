@@ -506,6 +506,13 @@ export async function purgeFollowUp(actor: Actor, followUpId: string): Promise<v
       where: { id: followUpId, organizationId: actor.organizationId, deletedAt: { not: null } },
     });
     if (count === 0) {
+      // Restored (still there) is a conflict; already purged by somebody else
+      // (gone) is simply not found — the outcome the caller wanted anyway.
+      const still = await tx.followUp.findFirst({
+        where: { id: followUpId, organizationId: actor.organizationId },
+        select: { id: true },
+      });
+      if (!still) throw notFound('Follow-up');
       throw conflict(
         'That follow-up was restored from the trash just now, so it was not deleted',
         'RESTORED_MEANWHILE',

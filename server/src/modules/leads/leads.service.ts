@@ -620,6 +620,14 @@ export async function purgeLead(actor: Actor, leadId: string, confirmName: strin
     where: { id: leadId, organizationId: actor.organizationId, deletedAt: { not: null } },
   });
   if (count === 0) {
+    // Zero rows has two meanings: somebody restored it (it is still there,
+    // active), or somebody else purged it first (it is gone). Only the first
+    // is a conflict the caller needs to act on.
+    const still = await prisma.lead.findFirst({
+      where: { id: leadId, organizationId: actor.organizationId },
+      select: { id: true },
+    });
+    if (!still) throw notFound('Lead');
     throw conflict(
       'That lead was restored from the trash just now, so it was not deleted',
       'RESTORED_MEANWHILE',
