@@ -1,13 +1,26 @@
+import { msg } from './message.js';
 import { z } from 'zod';
 import { ACTIVITY_TYPES, USER_ACTIVITY_TYPES } from './enums.js';
 import { isoDateTime, optionalTrimmed, paginationSchema, requiredTrimmed } from './common.js';
 import type { TeamMemberSummaryDto } from './lead.schema.js';
 
+/** Clock drift between a browser and the server that still counts as "now". */
+const FUTURE_SKEW_MS = 5 * 60 * 1000;
+
 export const createActivitySchema = z.object({
   type: z.enum(USER_ACTIVITY_TYPES).default('NOTE'),
   body: requiredTrimmed('field.note', 4000, 1),
   /** Defaults to now; lets a rep log a call they made earlier. */
-  occurredAt: isoDateTime.optional(),
+  /**
+   * When it happened, for a conversation logged after the fact. Defaults to
+   * now. Never in the future: a call that has not happened yet is a follow-up,
+   * and it would set "last contacted" to a moment that has not occurred.
+   */
+  occurredAt: isoDateTime
+    .refine((value) => Date.parse(value) <= Date.now() + FUTURE_SKEW_MS, {
+      message: msg('validation.notInFuture'),
+    })
+    .optional(),
 });
 export type CreateActivityInput = z.infer<typeof createActivitySchema>;
 

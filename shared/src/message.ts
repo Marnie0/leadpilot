@@ -103,6 +103,7 @@ export const VALIDATION_EN = {
   'validation.phoneTooLong': 'Phone number is too long',
   'validation.date': 'Enter a valid date',
   'validation.dateRequired': 'A date is required',
+  'validation.notInFuture': 'That time is in the future',
   'validation.number': 'Enter a number',
   'validation.negative': 'Value cannot be negative',
   'validation.tooLarge': 'Value is unrealistically large',

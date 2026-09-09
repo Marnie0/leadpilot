@@ -39,15 +39,24 @@ export async function recordActivity(tx: TxClient, entry: ActivityLogEntry) {
     },
   });
 
-  await tx.lead.update({
-    where: { id: entry.leadId },
-    data: {
-      lastActivityAt: occurredAt,
-      // A logged conversation also counts as contact; a system audit entry does not.
-      ...(CONTACT_ACTIVITY_TYPES.has(entry.type) && { lastContactedAt: occurredAt }),
-    },
-    select: { id: true },
-  });
+  /*
+   * The denormalised timestamps only ever move forward. A conversation logged
+   * after the fact carries the time it happened, and that may be earlier than
+   * what the lead already records — a rep catching up on last week's calls
+   * must not make "last contacted" travel back in time. GREATEST keeps the
+   * newer of the two; a NULL column takes the entry's time. Raw because
+   * Prisma's update cannot express "set to the larger of column and value".
+   */
+  const isContact = CONTACT_ACTIVITY_TYPES.has(entry.type);
+  await tx.$executeRaw`
+    UPDATE "leads"
+    SET "lastActivityAt"  = GREATEST(COALESCE("lastActivityAt", ${occurredAt}), ${occurredAt}),
+        "lastContactedAt" = CASE
+          WHEN ${isContact} THEN GREATEST(COALESCE("lastContactedAt", ${occurredAt}), ${occurredAt})
+          ELSE "lastContactedAt"
+        END
+    WHERE id = ${entry.leadId} AND "organizationId" = ${entry.organizationId}
+  `;
 
   return activity;
 }

@@ -43,6 +43,7 @@ export const ar: Dictionary = {
   'validation.phoneTooLong': 'رقم الهاتف طويل جدًا',
   'validation.date': 'أدخل تاريخًا صحيحًا',
   'validation.dateRequired': 'التاريخ مطلوب',
+  'validation.notInFuture': 'هذا الوقت في المستقبل',
   'validation.number': 'أدخل رقمًا',
   'validation.negative': 'لا يمكن أن تكون القيمة سالبة',
   'validation.tooLarge': 'القيمة كبيرة بشكل غير واقعي',
@@ -665,6 +666,8 @@ export const ar: Dictionary = {
   'lead.priority': 'الأولوية',
   'lead.nextFollowUp': 'المتابعة القادمة',
   'lead.lastContacted': 'آخر تواصل',
+  'lead.lastContactedHint':
+    'يُحدَّد من أحدث مكالمة أو بريد أو اجتماع أو واتساب مسجّل. لتغييره، سجّل التواصل بوقت حدوثه.',
   'lead.notYet': 'لم يتم بعد',
   'lead.created': 'تاريخ الإنشاء',
   'lead.createdBy': 'بواسطة {name}',
@@ -741,6 +744,8 @@ export const ar: Dictionary = {
   'composer.tooLong': 'النص أطول بمقدار {count} حرفًا.',
   'composer.entryType': 'نوع السجل',
   'composer.submit': 'إضافة',
+  'composer.when': 'متى',
+  'composer.whenHint': 'لمكالمة أو اجتماع تسجّله بعد وقوعه. يحدّد «آخر تواصل».',
   'composer.added': 'أُضيف إلى السجل الزمني',
   'composer.couldNotSave': 'تعذّر حفظ ذلك',
 

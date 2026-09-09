@@ -574,6 +574,8 @@ export const en = {
   'lead.priority': 'Priority',
   'lead.nextFollowUp': 'Next follow-up',
   'lead.lastContacted': 'Last contacted',
+  'lead.lastContactedHint':
+    'Set by the newest logged call, email, meeting or WhatsApp. To change it, log the conversation with the time it happened.',
   'lead.notYet': 'Not yet',
   'lead.created': 'Created',
   'lead.createdBy': 'by {name}',
@@ -650,6 +652,9 @@ export const en = {
   'composer.tooLong': 'That is {count} characters too long.',
   'composer.entryType': 'Entry type',
   'composer.submit': 'Add entry',
+  'composer.when': 'When',
+  'composer.whenHint':
+    'For a call or meeting you are logging after the fact. Sets “Last contacted”.',
   'composer.added': 'Added to the timeline',
   'composer.couldNotSave': 'Could not save that',
 

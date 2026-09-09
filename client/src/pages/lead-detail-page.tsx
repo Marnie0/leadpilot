@@ -553,7 +553,12 @@ export function LeadDetailPage() {
                   <FollowUpCell dueAt={lead.nextFollowUpAt} />
                 </DetailRow>
                 <DetailRow label={t('lead.lastContacted')}>
-                  {lead.lastContactedAt ? format.dateTime(lead.lastContactedAt) : t('lead.notYet')}
+                  {/* Derived, not edited: the composer's "When" is how it moves. */}
+                  <span title={t('lead.lastContactedHint')}>
+                    {lead.lastContactedAt
+                      ? format.dateTime(lead.lastContactedAt)
+                      : t('lead.notYet')}
+                  </span>
                 </DetailRow>
                 <DetailRow label={t('lead.created')}>
                   {format.date(lead.createdAt)}

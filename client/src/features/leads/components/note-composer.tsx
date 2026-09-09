@@ -3,6 +3,7 @@ import { USER_ACTIVITY_TYPES, type UserActivityType } from '@leadpilot/shared';
 import { Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useT } from '@/lib/i18n';
@@ -11,6 +12,15 @@ import { cn } from '@/lib/utils';
 import { useCreateActivity } from '../api';
 
 const MAX_LENGTH = 4000;
+
+/** Types that count as contact, and so carry a "when" that sets last contacted. */
+const CONTACT_TYPES = new Set<UserActivityType>(['CALL', 'EMAIL', 'MEETING', 'WHATSAPP']);
+
+/** Now, in the local form a `datetime-local` input speaks (no seconds, no zone). */
+function localNow(): string {
+  const date = new Date();
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
 
 /**
  * Note and interaction logger.
@@ -23,20 +33,35 @@ export function NoteComposer({ leadId }: { leadId: string }) {
   const describeError = useApiErrorMessage();
   const [body, setBody] = useState('');
   const [type, setType] = useState<UserActivityType>('NOTE');
+  /*
+   * Empty means "now", which is the overwhelmingly common case and is what the
+   * server assumes when nothing is sent. Only a value the rep actually set is
+   * sent, so a form left alone never pins an entry to the moment it was opened.
+   */
+  const [when, setWhen] = useState('');
   const createActivity = useCreateActivity(leadId);
 
   const trimmed = body.trim();
   const isTooLong = trimmed.length > MAX_LENGTH;
-  const canSubmit = trimmed.length > 0 && !isTooLong && !createActivity.isPending;
+  const whenDate = when ? new Date(when) : null;
+  const whenInvalid = whenDate !== null && Number.isNaN(whenDate.getTime());
+  const whenInFuture = whenDate !== null && !whenInvalid && whenDate.getTime() > Date.now();
+  const canSubmit =
+    trimmed.length > 0 && !isTooLong && !whenInvalid && !whenInFuture && !createActivity.isPending;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSubmit) return;
 
     try {
-      await createActivity.mutateAsync({ type, body: trimmed });
+      await createActivity.mutateAsync({
+        type,
+        body: trimmed,
+        ...(whenDate && CONTACT_TYPES.has(type) ? { occurredAt: whenDate.toISOString() } : {}),
+      });
       setBody('');
       setType('NOTE');
+      setWhen('');
       toast.success(t('composer.added'));
     } catch (error) {
       toast.error(t('composer.couldNotSave'), { description: describeError(error) });
@@ -69,6 +94,7 @@ export function NoteComposer({ leadId }: { leadId: string }) {
             {t('composer.tooLong', { count: trimmed.length - MAX_LENGTH })}
           </p>
         )}
+        {whenInFuture && <p className="text-sm text-destructive">{t('validation.notInFuture')}</p>}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -96,6 +122,25 @@ export function NoteComposer({ leadId }: { leadId: string }) {
             </button>
           ))}
         </div>
+
+        {CONTACT_TYPES.has(type) && (
+          <div className="flex items-center gap-2">
+            <Label htmlFor="activity-when" className="text-xs text-muted-foreground">
+              {t('composer.when')}
+            </Label>
+            <Input
+              id="activity-when"
+              type="datetime-local"
+              value={when}
+              max={localNow()}
+              onChange={(event) => setWhen(event.target.value)}
+              title={t('composer.whenHint')}
+              aria-invalid={whenInvalid || whenInFuture}
+              className="h-8 w-auto text-xs"
+              dir="ltr"
+            />
+          </div>
+        )}
 
         <Button type="submit" size="sm" className="ms-auto" disabled={!canSubmit}>
           {createActivity.isPending ? (
