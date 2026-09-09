@@ -84,7 +84,9 @@ function orderFor(
 
 async function getLeadInOrg(actor: Actor, leadId: string) {
   const lead = await prisma.lead.findFirst({
-    where: { id: leadId, organizationId: actor.organizationId, archivedAt: null },
+    // Neither archived nor trashed: a follow-up is a promise about a lead that
+    // is being worked, and the activities service applies the same rule.
+    where: { id: leadId, organizationId: actor.organizationId, archivedAt: null, deletedAt: null },
     select: { id: true, assignedToId: true },
   });
   if (!lead) throw notFound('Lead');

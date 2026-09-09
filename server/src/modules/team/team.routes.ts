@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { idSchema, msg, requiredTrimmed } from '@leadpilot/shared';
+import { idSchema, msg, requiredTrimmed, type Permission } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
 import {
   asyncHandler,
@@ -10,6 +10,7 @@ import {
   requirePermission,
 } from '../../middleware/auth.js';
 import { assertMayGrantRole } from '../invitations/invitations.service.js';
+import { canGrantRole } from '../../lib/permissions.js';
 import { recordWorkspaceEvent } from '../../lib/workspace-events.js';
 import { confirmationMatches, transferOwnershipSchema } from '@leadpilot/shared';
 import { param, validate } from '../../middleware/validate.js';
@@ -73,7 +74,13 @@ teamRouter.patch(
 
     const target = await prisma.user.findFirst({
       where: { id: targetId, organizationId: auth.organizationId },
-      select: { id: true, name: true, isOwner: true, role: { select: { id: true, name: true } } },
+      select: {
+        id: true,
+        name: true,
+        isOwner: true,
+        isActive: true,
+        role: { select: { id: true, name: true, permissions: true } },
+      },
     });
     if (!target) throw notFound('Team member');
 
@@ -101,6 +108,21 @@ teamRouter.patch(
      */
     const nextRole =
       body.roleId !== undefined ? await assertMayGrantRole(actorFrom(req), body.roleId) : null;
+    /*
+     * Reactivating somebody restores whatever role they already hold, which is
+     * a grant in everything but name. Without this an admin who cannot assign
+     * a role carrying, say, the currency permission could still bring back a
+     * deactivated account that holds it — and act through it.
+     */
+    if (body.isActive === true && !target.isActive) {
+      const restored = nextRole ?? target.role;
+      if (!canGrantRole(actorFrom(req), { permissions: restored.permissions as Permission[] })) {
+        throw forbidden(
+          'You cannot reactivate an account whose role carries permissions you do not have yourself',
+          'CANNOT_GRANT_ROLE',
+        );
+      }
+    }
     if (target.id === auth.userId && body.isActive === false) {
       throw badRequest('You cannot deactivate your own account', 'CANNOT_DEACTIVATE_SELF');
     }
