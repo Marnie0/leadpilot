@@ -230,15 +230,16 @@ working workspace with all 96 leads, exactly as a visitor gets. The sandbox and 
 persist, so this is a perfectly good way to develop against realistic data.
 
 Nobody can sign into the template directly, in any environment, so there is no back door to keep
-track of. If you want a _stable_ account for testing sign-in itself, the seed also creates a second
-ordinary workspace:
+track of. If you want a _stable_ ordinary workspace for testing sign-in itself, or for proving that
+one tenant cannot see another, there is a second, development-only seed:
 
-```
-owner@northwind.test / DemoPass2026
+```bash
+npm run db:seed:isolation   # creates "Northwind Consulting" and prints a one-off password
 ```
 
-It holds 6 leads and exists mainly to prove tenant isolation — sign in there and none of the
-template's 96 leads are reachable.
+It refuses to run unless `NODE_ENV=development`, and refuses outright against any database that
+already holds a real workspace, so it cannot be pointed at production by accident. Its password is
+generated on each run and printed once; nothing about it is committed to this repository.
 
 ### Useful scripts
 
@@ -1330,8 +1331,11 @@ days to close" is a real figure. Getting this wrong is visible: an earlier versi
 win into the last five months, and the dashboard's 12-month chart drew seven empty months followed
 by a hockey stick — data that says "seeded last week" rather than "a working business".
 
-A second tenant, **Northwind Consulting**, is seeded specifically so cross-organisation isolation
-can be demonstrated: sign in as `owner@northwind.test` / `DemoPass2026` and the template's 96 leads
-are completely invisible — every list, every board column, every chart, and a 404 on any direct id.
+A second tenant, **Northwind Consulting**, can be added by `npm run db:seed:isolation` so that
+cross-organisation isolation can be demonstrated: sign in there and the template's 96 leads are
+completely invisible — every list, every board column, every chart, and a 404 on any direct id. That
+script is development-only by construction (see the setup section), and the main seed removes the
+tenant if it ever finds one, which is what happened to the copy an earlier version of the seed had
+created on production.
 
 The seed uses a fixed PRNG, so re-running it produces identical data.

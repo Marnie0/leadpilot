@@ -28,6 +28,7 @@
     "db:push": "npm run db:push --workspace @leadpilot/server",
     "db:migrate": "npm run db:migrate --workspace @leadpilot/server",
     "db:seed": "npm run db:seed --workspace @leadpilot/server",
+    "db:seed:isolation": "npm run db:seed:isolation --workspace @leadpilot/server",
     "db:reset": "npm run db:reset --workspace @leadpilot/server",
     "db:studio": "npm run db:studio --workspace @leadpilot/server",
     "db:deploy": "npm run db:deploy --workspace @leadpilot/server"
