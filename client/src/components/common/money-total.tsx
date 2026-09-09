@@ -22,10 +22,17 @@ import { cn } from '@/lib/utils';
  *
  * ## What it does when there is only one currency
  *
- * The same thing in both modes — one figure, unconverted, unlabelled. The great
- * majority of workspaces trade in one currency and should never be shown a
- * "breakdown" of a single row, nor told that a figure was "converted" when it
- * was not.
+ * One figure in both modes: the great majority of workspaces trade in one
+ * currency and should never be shown a "breakdown" of a single row. Which
+ * currency that figure is in follows the payload. The server draws every total
+ * in the reader's display currency (`total.currency`) and keeps the original
+ * beside it in `byCurrency`; when the two agree nothing was converted and the
+ * original is shown as it is. When they differ the reader asked to read the
+ * workspace in another currency, and the converted view honours that here
+ * exactly as the single-figure KPIs and charts on the same screen do —
+ * otherwise a dashboard footnoted "in USD, converted from AED" would show
+ * dollars in one card and dirhams in the next. The breakdown view still shows
+ * the original, because that is what a breakdown is.
  */
 export function MoneyTotal({
   total,
@@ -54,7 +61,9 @@ export function MoneyTotal({
 
   const single = total.byCurrency.length === 1 ? total.byCurrency[0] : null;
 
-  if (single && !total.mixed) {
+  // One currency, and it is the one the total was drawn in: nothing to convert
+  // and nothing to break down, in either view.
+  if (single && !total.mixed && single.currency === total.currency) {
     return (
       <span className={cn('tabular-nums', className)}>
         {format.currency(single.amount, single.currency, { precise })}
@@ -106,7 +115,7 @@ export function useMoneyTotalText(): (total: MoneyTotalDto, precise?: boolean) =
     if (total.byCurrency.length === 0) return format.currency(0, total.currency, { precise });
 
     const single = total.byCurrency.length === 1 ? total.byCurrency[0] : null;
-    if (single && !total.mixed) {
+    if (single && !total.mixed && single.currency === total.currency) {
       return format.currency(single.amount, single.currency, { precise });
     }
     if (moneyView === 'CONVERTED' && total.converted !== null) {
