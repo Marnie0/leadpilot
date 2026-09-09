@@ -15,7 +15,6 @@ import {
 import { ErrorState } from '@/components/common/error-state';
 import { readOne } from '@/lib/search-params';
 import { useFormat, useT } from '@/lib/i18n';
-import { useMoney } from '@/lib/money';
 import { useMoneyTotalText } from '@/components/common/money-total';
 import { useCurrentUser } from '@/features/auth/auth-context';
 import { useDashboard } from '@/features/dashboard/api';
@@ -44,7 +43,6 @@ import { FollowUpSummary } from '@/features/dashboard/components/follow-up-summa
 export function DashboardPage() {
   const t = useT();
   const format = useFormat();
-  const money = useMoney();
   const moneyText = useMoneyTotalText();
   const user = useCurrentUser();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -66,7 +64,18 @@ export function DashboardPage() {
 
   const dashboardQuery = useDashboard(range);
   const data = dashboardQuery.data;
-  const currency = data?.currency ?? user.organization.defaultCurrency;
+  /*
+   * Every single-figure amount on this payload — the weighted pipeline, won
+   * revenue, the average deal, the trend line, the per-source values — is
+   * already drawn in `displayCurrency` by the server, which converted it from
+   * each lead's own currency. So these are formatted, never converted again:
+   * passing them through `useMoney().format` with the workspace currency as
+   * the source treated a figure that was already in dollars as dirhams and
+   * divided it by the rate a second time. Totals (`MoneyTotalDto`) carry their
+   * own currency and go through `MoneyTotal` as before.
+   */
+  const displayCurrency = data?.displayCurrency ?? user.organization.defaultCurrency;
+  const figure = (amount: number) => format.currency(amount, displayCurrency);
   const isLoading = dashboardQuery.isLoading && !data;
 
   /*
@@ -181,7 +190,7 @@ export function DashboardPage() {
             />
             <KpiCard
               label={t('dashboard.expectedRevenue')}
-              value={money.format(summary.weightedPipelineValue, currency)}
+              value={figure(summary.weightedPipelineValue)}
               icon={TrendingUp}
               tone="success"
               hint={t('dashboard.expectedRevenueHint', {
@@ -191,7 +200,7 @@ export function DashboardPage() {
             />
             <KpiCard
               label={t('dashboard.wonRevenue')}
-              value={money.format(summary.wonValue.current, currency)}
+              value={figure(summary.wonValue.current)}
               icon={CircleDollarSign}
               delta={summary.wonValue}
               tone="success"
@@ -202,7 +211,7 @@ export function DashboardPage() {
                     })
                   : t('dashboard.wonRevenueHintAvg', {
                       count: format.number(summary.wonLeads.current),
-                      average: money.format(summary.avgDealSize, currency),
+                      average: figure(summary.avgDealSize),
                     })
               }
               explainer={t('dashboard.wonRevenueExplainer', { range: rangeInline })}
@@ -224,7 +233,11 @@ export function DashboardPage() {
           {isLoading || !data ? (
             <ChartSkeleton height={280} />
           ) : (
-            <TrendChart points={data.trend} currency={currency} bucket={data.trendBucket} />
+            <TrendChart
+              points={data.trend}
+              currency={data.displayCurrency}
+              bucket={data.trendBucket}
+            />
           )}
         </ChartCard>
 
@@ -259,7 +272,7 @@ export function DashboardPage() {
           {isLoading || !data ? (
             <ChartSkeleton height={300} />
           ) : (
-            <StagePerformance stages={data.stages} currency={currency} />
+            <StagePerformance stages={data.stages} currency={data.displayCurrency} />
           )}
         </ChartCard>
 
@@ -270,7 +283,7 @@ export function DashboardPage() {
           {isLoading || !data ? (
             <ChartSkeleton height={220} />
           ) : (
-            <SourceBreakdown sources={data.sources} currency={currency} />
+            <SourceBreakdown sources={data.sources} currency={data.displayCurrency} />
           )}
         </ChartCard>
       </div>
@@ -282,12 +295,12 @@ export function DashboardPage() {
             {/* The currency clause is assembled rather than baked into one
                 string: "in AED, the workspace currency" is a lie the moment a
                 reader picks a display currency of their own. */}
-            {money.isConverted
+            {data.displayCurrency !== data.currency
               ? t('dashboard.figuresConverted', {
-                  currency: money.displayCurrency,
-                  base: money.baseCurrency,
+                  currency: data.displayCurrency,
+                  base: data.currency,
                 })
-              : t('dashboard.figuresIn', { currency: money.displayCurrency })}{' '}
+              : t('dashboard.figuresIn', { currency: data.displayCurrency })}{' '}
             {t('dashboard.footnote')}
           </span>
         </p>

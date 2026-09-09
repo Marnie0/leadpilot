@@ -5,7 +5,6 @@ import { BarChart3 } from 'lucide-react';
 import { EmptyState } from '@/components/common/empty-state';
 import { stageName } from '@/lib/labels';
 import { useFormat, useI18n } from '@/lib/i18n';
-import { useMoney } from '@/lib/money';
 import { MoneyTotal, useMoneyTotalText } from '@/components/common/money-total';
 import { AXIS_PROPS, ChartFrame, ChartTooltip, useChartDirection } from './chart-frame';
 
@@ -23,11 +22,11 @@ export function StagePerformance({
   currency,
 }: {
   stages: DashboardStageDto[];
+  /** The payload's `displayCurrency`: every figure here is already drawn in it. */
   currency: string;
 }) {
   const { t, locale } = useI18n();
   const format = useFormat();
-  const money = useMoney();
   const moneyText = useMoneyTotalText();
   const direction = useChartDirection();
 
@@ -61,7 +60,7 @@ export function StagePerformance({
               // Three ticks: currency labels are wide, and five of them collide
               // into an unreadable smear at phone widths.
               tickCount={3}
-              tickFormatter={(value: number) => money.format(value, currency)}
+              tickFormatter={(value: number) => format.currency(value, currency)}
             />
             <YAxis
               type="category"
@@ -87,7 +86,7 @@ export function StagePerformance({
                       },
                       {
                         label: t('dashboard.weightedAt', { percent: stage.winProbability }),
-                        value: money.format(stage.weightedValue, currency),
+                        value: format.currency(stage.weightedValue, currency),
                         color: stage.color,
                       },
                       {
