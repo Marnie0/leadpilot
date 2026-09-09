@@ -32,16 +32,24 @@ workspace-defined roles, profile and workspace settings, account and workspace d
 landing page, and the whole product in English or Arabic with a mirrored right-to-left layout and a
 light/dark theme.
 
-| Phase | Scope                                                                     | State   |
-| ----- | ------------------------------------------------------------------------- | ------- |
-| 1     | Setup · auth · data model · leads table · lead detail · seed data         | ✅ Done |
-| 2     | Drag-and-drop pipeline board · dashboard with charts                      | ✅ Done |
-| 3     | Landing page · EN/AR with full RTL · light and dark themes · bulk actions | ✅ Done |
-| 4     | Follow-up inbox · display currency · settings · marketing page            | ✅ Done |
-| 5     | AI lead assistant — summary, scoring, next action, drafted reply          | ✅ Done |
-| 6     | Multi-currency leads and totals · whole-workspace AI briefing             | ✅ Done |
-| 7     | Team invitations · roles and ownership · email verification and reset     | ✅ Done |
-| 8     | Custom roles the owner defines · account deletion · workspace deletion    | ✅ Done |
+After phase 8 the whole product was audited as a stranger's codebase: independent reviews of
+security, money and irreversible actions, client consistency and hand-over quality; 206 adversarial
+API checks across two tenants and four roles; four browser walkthroughs; and a harness that
+reproduces concurrency bugs deterministically by holding a row lock across two requests. Everything
+it rated critical or high has been fixed and re-verified; what remains open is listed under
+[If this shipped commercially](#if-this-shipped-commercially).
+
+| Phase | Scope                                                                           | State   |
+| ----- | ------------------------------------------------------------------------------- | ------- |
+| 1     | Setup · auth · data model · leads table · lead detail · seed data               | ✅ Done |
+| 2     | Drag-and-drop pipeline board · dashboard with charts                            | ✅ Done |
+| 3     | Landing page · EN/AR with full RTL · light and dark themes · bulk actions       | ✅ Done |
+| 4     | Follow-up inbox · display currency · settings · marketing page                  | ✅ Done |
+| 5     | AI lead assistant — summary, scoring, next action, drafted reply                | ✅ Done |
+| 6     | Multi-currency leads and totals · whole-workspace AI briefing                   | ✅ Done |
+| 7     | Team invitations · roles and ownership · email verification and reset           | ✅ Done |
+| 8     | Custom roles the owner defines · account deletion · workspace deletion          | ✅ Done |
+| 9     | Pre-launch audit: four code reviews, 206 adversarial API checks, race harnesses | ✅ Done |
 
 ---
 
@@ -148,7 +156,19 @@ Secure` cookies. The refresh cookie is scoped to `/api/auth`, so it is never sen
   roughly the same time, so the endpoint cannot be used to enumerate accounts.
 - **Input validation.** Zod parses and _replaces_ every request body, query and param, so unknown
   keys can never reach a Prisma write.
-- **Rate limiting.** Login is limited per IP+email, signup per IP, everything else globally.
+- **Rate limiting.** Login is limited per IP+email, signup per IP, everything else globally. Those
+  are in-memory and per instance; the one cap that has to hold across instances — invitations per
+  workspace per hour — is counted in the database.
+- **Preconditions live inside the write.** Every write that assumes something about the row it
+  touches ("this member is not the owner", "this lead is still in the trash", "I am still the
+  owner", "the target is still active") states that condition in the `UPDATE`/`DELETE` itself
+  and treats zero rows as a 409. A check done before a transaction is a hope; Postgres re-evaluates
+  a condition inside the write against the committed row once any lock frees. This is what stops an
+  ownership transfer racing an account deletion into an ownerless workspace, or a purge destroying
+  a lead a colleague restored a moment earlier.
+- **A demo sandbox cannot send email.** Anyone gets an owner session from the demo button, so a
+  sandbox may mint invitation links but is refused an email address; every user-supplied field in
+  an email, the role name included, is escaped.
 - Helmet security headers, a 256 kB body cap, and no stack traces in production responses.
 
 ---
@@ -243,15 +263,21 @@ generated on each run and printed once; nothing about it is committed to this re
 
 ### Useful scripts
 
-| Command                | Does                             |
-| ---------------------- | -------------------------------- |
-| `npm run dev`          | API + web with hot reload        |
-| `npm run build`        | Production build of both         |
-| `npm run typecheck`    | Typecheck every workspace        |
-| `npm run format`       | Format with Prettier             |
-| `npm run format:check` | Verify formatting, write nothing |
-| `npm run db:studio`    | Prisma Studio — browse the data  |
-| `npm run db:reset`     | Drop, re-migrate and re-seed     |
+| Command                     | Does                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| `npm run dev`               | API + web with hot reload                                                      |
+| `npm run build`             | Production build of both                                                       |
+| `npm run typecheck`         | Typecheck every workspace                                                      |
+| `npm run format`            | Format with Prettier                                                           |
+| `npm run format:check`      | Verify formatting, write nothing                                               |
+| `npm run lint`              | ESLint, incl. the React hooks rules — the bugs `tsc` cannot see                |
+| `npm run lint:fix`          | The same, applying what it can                                                 |
+| `npm run db:migrate`        | Create and apply a migration (dev branch only)                                 |
+| `npm run db:seed`           | Seed the demo template                                                         |
+| `npm run db:seed:isolation` | Add the development-only second tenant (refuses production)                    |
+| `npm run db:studio`         | Prisma Studio — browse the data                                                |
+| `npm run db:reset`          | Drop, re-migrate and re-seed                                                   |
+| `npm run db:deploy`         | Apply pending migrations without creating one (what the production build runs) |
 
 ---
 
@@ -730,8 +756,8 @@ permission problem for the product.
 
 `email.provider.ts` reports success or failure and throws nothing. Every flow behind an email has a
 path that does not need it, so a provider outage must not become "you cannot create an account".
-With no API key the message is logged instead of sent, which is also how the local tests read a
-verification link without an inbox.
+With no API key the message is logged instead of sent, which is also how the development harness
+(kept outside the repository — see the commercial section) reads a verification link without an inbox.
 
 This is not theory: in the end-to-end suite every single invitation email was refused by Resend —
 unverified sending domain, `example.com` recipients — and all 43 API checks still passed.
@@ -803,7 +829,7 @@ removes records a colleague could recreate. This removes the ability to sign in 
 
 ### A settled invitation still pins its role
 
-Found in the browser, not in the API tests. `Invitation.role` is a required relation with no cascade,
+Found in the browser walkthrough, not in the API harness. `Invitation.role` is a required relation with no cascade,
 so **any** row pointing at a role blocks its deletion — including an invitation accepted months ago.
 The role list reported `memberCount: 0` for a role whose holder had since deleted their account, the
 dialog therefore offered no reassignment picker, and the delete was refused by a server counting
@@ -1079,19 +1105,33 @@ pins the branch for this working copy.
 
 ## If this shipped commercially
 
-The engineering is production-shaped; these are the operational gaps that a paying deployment
-would need to close, listed so nothing is hidden:
+The engineering is production-shaped; these are the gaps a paying deployment would need to close,
+in the order they should be closed, listed so nothing is hidden:
 
-- **Hosting plan.** Vercel's Hobby tier is licensed for non-commercial use. A commercial
-  deployment needs Pro, or the customer's own account.
+- **No automated tests in the repository, and no CI.** Every rule described in this file is
+  protected by careful code and comments, and by browser and API harnesses that were run during
+  development and the audit but live outside the repo. Vitest for `shared` and `server` (starting
+  with `lib/permissions.ts`, the confirmation matcher, the money helpers and the env schema), the
+  harnesses committed as a smoke suite, and a workflow running typecheck, lint, format and tests on
+  every push. The dashboard's double-conversion bug found in the audit would have been caught by
+  one unit test.
+- **Paid tiers, for terms and backups rather than capacity.** Vercel's Hobby plan is licensed for
+  non-commercial use; Neon's free tier keeps a short restore window and no point-in-time recovery;
+  Resend's free tier is a hundred messages a day from a shared sender. Together this is tens of
+  dollars a month for a small firm.
+- **The paid Gemini tier.** The free tier may use what it receives to improve Google's products.
+  The paid tier does not, and is a configuration change to the same API.
 - **Rate limiting** is per-instance and resets on cold start, because serverless functions do not
   share memory. Real traffic wants a shared store (Upstash Redis has a free tier) behind the same
-  `express-rate-limit` interface — a store swap, not a rewrite.
-- **Account enumeration on signup.** Login is timing-equalised, but signup returns a distinct
-  `409 EMAIL_TAKEN`. Closing it properly means an email-verification flow, which is the right
-  moment to add transactional email.
-- **Backups.** Neon's free tier keeps a short restore window. A paid plan extends point-in-time
-  recovery.
+  `express-rate-limit` interface — a store swap, not a rewrite. A plain per-IP limiter on login for
+  password spraying belongs in the same change.
+- **Money edge cases found in the audit and deferred.** A lead's value is capped at one billion on
+  input but the base-currency conversion multiplies with no cap; the Kuwaiti dinar has three
+  decimals and the column has two; a missing exchange rate returns the unconverted amount rather
+  than null. None is reachable in a demo; each is a one-line decision.
+- **Smaller audit items.** Unknown addresses receive email from forgot-password with no
+  per-recipient limit; accepting an invitation with a taken address reveals the account exists;
+  archiving a closed deal removes it from historical revenue; the AI budget is check-then-act.
 - **Observability.** Every 5xx is logged with a request id and a full stack trace, but there is no
   aggregator. The error handler is the single place a Sentry hook would go.
 
@@ -1172,15 +1212,18 @@ The repo is configured for a **single** Vercel project serving both the SPA and 
 2. Leave the build settings alone — `vercel.json` supplies them.
 3. Add these environment variables to the **Production** environment only:
 
-   | Variable             | Value                     |
-   | -------------------- | ------------------------- |
-   | `DATABASE_URL`       | Neon **pooled** string    |
-   | `DIRECT_URL`         | Neon **direct** string    |
-   | `JWT_ACCESS_SECRET`  | 48 random bytes           |
-   | `JWT_REFRESH_SECRET` | 48 different random bytes |
-   | `NODE_ENV`           | `production`              |
-   | `COOKIE_SECURE`      | `true`                    |
-   | `CRON_SECRET`        | 32 random bytes           |
+   | Variable             | Value                                                           |
+   | -------------------- | --------------------------------------------------------------- |
+   | `DATABASE_URL`       | Neon **pooled** string                                          |
+   | `DIRECT_URL`         | Neon **direct** string                                          |
+   | `JWT_ACCESS_SECRET`  | 48 random bytes                                                 |
+   | `JWT_REFRESH_SECRET` | 48 different random bytes                                       |
+   | `NODE_ENV`           | `production`                                                    |
+   | `COOKIE_SECURE`      | `true`                                                          |
+   | `CRON_SECRET`        | 32 random bytes                                                 |
+   | `APP_URL`            | The public origin, for links in email                           |
+   | `GEMINI_API_KEY`     | Optional — without it the assistant reports itself unconfigured |
+   | `RESEND_API_KEY`     | Optional — without it email is logged, not sent                 |
 
    Do not give the Preview environment the production database. Preview builds compile without
    one and never run migrations (see below); if a branch needs data to test against, give Preview
@@ -1218,7 +1261,7 @@ rewritten to a single serverless function that wraps the same `createApp()` Expr
 
 Functions are pinned to `fra1` to sit beside the Neon database in Frankfurt — each request makes
 several Prisma round trips, and that is the hop that decides how fast the app feels. Production
-health checks report ~120 ms of database latency.
+health checks report about 15 ms of database latency once the function is warm.
 
 Because both halves share an origin, the auth cookie is a first-party `SameSite=Lax` cookie: no
 CORS in production, and none of the third-party-cookie breakage a split origin would inherit.
@@ -1237,17 +1280,23 @@ LeadPilot/
 │   ├── prisma/      schema + deterministic seed
 │   └── src/
 │       ├── app.ts       createApp() — no host-specific code
-│       ├── lib/         password, tokens, cookies, serializers, activity log
+│       ├── lib/         password, tokens, cookies, permissions, serializers, money totals,
+│       │                activity log, workspace events, day windows
 │       ├── middleware/  auth, validation, rate limits, error handler
-│       └── modules/     auth · leads · board · dashboard · activities · follow-ups · team · stages
+│       └── modules/     auth · leads · board · dashboard · activities · follow-ups · stages
+│                        team · roles · invitations · settings · ai · email · fx · admin (cron)
 ├── client/          React SPA
 │   └── src/
 │       ├── components/  ui (shadcn) · layout · common
-│       ├── features/    auth · leads · board · dashboard   (co-located API hooks + components)
-│       ├── lib/         api client, query keys, formatting, labels
+│       ├── features/    auth · leads · board · dashboard · follow-ups · team · settings · ai
+│       │                (co-located API hooks + components)
+│       ├── lib/         api client, query keys, i18n, formatting, money, permissions
+│       ├── providers/   theme, money view
 │       └── pages/       route-level screens
+├── scripts/         vercel-build.mjs — the build, with migrations gated to production
 ├── api/index.js     Vercel serverless entry — wraps the same Express app
-└── vercel.json      build, routing and cache headers
+├── eslint.config.js the rules the compiler cannot enforce (hooks order)
+└── vercel.json      build, routing, cache headers and the daily cron
 ```
 
 **Why a shared package.** A lead's shape is defined once, in Zod. The server derives its validation
@@ -1260,16 +1309,23 @@ serverless function. Moving to Render, Fly or a VPS is a config change, not a re
 
 ### Data model
 
-| Model           | Notes                                                                                                                                                                 |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Organization`  | The tenant. Owns everything below it. `isDemoTemplate` marks the demo master; `expiresAt` marks a throwaway sandbox.                                                  |
-| `User`          | Holds one `Role` and an `isOwner` flag. What it may do comes from the role's `Permission[]`, not from its name.                                                       |
-| `Role`          | A named permission set, per tenant. The seeded three carry a `key`; anything the owner creates has none. Renameable in both languages, and the three are undeletable. |
-| `RefreshToken`  | One row per session — what makes a JWT revocable.                                                                                                                     |
-| `PipelineStage` | Per-tenant stage rows with colour, order, `name`, `nameAr` and `winProbability` — the last drives the dashboard's revenue forecast.                                   |
-| `Lead`          | The core record, plus denormalised `nextFollowUpAt` / `lastActivityAt` for sorting and `boardPosition` for manual rank on the board. Soft-deleted via `archivedAt`.   |
-| `Activity`      | Append-only timeline. System entries store structured `metadata`, not English strings.                                                                                |
-| `FollowUp`      | Scheduled task with channel, due date and status.                                                                                                                     |
+| Model              | Notes                                                                                                                                                                                                                                                                                                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Organization`     | The tenant. Owns everything below it. `isDemoTemplate` marks the demo master; `expiresAt` marks a throwaway sandbox.                                                                                                                                                                                            |
+| `User`             | Holds one `Role` and an `isOwner` flag. What it may do comes from the role's `Permission[]`, not from its name.                                                                                                                                                                                                 |
+| `Role`             | A named permission set, per tenant. The seeded three carry a `key`; anything the owner creates has none. Renameable in both languages, and the three are undeletable.                                                                                                                                           |
+| `RefreshToken`     | One row per session — what makes a JWT revocable.                                                                                                                                                                                                                                                               |
+| `PipelineStage`    | Per-tenant stage rows with colour, order, `name`, `nameAr` and `winProbability` — the last drives the dashboard's revenue forecast.                                                                                                                                                                             |
+| `Lead`             | The core record, plus denormalised `nextFollowUpAt` / `lastActivityAt` for sorting and `boardPosition` for manual rank on the board. Two independent soft-delete flags: `archivedAt` (filed away, kept) and `deletedAt` (in the trash, purged after 30 days). Value is `Decimal(14,2)` with its own `currency`. |
+| `Activity`         | Append-only timeline. System entries store structured `metadata`, not English strings.                                                                                                                                                                                                                          |
+| `FollowUp`         | Scheduled task with channel, due date and status; its own `deletedAt` trash.                                                                                                                                                                                                                                    |
+| `Invitation`       | A single-use join link, stored as a token hash, bound to a role and optionally an email; 7-day expiry.                                                                                                                                                                                                          |
+| `AuthToken`        | Email-verification and password-reset tokens: hashed, single-use, 24-hour expiry.                                                                                                                                                                                                                               |
+| `WorkspaceEvent`   | The workspace history: currency conversions, role changes, ownership transfers, removals and deletions, with who did them.                                                                                                                                                                                      |
+| `LeadInsight`      | The assistant's stored analysis of one lead, with actor, time, model and a fingerprint of the facts it was built from.                                                                                                                                                                                          |
+| `WorkspaceSummary` | The assistant's stored briefing of the whole pipeline, one per workspace.                                                                                                                                                                                                                                       |
+| `AiUsageEvent`     | The budget ledger. Survives deletion of the analysis it paid for, so quota cannot be refunded.                                                                                                                                                                                                                  |
+| `ExchangeRate`     | The last fetched rates, one row per currency, with their date.                                                                                                                                                                                                                                                  |
 
 `Lead.nextFollowUpAt` and `Lead.lastActivityAt` are denormalised so the leads table can sort and
 filter on them without a correlated subquery per row. They are maintained in exactly one place —
@@ -1279,50 +1335,61 @@ filter on them without a correlated subquery per row. They are maintained in exa
 
 ## API
 
-All routes are under `/api` and all except the first three require authentication.
+All routes are under `/api`. Public: signup, demo, login, refresh, the invitation preview and
+accept, verify-email, forgot- and reset-password, and `/health`. Everything else needs a session.
 
-| Method           | Route                                                | Purpose                                                         |
-| ---------------- | ---------------------------------------------------- | --------------------------------------------------------------- |
-| `POST`           | `/auth/signup`                                       | Create an organisation and its owner                            |
-| `POST`           | `/auth/demo`                                         | Clone the demo template into a private sandbox and sign in      |
-| `POST`           | `/auth/login`                                        | Sign in                                                         |
-| `POST`           | `/auth/refresh`                                      | Rotate the session                                              |
-| `POST`           | `/auth/logout`                                       | Revoke this session                                             |
-| `GET`/`PATCH`    | `/auth/me`                                           | Current user; `PATCH` takes `name`, `locale`, `displayCurrency` |
-| `POST`           | `/auth/change-password`                              | Revokes all sessions                                            |
-| `GET`            | `/stages`                                            | The organisation's pipeline stages                              |
-| `GET`            | `/team` · `PATCH /team/:id`                          | Members; editing needs `MANAGE_TEAM`                            |
-| `DELETE`         | `/team/:id` · `POST /team/:id/transfer-ownership`    | Remove somebody; hand the workspace over                        |
-| `GET`/`POST`     | `/team/invitations` · `DELETE /team/invitations/:id` | Issue, list and revoke invite links                             |
-| `GET`/`POST`     | `/invites/:token` · `/invites/:token/accept`         | Public: preview an invitation and redeem it                     |
-| `GET`            | `/roles`                                             | The workspace's roles — readable by everyone                    |
-| `POST`           | `/roles` · `PATCH`/`DELETE` `/roles/:id`             | Create, edit and delete roles — **owner only**                  |
-| `POST`           | `/auth/verify-email` · `/auth/resend-verification`   | Confirm an address                                              |
-| `POST`           | `/auth/forgot-password` · `/auth/reset-password`     | Emailed reset, neutral either way                               |
-| `GET`            | `/auth/account/deletion-status`                      | Whether this account can be deleted yet, and why not            |
-| `DELETE`         | `/auth/account`                                      | Close your account — password plus typed email                  |
-| `GET`            | `/auth/workspace/deletion-summary`                   | What deleting the workspace would take with it                  |
-| `DELETE`         | `/auth/workspace`                                    | Delete the workspace — owner only, password plus typed name     |
-| `GET`            | `/leads`                                             | List — search, filter, sort, paginate                           |
-| `GET`            | `/leads/stats`                                       | Aggregates over the _filtered_ set                              |
-| `POST`           | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id`       | CRUD                                                            |
-| `POST`           | `/leads/bulk/{archive,restore,stage,assign}`         | Bulk actions; returns `{ updated, unchanged, notPermitted }`    |
-| `POST`           | `/leads/:id/stage` · `/leads/:id/assign`             | Audited stage move and reassignment                             |
-| `POST`           | `/leads/:id/board-position`                          | Drag-and-drop: stage **and** rank within the column             |
-| `GET`            | `/board?limit=`                                      | Every stage with its cards, plus per-stage totals and value     |
-| `GET`            | `/dashboard?range=30d\|90d\|12m`                     | Every dashboard figure, aggregated in Postgres                  |
-| `GET`/`POST`     | `/leads/:id/activities`                              | Timeline                                                        |
-| `PATCH`/`DELETE` | `/activities/:id`                                    | Edit or remove your own note                                    |
-| `GET`/`POST`     | `/leads/:id/follow-ups`                              | Follow-ups for a lead                                           |
-| `GET`            | `/follow-ups`                                        | The inbox — bucket, search, assignee, paging                    |
-| `GET`            | `/follow-ups/counts`                                 | Per-bucket counts under the same filters                        |
-| `POST`           | `/follow-ups/:id/complete` · `/cancel`               | Complete or cancel                                              |
-| `POST`           | `/follow-ups/:id/reschedule`                         | Move the due date                                               |
-| `PATCH`/`DELETE` | `/follow-ups/:id`                                    | Edit or remove one                                              |
-| `GET`            | `/fx/rates`                                          | Reference rates, `live` \| `cache` \| `fallback`                |
-| `GET`/`PATCH`    | `/settings/organization`                             | Workspace settings (edit is owner/admin only)                   |
-| `GET`            | `/settings/currency/preview?currency=`               | What a base-currency change would restate — owner only          |
-| `POST`           | `/settings/currency`                                 | Restate every stored amount — owner only, `confirm: true`       |
+| Method                | Route                                                                 | Purpose                                                                        |
+| --------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `POST`                | `/auth/signup`                                                        | Create an organisation and its owner                                           |
+| `POST`                | `/auth/demo`                                                          | Clone the demo template into a private sandbox and sign in                     |
+| `POST`                | `/auth/login`                                                         | Sign in                                                                        |
+| `POST`                | `/auth/refresh`                                                       | Rotate the session                                                             |
+| `POST`                | `/auth/logout`                                                        | Revoke this session                                                            |
+| `GET`/`PATCH`         | `/auth/me`                                                            | Current user; `PATCH` takes `name`, `locale`, `displayCurrency`                |
+| `POST`                | `/auth/change-password`                                               | Revokes all sessions                                                           |
+| `GET`                 | `/stages`                                                             | The organisation's pipeline stages                                             |
+| `GET`                 | `/team` · `PATCH /team/:id`                                           | Members; editing needs `MANAGE_TEAM`                                           |
+| `DELETE`              | `/team/:id` · `POST /team/:id/transfer-ownership`                     | Remove somebody; hand the workspace over                                       |
+| `GET`/`POST`          | `/team/invitations` · `DELETE /team/invitations/:id`                  | Issue, list and revoke invite links                                            |
+| `GET`/`POST`          | `/invites/:token` · `/invites/:token/accept`                          | Public: preview an invitation and redeem it                                    |
+| `GET`                 | `/roles`                                                              | The workspace's roles — readable by everyone                                   |
+| `POST`                | `/roles` · `PATCH`/`DELETE` `/roles/:id`                              | Create, edit and delete roles — **owner only**                                 |
+| `POST`                | `/auth/verify-email` · `/auth/resend-verification`                    | Confirm an address                                                             |
+| `POST`                | `/auth/forgot-password` · `/auth/reset-password`                      | Emailed reset, neutral either way                                              |
+| `GET`                 | `/auth/account/deletion-status`                                       | Whether this account can be deleted yet, and why not                           |
+| `DELETE`              | `/auth/account`                                                       | Close your account — password plus typed email                                 |
+| `GET`                 | `/auth/workspace/deletion-summary`                                    | What deleting the workspace would take with it                                 |
+| `DELETE`              | `/auth/workspace`                                                     | Delete the workspace — owner only, password plus typed name                    |
+| `GET`                 | `/leads`                                                              | List — search, filter, sort, paginate                                          |
+| `GET`                 | `/leads/stats`                                                        | Aggregates over the _filtered_ set                                             |
+| `POST`                | `/leads` · `GET`/`PATCH`/`DELETE` `/leads/:id`                        | Create, read, edit; `DELETE` moves to the trash                                |
+| `POST`                | `/leads/:id/archive` · `/leads/:id/restore`                           | File away and bring back; history kept                                         |
+| `POST`                | `/leads/:id/restore-from-trash`                                       | Back out of the trash, to wherever it was                                      |
+| `DELETE`              | `/leads/:id/permanent`                                                | Purge — from the trash only, typed name, `DELETE_LEADS`                        |
+| `POST`                | `/leads/bulk/{archive,restore,trash,restore-from-trash,stage,assign}` | Bulk actions; returns `{ updated, unchanged, notPermitted }`                   |
+| `POST`                | `/leads/:id/stage` · `/leads/:id/assign`                              | Audited stage move and reassignment                                            |
+| `POST`                | `/leads/:id/board-position`                                           | Drag-and-drop: stage **and** rank within the column                            |
+| `GET`                 | `/board?limit=`                                                       | Every stage with its cards, plus per-stage totals and value                    |
+| `GET`                 | `/dashboard?range=30d\|90d\|12m`                                      | Every dashboard figure, aggregated in Postgres                                 |
+| `GET`/`POST`          | `/leads/:id/activities`                                               | Timeline                                                                       |
+| `PATCH`/`DELETE`      | `/activities/:id`                                                     | Edit or remove your own note                                                   |
+| `GET`/`POST`          | `/leads/:id/follow-ups`                                               | Follow-ups for a lead                                                          |
+| `GET`                 | `/follow-ups`                                                         | The inbox — bucket, search, assignee, paging                                   |
+| `GET`                 | `/follow-ups/counts`                                                  | Per-bucket counts under the same filters                                       |
+| `POST`                | `/follow-ups/:id/complete` · `/cancel`                                | Complete or cancel                                                             |
+| `POST`                | `/follow-ups/:id/reschedule`                                          | Move the due date                                                              |
+| `PATCH`/`DELETE`      | `/follow-ups/:id`                                                     | Edit one; `DELETE` moves it to the trash                                       |
+| `POST`                | `/follow-ups/:id/restore` · `DELETE …/permanent`                      | Out of the trash; purge from the trash only                                    |
+| `GET`/`POST`/`DELETE` | `/leads/:id/insight`                                                  | The assistant's analysis of one lead: read, generate, discard                  |
+| `GET`/`PATCH`         | `/ai/settings`                                                        | Whether the assistant is on, and the budget; edit needs `MANAGE_AI`            |
+| `GET`/`POST`/`DELETE` | `/ai/summary`                                                         | The whole-workspace briefing: read, generate, discard                          |
+| `GET`                 | `/fx/rates`                                                           | Reference rates, `live` \| `cache` \| `fallback`                               |
+| `GET`/`PATCH`         | `/settings/organization`                                              | Workspace settings; edit needs `MANAGE_WORKSPACE`                              |
+| `GET`                 | `/settings/events`                                                    | The workspace history                                                          |
+| `GET`                 | `/settings/currency/preview?currency=`                                | What a base-currency change would restate — `CHANGE_CURRENCY`                  |
+| `POST`                | `/settings/currency`                                                  | Restate every stored amount — `CHANGE_CURRENCY`, `confirm: true`               |
+| `GET`                 | `/health`                                                             | Database connectivity and latency                                              |
+| `POST`                | `/internal/reap-demo-sandboxes`                                       | The daily cron: expired sandboxes and trash past 30 days; bearer `CRON_SECRET` |
 
 ---
 
