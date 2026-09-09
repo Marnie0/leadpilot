@@ -1331,6 +1331,13 @@ serverless function. Moving to Render, Fly or a VPS is a config change, not a re
 filter on them without a correlated subquery per row. They are maintained in exactly one place —
 `server/src/lib/activity-log.ts`.
 
+`Lead.lastContactedAt` is the same idea for the newest logged call, email, meeting or WhatsApp. It
+is never edited directly: the composer's **When** control lets a rep log a conversation at the time
+it happened, and that is what moves the field. A backdated entry can only move the timestamps
+forward (`GREATEST` of the column and the entry's time), so catching up on last week's calls never
+drags a lead back in time; a future time is refused, because a call that has not happened yet is a
+follow-up.
+
 ---
 
 ## API
