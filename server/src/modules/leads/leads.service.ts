@@ -18,7 +18,7 @@ import {
   totalFrom,
   type GroupedAmount,
 } from '../../lib/money-totals.js';
-import { badRequest, forbidden, notFound } from '../../lib/errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../../lib/errors.js';
 import { paginate, toPrismaPagination } from '../../lib/pagination.js';
 import { can, canMutateLead, type Viewer } from '../../lib/permissions.js';
 import {
@@ -607,8 +607,24 @@ export async function purgeLead(actor: Actor, leadId: string, confirmName: strin
     throw badRequest('The name you typed does not match this lead', 'CONFIRMATION_MISMATCH');
   }
 
-  // Activities and follow-ups cascade — see the relations in schema.prisma.
-  await prisma.lead.delete({ where: { id: leadId } });
+  /*
+   * Conditional on still being in the trash. The checks above ran before this
+   * statement, and a restore can commit in between — another admin with the
+   * lead open puts it back, and this delete would then destroy an active lead
+   * together with its activity trail and follow-ups (they cascade — see the
+   * relations in schema.prisma). Postgres re-evaluates the condition against
+   * the committed row once any lock on it frees, so zero rows here means the
+   * lead left the trash, and the caller is told so rather than told "done".
+   */
+  const { count } = await prisma.lead.deleteMany({
+    where: { id: leadId, organizationId: actor.organizationId, deletedAt: { not: null } },
+  });
+  if (count === 0) {
+    throw conflict(
+      'That lead was restored from the trash just now, so it was not deleted',
+      'RESTORED_MEANWHILE',
+    );
+  }
 }
 
 /**

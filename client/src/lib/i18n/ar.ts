@@ -168,6 +168,7 @@ export const ar: Dictionary = {
   'apiError.FOLLOW_UP_NOT_PENDING': 'لم تعد هذه المتابعة مفتوحة',
   'apiError.ALREADY_TRASHED': 'هذه المتابعة في سلة المحذوفات بالفعل',
   'apiError.NOT_TRASHED': 'انقلها إلى سلة المحذوفات قبل حذفها نهائيًا',
+  'apiError.RESTORED_MEANWHILE': 'استعادها شخص ما من سلة المحذوفات للتو، فلم تُحذف',
   'apiError.CONFIRMATION_MISMATCH': 'ما كتبته لا يطابق المطلوب',
   'apiError.LAST_OWNER': 'لا بد أن يكون لمساحة العمل مالك دائمًا',
   'apiError.CANNOT_DEACTIVATE_SELF': 'لا يمكنك إلغاء تنشيط حسابك',

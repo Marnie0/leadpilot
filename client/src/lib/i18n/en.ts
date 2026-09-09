@@ -110,6 +110,8 @@ export const en = {
   'apiError.FOLLOW_UP_NOT_PENDING': 'That follow-up is no longer open',
   'apiError.ALREADY_TRASHED': 'That follow-up is already in the trash',
   'apiError.NOT_TRASHED': 'Move it to the trash before deleting it permanently',
+  'apiError.RESTORED_MEANWHILE':
+    'Somebody restored it from the trash just now, so it was not deleted',
   'apiError.CONFIRMATION_MISMATCH': 'What you typed does not match',
   'apiError.LAST_OWNER': 'A workspace must always have an owner',
   'apiError.CANNOT_DEACTIVATE_SELF': 'You cannot deactivate your own account',

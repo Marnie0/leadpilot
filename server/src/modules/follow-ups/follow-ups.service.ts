@@ -12,7 +12,7 @@ import type {
 } from '@leadpilot/shared';
 import { FOLLOW_UP_BUCKETS, TRASH_RETENTION_DAYS, UNASSIGNED } from '@leadpilot/shared';
 import { prisma } from '../../db.js';
-import { badRequest, forbidden, notFound } from '../../lib/errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../../lib/errors.js';
 import { paginate, toPrismaPagination } from '../../lib/pagination.js';
 import {
   FOLLOW_UP_SELECT,
@@ -499,7 +499,18 @@ export async function purgeFollowUp(actor: Actor, followUpId: string): Promise<v
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.followUp.delete({ where: { id: followUpId } });
+    // Conditional on still being in the trash, for the same reason as
+    // `purgeLead`: a restore that commits between the check above and this
+    // statement must win, not be silently destroyed.
+    const { count } = await tx.followUp.deleteMany({
+      where: { id: followUpId, organizationId: actor.organizationId, deletedAt: { not: null } },
+    });
+    if (count === 0) {
+      throw conflict(
+        'That follow-up was restored from the trash just now, so it was not deleted',
+        'RESTORED_MEANWHILE',
+      );
+    }
     await syncNextFollowUp(tx, existing.leadId);
   });
 }
