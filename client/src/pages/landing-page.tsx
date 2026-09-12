@@ -6,7 +6,7 @@ import {
   CalendarClock,
   Check,
   CircleDollarSign,
-  ExternalLink,
+  // ExternalLink,
   Gauge,
   Link2,
   Inbox,
@@ -32,7 +32,7 @@ import { useApiErrorMessage } from '@/lib/i18n/errors';
 import { DEMO_LEAD_COUNT } from '@/lib/constants';
 
 /** Where to reach the person who built this. */
-const PORTFOLIO_URL = 'https://portfolio-ih18.vercel.app/';
+// const PORTFOLIO_URL = 'https://portfolio-ih18.vercel.app/';
 
 /** Where deals actually go quiet. Named before the product is mentioned. */
 const PROBLEMS: { icon: LucideIcon; title: StaticKey; body: StaticKey }[] = [
@@ -631,9 +631,9 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t bg-muted/30">
+       <footer className="border-t bg-muted/30">
         <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-14">
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1.4fr]">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr]">
             <div>
               <Logo />
               <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
@@ -682,7 +682,9 @@ export function LandingPage() {
               The portfolio gets a card rather than a line of small print: it is
               the one link on this page that leaves the site, and hiding that
               behind "here" would tell nobody where they are going.
-            */}
+
+              Temporarily disabled — kept in source, just not rendered.
+
             <div className="rounded-xl border bg-card p-5">
               <h3 className="text-sm font-medium text-foreground">
                 {t('landing.footerContactTitle')}
@@ -700,6 +702,8 @@ export function LandingPage() {
                 <ExternalLink className="icon-directional size-3.5" aria-hidden />
               </a>
             </div>
+
+            */}
           </div>
 
           <div className="mt-10 flex flex-col gap-2 border-t pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
